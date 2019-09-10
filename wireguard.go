@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 const (
 	defaultPersistentKeepaliveInterval = 25 * time.Second
 	defaultDeviceName                  = "wg0"
+)
+
+var (
+	errMissingAllowedIPs = errors.New("allowedIPs cannot be empty")
 )
 
 func newPeerConfig(publicKey string, presharedKey string, endpoint string, allowedIPs []string) (*wgtypes.PeerConfig, error) {
@@ -40,6 +45,9 @@ func newPeerConfig(publicKey string, presharedKey string, endpoint string, allow
 			return nil, err
 		}
 		peer.AllowedIPs = append(peer.AllowedIPs, *network)
+	}
+	if len(peer.AllowedIPs) == 0 {
+		return nil, errMissingAllowedIPs
 	}
 	return peer, nil
 }
