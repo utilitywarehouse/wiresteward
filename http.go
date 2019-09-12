@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -23,12 +24,45 @@ const (
 	defaultListenAddress   = ":8080"
 	defaultSessionDuration = 24 * 3600 // 24 hours
 	oauthSessionDuration   = 5 * 60    // 5 minutes
+
+	tplMainSource = `<!DOCTYPE html>
+<html>
+<head>
+<title>wireguard-thingy</title>
+</head>
+<body>
+<form action="/">
+  <table style="border: 1px solid black;">
+	<tr>
+	  <td>username</td>
+	  <td>{{.Email}}</td>
+	</tr>
+	<tr>
+	  <td>wireguard <b>public</b> key</td>
+	  <td><input type="text" name="publicKey" size="64" value="{{.PublicKey}}"></td>
+	</tr>
+	<tr>
+	  <td>assigned ip address</td>
+	  <td><input type="text" name="publicKey" size="64" value="{{.AllowedIPs}}" readonly></td>
+	</tr>
+	<tr>
+	  <td></td>
+	  <td><input type="submit" value="update public key"></td>
+	</tr>
+  </table>
+  <a href="/config">Download config</a>
+</form>
+</body>
+</html>`
+
+	tplUserConfigSource = ``
 )
 
 var (
-	svc          *admin.Service
-	oAuthConfig  *oauth2.Config
-	sessionStore *sessions.CookieStore
+	tplMain, tplUserConfig *template.Template
+	svc                    *admin.Service
+	oAuthConfig            *oauth2.Config
+	sessionStore           *sessions.CookieStore
 
 	listenAddress                                = os.Getenv("WGS_LISTEN_ADDRESS")
 	googleClientID                               = os.Getenv("WGS_CLIENT_ID")
@@ -39,6 +73,11 @@ var (
 	allowedGoogleGroups                          = strings.Split(",", os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"))
 	cookieAuthenticationKey, cookieEncryptionKey []byte
 )
+
+func init() {
+	tplMain = template.Must(template.New("main").Parse(tplMainSource))
+	tplUserConfig = template.Must(template.New("userConfig").Parse(tplUserConfigSource))
+}
 
 func initServer() {
 	var err error
@@ -131,7 +170,21 @@ func mainHandler() http.Handler {
 			fmt.Fprintf(w, "could not get userinfo: %v", err)
 			return
 		}
-		fmt.Fprintf(w, "hi %s", uip.Email)
+		ugs, err := newPeerConfigFromGoogle(svc, uip.Email)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		allowedIPs := make([]string, len(ugs.AllowedIPs))
+		for i, v := range ugs.AllowedIPs {
+			allowedIPs[i] = v.String()
+		}
+		if err := tplMain.Execute(w, map[string]string{
+			"Email":      uip.Email,
+			"PublicKey":  ugs.PublicKey.String(),
+			"AllowedIPs": strings.Join(allowedIPs, ","),
+		}); err != nil {
+			log.Fatalln(err)
+		}
 	})
 }
 
