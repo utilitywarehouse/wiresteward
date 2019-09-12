@@ -36,8 +36,8 @@ var (
 	googleCallbackURL                            = os.Getenv("WGS_CALLBACK_URL")
 	googleAdminEmail                             = os.Getenv("WGS_ADMIN_EMAIL")
 	googleServiceAccountKeyPath                  = os.Getenv("WGS_SERVICE_ACCOUNT_KEY_PATH")
+	allowedGoogleGroups                          = strings.Split(",", os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"))
 	cookieAuthenticationKey, cookieEncryptionKey []byte
-	allowedGoogleGroups                          []string
 )
 
 func initServer() {
@@ -79,7 +79,6 @@ func initServer() {
 			log.Fatalf("Could not decode cookie encryption key: %v", err)
 		}
 	}
-	allowedGoogleGroups = strings.Split(",", os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"))
 	oAuthConfig = &oauth2.Config{
 		ClientID:     googleClientID,
 		ClientSecret: googleClientSecret,
@@ -99,6 +98,9 @@ func initServer() {
 	)
 	if err != nil {
 		log.Fatalf("Could not initialise google client: %v", err)
+	}
+	if err := ensureGSuiteCustomSchema(svc); err != nil {
+		log.Fatalf("Could not setup custom user schema: %v", err)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultPersistentKeepaliveInterval = 25 * time.Second
-	defaultDeviceName                  = "wg0"
+	defaultWireguardDeviceName         = "wg0"
 )
 
 var (
@@ -64,7 +64,7 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 		}
 	}()
 	if deviceName == "" {
-		deviceName = defaultDeviceName
+		deviceName = defaultWireguardDeviceName
 	}
 	return wg.ConfigureDevice(deviceName, wgtypes.Config{ReplacePeers: true, Peers: peers})
 }

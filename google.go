@@ -116,7 +116,7 @@ func getPeerConfigFromGoogleGroup(ctx context.Context, svc *admin.Service, group
 		for _, m := range membersPage.Members {
 			peer, err := newPeerConfigFromGoogle(svc, m.Id)
 			if err != nil {
-				log.Printf("error configuring user '%s': %s", m.Email, err)
+				log.Printf("Error configuring user '%s': %s", m.Email, err)
 				continue
 			}
 			if peer != nil {
