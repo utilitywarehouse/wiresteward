@@ -109,14 +109,14 @@ func mainHandler() http.Handler {
 		session, err := sessionStore.Get(r, "_wgs")
 		if err != nil {
 			if err := redirectToLogin(w, r); err != nil {
-				reportError(w, r, err)
+				reportError(w, err)
 			}
 			return
 		}
 		tok, ok := session.Values["token"].(*oauth2.Token)
 		if !ok || !tok.Valid() {
 			if err := redirectToLogin(w, r); err != nil {
-				reportError(w, r, err)
+				reportError(w, err)
 			}
 			return
 		}
@@ -139,27 +139,27 @@ func callbackHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		oauthSession, err := sessionStore.Get(r, r.FormValue("state"))
 		if err != nil {
-			reportError(w, r, fmt.Errorf("could not retrieve oauth session: %w", err))
+			reportError(w, fmt.Errorf("could not retrieve oauth session: %w", err))
 			return
 		}
 		oauthSession.Options.MaxAge = -1 // deletes the session
 		if err := oauthSession.Save(r, w); err != nil {
-			reportError(w, r, fmt.Errorf("could not delete oauth session: %w", err))
+			reportError(w, fmt.Errorf("could not delete oauth session: %w", err))
 			return
 		}
 		tok, err := oAuthConfig.Exchange(context.Background(), r.FormValue("code"))
 		if err != nil {
-			reportError(w, r, fmt.Errorf("could not exchange code for token: %w", err))
+			reportError(w, fmt.Errorf("could not exchange code for token: %w", err))
 			return
 		}
 		session, err := sessionStore.New(r, "_wgs")
 		if err != nil {
-			reportError(w, r, fmt.Errorf("could not create user session: %w", err))
+			reportError(w, fmt.Errorf("could not create user session: %w", err))
 			return
 		}
 		session.Values["token"] = tok
 		if err := session.Save(r, w); err != nil {
-			reportError(w, r, fmt.Errorf("could not save user session: %w", err))
+			reportError(w, fmt.Errorf("could not save user session: %w", err))
 			return
 		}
 		if redirectURL, ok := oauthSession.Values["redirect_to"].(string); ok {
@@ -168,7 +168,7 @@ func callbackHandler() http.Handler {
 	})
 }
 
-func reportError(w http.ResponseWriter, r *http.Request, err error) {
+func reportError(w http.ResponseWriter, err error) {
 	if err != nil {
 		log.Printf("user flow error: %v", err)
 	}
