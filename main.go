@@ -4,6 +4,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
+
+	"golang.org/x/net/context"
+	admin "google.golang.org/api/admin/directory/v1"
 )
 
 const (
@@ -36,4 +40,49 @@ func serve() {
 	}
 }
 
-func agent() {}
+func initAgent() {
+	var err error
+	if googleAdminEmail == "" {
+		log.Fatal("Environment variable WGS_ADMIN_EMAIL is not set")
+	}
+	if googleServiceAccountKeyPath == "" {
+		log.Fatal("Environment variable WGS_SERVICE_ACCOUNT_KEY_PATH is not set")
+	}
+	svc, err = newDirectoryService(
+		context.Background(),
+		googleServiceAccountKeyPath,
+		googleAdminEmail,
+		admin.AdminDirectoryUserReadonlyScope,
+		admin.AdminDirectoryGroupMemberReadonlyScope,
+	)
+	if err != nil {
+		log.Fatalf("Could not initialise google client: %v", err)
+	}
+	if err := ensureGSuiteCustomSchema(svc); err != nil {
+		log.Fatalf("Could not setup custom user schema: %v", err)
+	}
+}
+func agent() {
+	initAgent()
+	ctx := context.Background()
+	ticker := time.NewTicker(5 * time.Minute)
+	quit := make(chan struct{})
+	log.Print("Starting sync loop")
+	for {
+		select {
+		case <-ticker.C:
+			for _, groupKey := range allowedGoogleGroups {
+				peers, err := getPeerConfigFromGoogleGroup(ctx, svc, groupKey)
+				if err != nil {
+					log.Printf("Failed to fetch peer config: %v", err)
+				}
+				if err := setPeers("", peers); err != nil {
+					log.Printf("Failed to reconfigure peers: %v", err)
+				}
+			}
+		case <-quit:
+			ticker.Stop()
+			return
+		}
+	}
+}
