@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"net"
 	"time"
 
@@ -57,7 +58,11 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	if err != nil {
 		return err
 	}
-	defer wg.Close()
+	defer func() {
+		if err := wg.Close(); err != nil {
+			log.Fatalf("Failed to close wireguard client: %v", err)
+		}
+	}()
 	if deviceName == "" {
 		deviceName = defaultDeviceName
 	}
