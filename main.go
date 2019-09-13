@@ -58,9 +58,6 @@ func initAgent() {
 	if err != nil {
 		log.Fatalf("Could not initialise google client: %v", err)
 	}
-	if err := ensureGSuiteCustomSchema(svc); err != nil {
-		log.Fatalf("Could not setup custom user schema: %v", err)
-	}
 }
 func agent() {
 	initAgent()
@@ -75,9 +72,11 @@ func agent() {
 				peers, err := getPeerConfigFromGoogleGroup(ctx, svc, groupKey)
 				if err != nil {
 					log.Printf("Failed to fetch peer config: %v", err)
+					continue
 				}
 				if err := setPeers("", peers); err != nil {
 					log.Printf("Failed to reconfigure peers: %v", err)
+					continue
 				}
 			}
 		case <-quit:

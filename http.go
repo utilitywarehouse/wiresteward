@@ -22,6 +22,7 @@ import (
 
 const (
 	defaultListenAddress   = ":8080"
+	defaultSessionKey      = "_wgs"
 	defaultSessionDuration = 24 * 3600 // 24 hours
 	oauthSessionDuration   = 5 * 60    // 5 minutes
 
@@ -31,7 +32,7 @@ const (
 <title>wireguard-thingy</title>
 </head>
 <body>
-<form action="/">
+<form action="/" method="post">
   <table style="border: 1px solid black;">
 	<tr>
 	  <td>username</td>
@@ -43,7 +44,7 @@ const (
 	</tr>
 	<tr>
 	  <td>assigned ip address</td>
-	  <td><input type="text" name="publicKey" size="64" value="{{.AllowedIPs}}" readonly></td>
+	  <td><input type="text" name="allowedIPs" size="64" value="{{.AllowedIPs}}" readonly></td>
 	</tr>
 	<tr>
 	  <td></td>
@@ -70,7 +71,7 @@ var (
 	googleCallbackURL                            = os.Getenv("WGS_CALLBACK_URL")
 	googleAdminEmail                             = os.Getenv("WGS_ADMIN_EMAIL")
 	googleServiceAccountKeyPath                  = os.Getenv("WGS_SERVICE_ACCOUNT_KEY_PATH")
-	allowedGoogleGroups                          = strings.Split(",", os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"))
+	allowedGoogleGroups                          = strings.Split(os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"), ",")
 	cookieAuthenticationKey, cookieEncryptionKey []byte
 )
 
