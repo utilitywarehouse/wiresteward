@@ -61,7 +61,7 @@ const (
 
 var (
 	tplMain, tplUserConfig *template.Template
-	svc                    *admin.Service
+	gsuiteService          *admin.Service
 	oAuthConfig            *oauth2.Config
 	sessionStore           *sessions.CookieStore
 

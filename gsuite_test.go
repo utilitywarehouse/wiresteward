@@ -68,11 +68,11 @@ func TestEnsureGSuiteCustomSchema_Update(t *testing.T) {
 		}
 		return newFakeHTTPResponse(400, `{}`)
 	}))
-	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
 	if err != nil {
 		t.Errorf("TestEnsureGSuiteCustomSchema_Update: %v", err)
 	}
-	if err = ensureGSuiteCustomSchema(srv); err != nil {
+	if err = ensureGSuiteCustomSchema(svc); err != nil {
 		t.Errorf("ensureGSuiteCustomSchema: %v", err)
 	}
 }
@@ -91,11 +91,11 @@ func TestEnsureGSuiteCustomSchema_Insert(t *testing.T) {
 		}
 		return newFakeHTTPResponse(200, `{}`)
 	}))
-	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
 	if err != nil {
 		t.Errorf("TestEnsureGSuiteCustomSchema_Insert: %v", err)
 	}
-	if err = ensureGSuiteCustomSchema(srv); err != nil {
+	if err = ensureGSuiteCustomSchema(svc); err != nil {
 		t.Errorf("ensureGSuiteCustomSchema: %v", err)
 	}
 }
@@ -113,11 +113,11 @@ func TestGetPeerConfigFromGsuiteGroup(t *testing.T) {
 		}
 		return newFakeHTTPResponse(400, `{}`)
 	}))
-	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
 	if err != nil {
 		t.Errorf("TestGetPeerConfigFromGsuiteGroup: %v", err)
 	}
-	peers, err := getPeerConfigFromGsuiteGroup(context.Background(), srv, "foobarbaz")
+	peers, err := getPeerConfigFromGsuiteGroup(context.Background(), svc, "foobarbaz")
 	if err != nil {
 		t.Errorf("getPeerConfigFromGsuiteGroup: %v", err)
 	}
@@ -142,12 +142,12 @@ func TestUpdatePeerConfigInGsuite(t *testing.T) {
 		}
 		return newFakeHTTPResponse(400, `{}`)
 	}))
-	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
 	if err != nil {
 		t.Errorf("TestUpdatePeerConfigInGsuite: %v", err)
 	}
 	expected, _ := newPeerConfig(validPublicKey, "", "", validAllowedIPs)
-	peer, err := updatePeerConfigInGsuite(srv, "foobarbaz", expected)
+	peer, err := updatePeerConfigInGsuite(svc, "foobarbaz", expected)
 	if err != nil {
 		t.Errorf("updatePeerConfigInGsuite: %v", err)
 	}

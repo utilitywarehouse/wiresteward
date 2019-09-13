@@ -48,7 +48,7 @@ func initAgent() {
 	if googleServiceAccountKeyPath == "" {
 		log.Fatal("Environment variable WGS_SERVICE_ACCOUNT_KEY_PATH is not set")
 	}
-	svc, err = newDirectoryService(
+	gsuiteService, err = newDirectoryService(
 		context.Background(),
 		googleServiceAccountKeyPath,
 		googleAdminEmail,
@@ -70,7 +70,7 @@ func agent() {
 		select {
 		case <-ticker.C:
 			for _, groupKey := range allowedGoogleGroups {
-				peers, err := getPeerConfigFromGsuiteGroup(ctx, svc, groupKey)
+				peers, err := getPeerConfigFromGsuiteGroup(ctx, gsuiteService, groupKey)
 				if err != nil {
 					log.Printf("Failed to fetch peer config: %v", err)
 					continue

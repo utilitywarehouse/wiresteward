@@ -65,11 +65,11 @@ func newDirectoryService(ctx context.Context, jwtPath, asUser string, scope ...s
 		return nil, err
 	}
 	cfg.Subject = asUser
-	srv, err := admin.NewService(ctx, option.WithTokenSource(cfg.TokenSource(ctx)))
+	svc, err := admin.NewService(ctx, option.WithTokenSource(cfg.TokenSource(ctx)))
 	if err != nil {
 		return nil, err
 	}
-	return srv, nil
+	return svc, nil
 }
 
 // Requires scope `admin.AdminDirectoryUserschemaScope`
