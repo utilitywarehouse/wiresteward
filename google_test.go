@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -18,8 +20,8 @@ import (
 var (
 	pathCustomSchemasPut  = fmt.Sprintf("/admin/directory/v1/customer/%s/schemas/%s", gSuiteCustomerId, gSuiteCustomSchemaKey)
 	pathCustomSchemasPost = fmt.Sprintf("/admin/directory/v1/customer/%s/schemas", gSuiteCustomerId)
-	pathMembersGet        = "/admin/directory/v1/groups/foobarbaz/members"
-	pathUsersGet          = "/admin/directory/v1/users"
+	pathMembers           = "/admin/directory/v1/groups/foobarbaz/members"
+	pathUsers             = "/admin/directory/v1/users"
 
 	responseBodyMembersGet = `{"members":[
     {"id":"012345678901234567890", "email": "foo0@bar.baz"},
@@ -98,12 +100,12 @@ func TestEnsureGSuiteCustomSchema_Insert(t *testing.T) {
 	}
 }
 
-func TestGetPeerConfigFromGoogleGroup(t *testing.T) {
+func TestGetPeerConfigFromGsuiteGroup(t *testing.T) {
 	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
-		if req.Method == http.MethodGet && req.URL.Path == pathMembersGet {
+		if req.Method == http.MethodGet && req.URL.Path == pathMembers {
 			return newFakeHTTPResponse(200, responseBodyMembersGet)
 		}
-		if req.Method == http.MethodGet && path.Dir(req.URL.Path) == pathUsersGet {
+		if req.Method == http.MethodGet && path.Dir(req.URL.Path) == pathUsers {
 			if v, ok := responseBodyUsersGet[path.Base(req.URL.Path)]; ok {
 				return newFakeHTTPResponse(200, v)
 			}
@@ -113,15 +115,43 @@ func TestGetPeerConfigFromGoogleGroup(t *testing.T) {
 	}))
 	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
 	if err != nil {
-		t.Errorf("TestGetPeerConfigFromGoogleGroup: %v", err)
+		t.Errorf("TestGetPeerConfigFromGsuiteGroup: %v", err)
 	}
-	peers, err := getPeerConfigFromGoogleGroup(context.Background(), srv, "foobarbaz")
+	peers, err := getPeerConfigFromGsuiteGroup(context.Background(), srv, "foobarbaz")
 	if err != nil {
-		t.Errorf("getPeerConfigFromGoogleGroup: %v", err)
+		t.Errorf("getPeerConfigFromGsuiteGroup: %v", err)
 	}
 	ep, _ := newPeerConfig(validPublicKey, "", "", validAllowedIPs)
 	expected := []wgtypes.PeerConfig{*ep}
 	if diff := cmp.Diff(expected, peers); diff != "" {
-		t.Errorf("getPeerConfigFromGoogleGroup: did not get expected result:\n%s", diff)
+		t.Errorf("getPeerConfigFromGsuiteGroup: did not get expected result:\n%s", diff)
+	}
+}
+
+func TestUpdatePeerConfigInGsuite(t *testing.T) {
+	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodPut && req.URL.Path == path.Join(pathUsers, "foobarbaz") {
+			defer func() {
+				io.Copy(ioutil.Discard, req.Body)
+				req.Body.Close()
+			}()
+			u := &admin.User{}
+			json.NewDecoder(req.Body).Decode(u)
+			resp, _ := u.MarshalJSON()
+			return newFakeHTTPResponse(200, string(resp))
+		}
+		return newFakeHTTPResponse(400, `{}`)
+	}))
+	srv, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	if err != nil {
+		t.Errorf("TestUpdatePeerConfigInGsuite: %v", err)
+	}
+	expected, _ := newPeerConfig(validPublicKey, "", "", validAllowedIPs)
+	peer, err := updatePeerConfigInGsuite(srv, "foobarbaz", expected)
+	if err != nil {
+		t.Errorf("updatePeerConfigInGsuite: %v", err)
+	}
+	if diff := cmp.Diff(expected, peer); diff != "" {
+		t.Errorf("updatePeerConfigInGsuite: did not get expected result:\n%s", diff)
 	}
 }

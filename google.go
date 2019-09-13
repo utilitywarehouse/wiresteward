@@ -46,9 +46,13 @@ var (
 	}
 )
 
-type wireguardCustomSchema struct {
-	AllowedIPs []struct{ Value string }
-	PublicKey  string
+type customSchemaWireguard struct {
+	AllowedIPs []customSchemaAllowedIPs `json:"allowedIPs"`
+	PublicKey  string                   `json:"publicKey"`
+}
+
+type customSchemaAllowedIPs struct {
+	Value string `json:"value"`
 }
 
 func newDirectoryService(ctx context.Context, jwtPath, asUser string, scope ...string) (*admin.Service, error) {
@@ -84,37 +88,35 @@ func ensureGSuiteCustomSchema(svc *admin.Service) error {
 }
 
 // Requires scope `admin.AdminDirectoryUserReadonlyScope`
-func newPeerConfigFromGoogle(svc *admin.Service, userId string) (*wgtypes.PeerConfig, error) {
+func getPeerConfigFromGsuite(svc *admin.Service, userId string) (*wgtypes.PeerConfig, error) {
 	user, err := svc.Users.Get(userId).Projection("custom").CustomFieldMask(gSuiteCustomSchemaKey).Do()
 	if err != nil {
 		return nil, err
 	}
-	schema, ok := user.CustomSchemas[gSuiteCustomSchemaKey]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", errUserMissingConfiguration, user.PrimaryEmail)
-	}
-	cfg := wireguardCustomSchema{}
-	if err := json.Unmarshal(schema, &cfg); err != nil {
+	return gsuiteUserToPeerConfig(user)
+}
+
+// Requires scope `admin.AdminDirectoryUserScope`
+func updatePeerConfigInGsuite(svc *admin.Service, userId string, peer *wgtypes.PeerConfig) (*wgtypes.PeerConfig, error) {
+	user, err := peerConfigToGsuiteUser(peer)
+	if err != nil {
 		return nil, err
 	}
-	if cfg.PublicKey == "" || len(cfg.AllowedIPs) == 0 {
-		return nil, fmt.Errorf("%w: %s", errUserMissingConfiguration, user.PrimaryEmail)
+	user, err = svc.Users.Update(userId, user).Do()
+	if err != nil {
+		return nil, err
 	}
-	ips := make([]string, len(cfg.AllowedIPs))
-	for i, v := range cfg.AllowedIPs {
-		ips[i] = v.Value
-	}
-	return newPeerConfig(cfg.PublicKey, "", "", ips)
+	return gsuiteUserToPeerConfig(user)
 }
 
 // Requires scopes:
 // - `admin.AdminDirectoryGroupMemberReadonlyScope`
 // - `admin.AdminDirectoryUserReadonlyScope`
-func getPeerConfigFromGoogleGroup(ctx context.Context, svc *admin.Service, groupKey string) ([]wgtypes.PeerConfig, error) {
+func getPeerConfigFromGsuiteGroup(ctx context.Context, svc *admin.Service, groupKey string) ([]wgtypes.PeerConfig, error) {
 	ret := []wgtypes.PeerConfig{}
 	err := svc.Members.List(groupKey).Pages(ctx, func(membersPage *admin.Members) error {
 		for _, m := range membersPage.Members {
-			peer, err := newPeerConfigFromGoogle(svc, m.Id)
+			peer, err := getPeerConfigFromGsuite(svc, m.Id)
 			if err != nil {
 				log.Printf("Error configuring user '%s': %s", m.Email, err)
 				continue
@@ -129,4 +131,38 @@ func getPeerConfigFromGoogleGroup(ctx context.Context, svc *admin.Service, group
 		return nil, err
 	}
 	return ret, nil
+}
+
+func gsuiteUserToPeerConfig(user *admin.User) (*wgtypes.PeerConfig, error) {
+	schema, ok := user.CustomSchemas[gSuiteCustomSchemaKey]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", errUserMissingConfiguration, user.PrimaryEmail)
+	}
+	cfg := customSchemaWireguard{}
+	if err := json.Unmarshal(schema, &cfg); err != nil {
+		return nil, err
+	}
+	if cfg.PublicKey == "" || len(cfg.AllowedIPs) == 0 {
+		return nil, fmt.Errorf("%w: %s", errUserMissingConfiguration, user.PrimaryEmail)
+	}
+	ips := make([]string, len(cfg.AllowedIPs))
+	for i, v := range cfg.AllowedIPs {
+		ips[i] = v.Value
+	}
+	return newPeerConfig(cfg.PublicKey, "", "", ips)
+}
+
+func peerConfigToGsuiteUser(peer *wgtypes.PeerConfig) (*admin.User, error) {
+	allowedIPs := make([]customSchemaAllowedIPs, len(peer.AllowedIPs))
+	for i, v := range peer.AllowedIPs {
+		allowedIPs[i].Value = v.String()
+	}
+	cs, err := json.Marshal(customSchemaWireguard{
+		AllowedIPs: allowedIPs,
+		PublicKey:  peer.PublicKey.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &admin.User{CustomSchemas: map[string]googleapi.RawMessage{gSuiteCustomSchemaKey: cs}}, nil
 }

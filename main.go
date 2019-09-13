@@ -59,6 +59,7 @@ func initAgent() {
 		log.Fatalf("Could not initialise google client: %v", err)
 	}
 }
+
 func agent() {
 	initAgent()
 	ctx := context.Background()
@@ -69,7 +70,7 @@ func agent() {
 		select {
 		case <-ticker.C:
 			for _, groupKey := range allowedGoogleGroups {
-				peers, err := getPeerConfigFromGoogleGroup(ctx, svc, groupKey)
+				peers, err := getPeerConfigFromGsuiteGroup(ctx, svc, groupKey)
 				if err != nil {
 					log.Printf("Failed to fetch peer config: %v", err)
 					continue
