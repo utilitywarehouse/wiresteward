@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	usage           = `usage: wireguard-thing (server|agent)`
-	serverPeersPath = "servers.json"
+	usage                        = `usage: wireguard-thing (server|agent)`
+	defaultServerPeerConfigPath  = "servers.json"
+	defaultServiceAccountKeyPath = "sa.json"
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 	googleCallbackURL                            = os.Getenv("WGS_CALLBACK_URL")
 	googleAdminEmail                             = os.Getenv("WGS_ADMIN_EMAIL")
 	googleServiceAccountKeyPath                  = os.Getenv("WGS_SERVICE_ACCOUNT_KEY_PATH")
+	wireguardServerPeerConfigPath                = os.Getenv("WGS_SERVER_PEER_CONFIG_PATH")
 	allowedGoogleGroups                          = strings.Split(os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"), ",")
 	cookieAuthenticationKey, cookieEncryptionKey []byte
 	serverPeers                                  []map[string]string
@@ -70,8 +72,11 @@ func initServer() {
 	if googleAdminEmail == "" {
 		log.Fatal("Environment variable WGS_ADMIN_EMAIL is not set")
 	}
+	if wireguardServerPeerConfigPath == "" {
+		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
+	}
 	if googleServiceAccountKeyPath == "" {
-		log.Fatal("Environment variable WGS_SERVICE_ACCOUNT_KEY_PATH is not set")
+		googleServiceAccountKeyPath = defaultServiceAccountKeyPath
 	}
 	if cs := os.Getenv("WGS_COOKIE_AUTHENTICATION_KEY"); cs == "" {
 		log.Print("Environment variable WGS_COOKIE_AUTHENTICATION_KEY is not set, will generate a temporary key")
@@ -91,7 +96,7 @@ func initServer() {
 			log.Fatalf("Could not decode cookie encryption key: %v", err)
 		}
 	}
-	sp, err := ioutil.ReadFile(serverPeersPath)
+	sp, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
 	if err != nil {
 		log.Fatalf("Could not load server peer info: %v", err)
 	}

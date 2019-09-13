@@ -1,4 +1,4 @@
 .terraform/
 *tfstate*
-secrets/
 servers.json
+sa.json
