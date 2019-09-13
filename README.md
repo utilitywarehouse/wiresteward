@@ -7,12 +7,10 @@
 
 #### GCP Service Account
 
-In GCP, under the `uw-system` project, there is a ServiceAccount called `wireguard-sa-client`.
-
-The user does not have any roles assigned to it but it needs to have the "G Suite Domain-wide Delegation" option enabled, as well as the required scopes assigned to it:
-
-- `https://www.googleapis.com/auth/admin.directory.user`
-- `https://www.googleapis.com/auth/admin.directory.group.member.readonly`
+In [terraform/service_accounts.tf](terraform/service_accounts.tf) you will find
+configuration for two GCP Service Accounts: one for the server and one for the
+agents. It also provides you with instructions on how to set up their
+permissions, a manual step.
 
 See [here][gcp-domain-wide-delegation] for more details on how to set it up.
 

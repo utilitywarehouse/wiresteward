@@ -110,11 +110,6 @@ EOF
   }
 }
 
-
-output "ami" {
-  value = data.aws_ami.debian.name
-}
-
 output "public_ips" {
   value = aws_instance.peer[0].public_ip
 }
