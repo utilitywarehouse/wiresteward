@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +19,8 @@ import (
 )
 
 const (
-	usage = `usage: wireguard-thing (server|agent)`
+	usage           = `usage: wireguard-thing (server|agent)`
+	serverPeersPath = "servers.json"
 )
 
 var (
@@ -33,6 +36,7 @@ var (
 	googleServiceAccountKeyPath                  = os.Getenv("WGS_SERVICE_ACCOUNT_KEY_PATH")
 	allowedGoogleGroups                          = strings.Split(os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"), ",")
 	cookieAuthenticationKey, cookieEncryptionKey []byte
+	serverPeers                                  []map[string]string
 )
 
 func main() {
@@ -86,6 +90,13 @@ func initServer() {
 		if err != nil {
 			log.Fatalf("Could not decode cookie encryption key: %v", err)
 		}
+	}
+	sp, err := ioutil.ReadFile(serverPeersPath)
+	if err != nil {
+		log.Fatalf("Could not load server peer info: %v", err)
+	}
+	if err := json.Unmarshal(sp, &serverPeers); err != nil {
+		log.Fatalf("Could not parse server peer info: %v", err)
 	}
 	oAuthConfig = &oauth2.Config{
 		ClientID:     googleClientID,
