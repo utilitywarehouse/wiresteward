@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -67,4 +68,12 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 		deviceName = defaultWireguardDeviceName
 	}
 	return wg.ConfigureDevice(deviceName, wgtypes.Config{ReplacePeers: true, Peers: peers})
+}
+
+func addNetlinkRoute() error {
+	link, err := netlink.LinkByName(defaultWireguardDeviceName)
+	if err != nil {
+		return err
+	}
+	return netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: userPeerSubnet})
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -22,6 +23,7 @@ const (
 	usage                        = `usage: wireguard-thing (server|agent)`
 	defaultServerPeerConfigPath  = "servers.json"
 	defaultServiceAccountKeyPath = "sa.json"
+	defaultUserPeerSubnet        = "10.250.0.0/24"
 )
 
 var (
@@ -39,7 +41,20 @@ var (
 	allowedGoogleGroups                          = strings.Split(os.Getenv("WGS_ALLOWED_GOOGLE_GROUPS"), ",")
 	cookieAuthenticationKey, cookieEncryptionKey []byte
 	serverPeers                                  []map[string]string
+	userPeerSubnet                               *net.IPNet
 )
+
+func init() {
+	ups := os.Getenv("WGS_USER_PEER_SUBNET")
+	if ups == "" {
+		ups = defaultUserPeerSubnet
+	}
+	_, net, err := net.ParseCIDR(ups)
+	if err != nil {
+		log.Fatalf("Could not parse user peer subnet: %v", err)
+	}
+	userPeerSubnet = net
+}
 
 func main() {
 	if len(os.Args) != 2 {
@@ -160,6 +175,9 @@ func initAgent() {
 	)
 	if err != nil {
 		log.Fatalf("Could not initialise google client: %v", err)
+	}
+	if err := addNetlinkRoute(); err != nil {
+		log.Fatalf("Could not setup ip routes: %v", err)
 	}
 }
 
