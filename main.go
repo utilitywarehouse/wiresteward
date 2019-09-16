@@ -149,7 +149,7 @@ func initAgent() {
 		log.Fatal("Environment variable WGS_ADMIN_EMAIL is not set")
 	}
 	if googleServiceAccountKeyPath == "" {
-		log.Fatal("Environment variable WGS_SERVICE_ACCOUNT_KEY_PATH is not set")
+		googleServiceAccountKeyPath = defaultServiceAccountKeyPath
 	}
 	gsuiteService, err = newDirectoryService(
 		context.Background(),
