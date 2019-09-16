@@ -89,7 +89,7 @@ func ensureGSuiteCustomSchema(svc *admin.Service) error {
 
 // Requires scope `admin.AdminDirectoryUserReadonlyScope`
 func getPeerConfigFromGsuite(svc *admin.Service, userId string) (*wgtypes.PeerConfig, error) {
-	user, err := svc.Users.Get(userId).Projection("custom").CustomFieldMask(gSuiteCustomSchemaKey).Do()
+	user, err := svc.Users.Get(userId).Projection("custom").CustomFieldMask(gSuiteCustomSchemaKey).Fields("id", "primaryEmail", "customSchemas").Do()
 	if err != nil {
 		return nil, err
 	}
