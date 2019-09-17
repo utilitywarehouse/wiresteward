@@ -131,14 +131,19 @@ func getPeerConfigFromGsuiteGroup(ctx context.Context, svc *admin.Service, group
 	if err != nil {
 		return nil, err
 	}
-	if err := svc.Members.List(groupKey).Pages(ctx, func(membersPage *admin.Members) error {
-		for _, m := range membersPage.Members {
-			if v, ok := peers[m.Id]; ok {
-				ret = append(ret, v)
+	if err := svc.Members.List(groupKey).
+		Fields("members(id)", "nextPageToken").
+		Pages(ctx, func(membersPage *admin.Members) error {
+			for _, m := range membersPage.Members {
+				// if m.Email != "dkaragiannis@utilitywarehouse.co.uk" {
+				// 	continue
+				// }
+				if v, ok := peers[m.Id]; ok {
+					ret = append(ret, v)
+				}
 			}
-		}
-		return nil
-	}); err != nil {
+			return nil
+		}); err != nil {
 		return nil, err
 	}
 	return ret, nil
