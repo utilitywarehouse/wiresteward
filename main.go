@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	usage                        = `usage: wireguard-thing (server|agent)`
+	usage                        = `usage: wiresteward (server|agent)`
 	defaultServerPeerConfigPath  = "servers.json"
 	defaultServiceAccountKeyPath = "sa.json"
 	defaultUserPeerSubnet        = "10.250.0.0/24"

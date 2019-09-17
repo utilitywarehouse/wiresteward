@@ -25,7 +25,7 @@ const (
 	tplMainSource = `<!DOCTYPE html>
 <html>
 <head>
-<title>wireguard-thingy</title>
+<title>wiresteward</title>
 </head>
 <body>
 <form action="/" method="post">
@@ -66,7 +66,7 @@ PersistentKeepalive = 25
 	genericErrorMessage = `<!DOCTYPE html>
 <html>
 <head>
-<title>wireguard-thingy</title>
+<title>wiresteward</title>
 </head>
 <body>
 <div>
