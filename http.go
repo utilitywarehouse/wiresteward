@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 
 	"github.com/gofrs/uuid"
 	"golang.org/x/oauth2"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	oauth2api "google.golang.org/api/oauth2/v2"
 )
 
@@ -140,28 +140,35 @@ func mainHandler() http.Handler {
 			reportRedirectError(w, r, err)
 			return
 		}
-		var peer *wgtypes.PeerConfig
-		switch r.Method {
-		case http.MethodPost:
-			peer, err = newPeerConfig(r.FormValue("publicKey"), "", "", strings.Split(r.FormValue("allowedIPs"), ","))
+		if r.Method != http.MethodPost && r.Method != http.MethodGet {
+			plainHTTPError(w, http.StatusBadRequest)
+			return
+		}
+		peer, err := getPeerConfigFromGsuite(gsuiteService, email)
+		if err != nil {
+			reportFatalError(w, err)
+			return
+		}
+		if r.Method == http.MethodPost {
+			p, err := newPeerConfig(r.FormValue("publicKey"), "", "", nil)
 			if err != nil {
 				reportFatalError(w, err)
 				return
+			}
+			copy(peer.PublicKey[:], p.PublicKey[:])
+			if len(peer.AllowedIPs) == 0 {
+				ip, err := findNextAvailablePeerAddress(gsuiteService, userPeerSubnet)
+				if err != nil {
+					reportFatalError(w, err)
+					return
+				}
+				peer.AllowedIPs = []net.IPNet{*ip}
 			}
 			peer, err = updatePeerConfigInGsuite(gsuiteService, email, peer)
 			if err != nil {
 				reportFatalError(w, err)
 				return
 			}
-		case http.MethodGet:
-			peer, err = getPeerConfigFromGsuite(gsuiteService, email)
-			if err != nil {
-				reportFatalError(w, err)
-				return
-			}
-		default:
-			plainHTTPError(w, http.StatusBadRequest)
-			return
 		}
 		allowedIPs := make([]string, len(peer.AllowedIPs))
 		for i, v := range peer.AllowedIPs {
