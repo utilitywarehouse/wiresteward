@@ -145,7 +145,7 @@ func TestUpdatePeerConfigInGsuite(t *testing.T) {
 		t.Errorf("TestUpdatePeerConfigInGsuite: %v", err)
 	}
 	expected, _ := newPeerConfig(validPublicKey, "", "", validAllowedIPs)
-	peer, err := updatePeerConfigInGsuite(svc, "foobarbaz", expected)
+	peer, err := updatePeerConfigForGsuiteUser(svc, "foobarbaz", expected)
 	if err != nil {
 		t.Errorf("updatePeerConfigInGsuite: %v", err)
 	}

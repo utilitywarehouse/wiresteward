@@ -96,7 +96,7 @@ func ensureGSuiteCustomSchema(svc *admin.Service) error {
 }
 
 // Requires scope `admin.AdminDirectoryUserReadonlyScope`
-func getPeerConfigFromGsuite(svc *admin.Service, userId string) (*wgtypes.PeerConfig, error) {
+func getPeerConfigFromGsuiteUser(svc *admin.Service, userId string) (*wgtypes.PeerConfig, error) {
 	user, err := svc.Users.Get(userId).
 		Projection("custom").
 		CustomFieldMask(gSuiteCustomSchemaKey).
@@ -109,7 +109,7 @@ func getPeerConfigFromGsuite(svc *admin.Service, userId string) (*wgtypes.PeerCo
 }
 
 // Requires scope `admin.AdminDirectoryUserScope`
-func updatePeerConfigInGsuite(svc *admin.Service, userId string, peer *wgtypes.PeerConfig) (*wgtypes.PeerConfig, error) {
+func updatePeerConfigForGsuiteUser(svc *admin.Service, userId string, peer *wgtypes.PeerConfig) (*wgtypes.PeerConfig, error) {
 	user, err := peerConfigToGsuiteUser(peer)
 	if err != nil {
 		return nil, err

@@ -144,7 +144,7 @@ func mainHandler() http.Handler {
 			plainHTTPError(w, http.StatusBadRequest)
 			return
 		}
-		peer, err := getPeerConfigFromGsuite(gsuiteService, email)
+		peer, err := getPeerConfigFromGsuiteUser(gsuiteService, email)
 		if err != nil {
 			reportFatalError(w, err)
 			return
@@ -164,7 +164,7 @@ func mainHandler() http.Handler {
 				}
 				peer.AllowedIPs = []net.IPNet{*ip}
 			}
-			peer, err = updatePeerConfigInGsuite(gsuiteService, email, peer)
+			peer, err = updatePeerConfigForGsuiteUser(gsuiteService, email, peer)
 			if err != nil {
 				reportFatalError(w, err)
 				return
@@ -196,7 +196,7 @@ func configHandler() http.Handler {
 			reportRedirectError(w, r, err)
 			return
 		}
-		peer, err := getPeerConfigFromGsuite(gsuiteService, email)
+		peer, err := getPeerConfigFromGsuiteUser(gsuiteService, email)
 		if err != nil {
 			reportFatalError(w, err)
 			return
