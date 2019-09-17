@@ -28,6 +28,13 @@ var (
 		DisplayName: gSuiteCustomSchemaKey,
 		Fields: []*admin.SchemaFieldSpec{
 			&admin.SchemaFieldSpec{
+				DisplayName:    "enabled",
+				FieldName:      "enabled",
+				FieldType:      "STRING",
+				MultiValued:    false,
+				ReadAccessType: "ADMINS_AND_SELF",
+			},
+			&admin.SchemaFieldSpec{
 				DisplayName:    "publicKey",
 				FieldName:      "publicKey",
 				FieldType:      "STRING",
@@ -48,6 +55,7 @@ var (
 
 type customSchemaWireguard struct {
 	AllowedIPs []customSchemaAllowedIPs `json:"allowedIPs"`
+	Enabled    string                   `json:"enabled"`
 	PublicKey  string                   `json:"publicKey"`
 }
 
@@ -159,6 +167,7 @@ func peerConfigToGsuiteUser(peer *wgtypes.PeerConfig) (*admin.User, error) {
 	}
 	cs, err := json.Marshal(customSchemaWireguard{
 		AllowedIPs: allowedIPs,
+		Enabled:    "true",
 		PublicKey:  peer.PublicKey.String(),
 	})
 	if err != nil {
