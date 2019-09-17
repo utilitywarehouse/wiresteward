@@ -163,11 +163,13 @@ func serve() {
 
 func initAgent() {
 	var err error
-	ri, err := strconv.Atoi(os.Getenv("WGS_REFRESH_INTERVAL"))
-	if err != nil {
-		log.Fatalf("Cannot convert refresh interval to a number: %v", err)
+	if v := os.Getenv("WGS_REFRESH_INTERVAL"); v != "" {
+		ri, err := strconv.Atoi(v)
+		if err != nil {
+			log.Fatalf("Cannot convert refresh interval to a number: %v", err)
+		}
+		refreshInterval = time.Duration(ri) * time.Minute
 	}
-	refreshInterval = time.Duration(ri) * time.Minute
 	if refreshInterval == 0 {
 		refreshInterval = defaultRefreshInterval
 	}
