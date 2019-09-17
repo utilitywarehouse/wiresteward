@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"log"
 	"net"
 
 	"golang.org/x/net/context"
@@ -10,27 +9,15 @@ import (
 )
 
 func findNextAvailablePeerAddress(ctx context.Context, svc *admin.Service, cidr *net.IPNet) (*net.IPNet, error) {
-	allocatedIPs := []net.IP{}
-	if err := svc.Users.List().
-		Customer(gSuiteCustomerId).
-		Projection("custom").
-		CustomFieldMask(gSuiteCustomSchemaKey).
-		Fields("nextPageToken", "users(id,primaryEmail,customSchemas/"+gSuiteCustomSchemaKey+")").
-		Query(gSuiteCustomSchemaKey+".enabled=true").
-		Pages(context.Background(), func(u *admin.Users) error {
-			for _, user := range u.Users {
-				peer, err := gsuiteUserToPeerConfig(user)
-				if err != nil {
-					log.Printf("Could not parse peer config: %v", err)
-					continue
-				}
-				for _, v := range peer.AllowedIPs {
-					allocatedIPs = append(allocatedIPs, v.IP)
-				}
-			}
-			return nil
-		}); err != nil {
+	peers, err := getPeerConfigFromGsuite(ctx, svc)
+	if err != nil {
 		return nil, err
+	}
+	allocatedIPs := []net.IP{}
+	for _, p := range peers {
+		for _, v := range p.AllowedIPs {
+			allocatedIPs = append(allocatedIPs, v.IP)
+		}
 	}
 	availableIPs, err := getAvailableIPAddresses(cidr, allocatedIPs)
 	if err != nil {
