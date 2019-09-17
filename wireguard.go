@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/vishvananda/netlink"
@@ -61,7 +62,7 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			log.Fatalf("Failed to close wireguard client: %v", err)
+			log.Printf("Failed to close wireguard client: %v", err)
 		}
 	}()
 	if deviceName == "" {
@@ -75,5 +76,10 @@ func addNetlinkRoute() error {
 	if err != nil {
 		return err
 	}
-	return netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: userPeerSubnet})
+	err = netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: userPeerSubnet})
+	if err == syscall.EEXIST {
+		log.Printf("Could not add route: %v", err)
+		return nil
+	}
+	return err
 }
