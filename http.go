@@ -157,7 +157,7 @@ func mainHandler() http.Handler {
 			}
 			copy(peer.PublicKey[:], p.PublicKey[:])
 			if len(peer.AllowedIPs) == 0 {
-				ip, err := findNextAvailablePeerAddress(gsuiteService, userPeerSubnet)
+				ip, err := findNextAvailablePeerAddress(context.Background(), gsuiteService, userPeerSubnet)
 				if err != nil {
 					reportFatalError(w, err)
 					return
