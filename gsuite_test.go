@@ -126,7 +126,27 @@ func TestGetPeerConfigFromGsuiteGroup(t *testing.T) {
 	}
 }
 
-func TestUpdatePeerConfigInGsuite(t *testing.T) {
+func TestGetPeerConfigFromGsuiteUser(t *testing.T) {
+	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodGet && req.URL.Path == path.Join(pathUsers, "foobarbaz") {
+			return newFakeHTTPResponse(200, responseBodyUserGet)
+		}
+		return newFakeHTTPResponse(400, `{}`)
+	}))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	if err != nil {
+		t.Errorf("TestGetPeerConfigFromGsuiteUser: %v", err)
+	}
+	peer, err := getPeerConfigFromGsuiteUser(svc, "foobarbaz")
+	if err != nil {
+		t.Errorf("getPeerConfigFromGsuiteUser: %v", err)
+	}
+	ep, _ := newPeerConfig(validPublicKey, "", "", validAllowedIPs)
+	if diff := cmp.Diff(ep, peer); diff != "" {
+		t.Errorf("getPeerConfigFromGsuiteUser: did not get expected result:\n%s", diff)
+	}
+}
+func TestUpdatePeerConfigForGsuiteUser(t *testing.T) {
 	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
 		if req.Method == http.MethodPut && req.URL.Path == path.Join(pathUsers, "foobarbaz") {
 			defer func() {
