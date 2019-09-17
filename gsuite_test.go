@@ -24,25 +24,21 @@ var (
 	pathUsers             = "/admin/directory/v1/users"
 
 	responseBodyMembersGet = `{"members":[
-    {"id":"012345678901234567890", "email": "foo0@bar.baz"},
-	{"id":"112345678901234567890", "email": "foo1@bar.baz"},
-	{"id":"212345678901234567890", "email": "foo2@bar.baz"},
-	{"id":"312345678901234567890", "email": "foo3@bar.baz"},
-	{"id":"412345678901234567890", "email": "foo4@bar.baz"},
-	{"id":"512345678901234567890", "email": "foo5@bar.baz"}
+	{"id":"012345678901234567890","email":"foo0-valid@bar.baz"},
+	{"id":"112345678901234567890","email":"foo1-missing-pubkey@bar.baz"},
+	{"id":"212345678901234567890","email":"foo2-missing-schema@bar.baz"},
+	{"id":"312345678901234567890","email":"foo3-malformed-schema@bar.baz"}
 ]}`
 
-	responseBodyUsersGet = map[string]string{
-		// valid
-		`012345678901234567890`: `{"primaryEmail":"foo0@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}],"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}}`,
-		// missing publicKey
-		`112345678901234567890`: `{"primaryEmail":"foo1@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}]}}}`,
-		// missing schema
-		`212345678901234567890`: `{"primaryEmail":"foo2@bar.baz"}`,
-		// malformed schema
-		`312345678901234567890`: `{"primaryEmail":"foo3@bar.baz","customSchemas":{"wireguard":{"publicKey": 0, "allowedIPs": 0}}}`,
-		// missing id (foo5@bar.baz)
-	}
+	responseBodyUsersGet = `{"users":[
+	{"id":"012345678901234567890","primaryEmail":"foo0-valid@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}],"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}},
+	{"id":"112345678901234567890","primaryEmail":"foo1-missing-pubkey@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}]}}},
+	{"id":"212345678901234567890","primaryEmail":"foo2-missing-schema@bar.baz"},
+	{"id":"312345678901234567890","primaryEmail":"foo3-malformed-schema@bar.baz","customSchemas":{"wireguard":{"publicKey": 0, "allowedIPs": 0}}},
+	{"id":"412345678901234567890","primaryEmail":"foo4-not-a-member@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"4.4.4.4/32"}],"publicKey":"fLEd048HsN8gtVNjQcoNPUXy2mYISEzSMcOR7YZr+Co="}}}
+]}`
+
+	responseBodyUserGet = `{"id":"012345678901234567890","primaryEmail":"foo0-valid@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}],"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}}`
 )
 
 type fakeRoundTripFunc func(req *http.Request) *http.Response
@@ -103,11 +99,8 @@ func TestGetPeerConfigFromGsuiteGroup(t *testing.T) {
 		if req.Method == http.MethodGet && req.URL.Path == pathMembers {
 			return newFakeHTTPResponse(200, responseBodyMembersGet)
 		}
-		if req.Method == http.MethodGet && path.Dir(req.URL.Path) == pathUsers {
-			if v, ok := responseBodyUsersGet[path.Base(req.URL.Path)]; ok {
-				return newFakeHTTPResponse(200, v)
-			}
-			return newFakeHTTPResponse(404, ``)
+		if req.Method == http.MethodGet && req.URL.Path == pathUsers {
+			return newFakeHTTPResponse(200, responseBodyUsersGet)
 		}
 		return newFakeHTTPResponse(400, `{}`)
 	}))

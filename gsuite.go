@@ -126,20 +126,18 @@ func updatePeerConfigForGsuiteUser(svc *admin.Service, userId string, peer *wgty
 // - `admin.AdminDirectoryUserReadonlyScope`
 func getPeerConfigFromGsuiteGroup(ctx context.Context, svc *admin.Service, groupKey string) ([]wgtypes.PeerConfig, error) {
 	ret := []wgtypes.PeerConfig{}
-	err := svc.Members.List(groupKey).Pages(ctx, func(membersPage *admin.Members) error {
+	peers, err := getPeerConfigFromGsuite(ctx, svc)
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.Members.List(groupKey).Pages(ctx, func(membersPage *admin.Members) error {
 		for _, m := range membersPage.Members {
-			peer, err := getPeerConfigFromGsuite(svc, m.Id)
-			if err != nil {
-				log.Printf("Error configuring user '%s': %s", m.Email, err)
-				continue
-			}
-			if peer != nil {
-				ret = append(ret, *peer)
+			if v, ok := peers[m.Id]; ok {
+				ret = append(ret, v)
 			}
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	return ret, nil
