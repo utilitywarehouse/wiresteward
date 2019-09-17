@@ -11,7 +11,7 @@ import (
 
 func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (net.IP, error) {
 	allocatedIPs := []net.IP{}
-	if err := gsuiteService.Users.List().
+	if err := svc.Users.List().
 		Customer(gSuiteCustomerId).
 		Projection("custom").
 		CustomFieldMask(gSuiteCustomSchemaKey).
