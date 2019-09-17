@@ -39,7 +39,11 @@ func TestGetAvailableIPAddresses(t *testing.T) {
 		},
 	}
 	for _, test := range testCases {
-		a, err := getAvailableIPAddresses(test.c, test.t)
+		_, c, err := net.ParseCIDR(test.c)
+		if err != nil {
+			t.Errorf("net.ParseCIDR: %v", err)
+		}
+		a, err := getAvailableIPAddresses(c, test.t)
 		if err != nil {
 			t.Errorf("getAvailableIPAddresses: %v", err)
 		}

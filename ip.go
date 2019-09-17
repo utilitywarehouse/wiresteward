@@ -2,20 +2,35 @@ package main
 
 import (
 	"bytes"
+	"log"
 	"net"
 
 	"golang.org/x/net/context"
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
-func findNextAvailableAddress(svc *admin.Service, cidr, groupKey string) (net.IP, error) {
-	peers, err := getPeerConfigFromGsuiteGroup(context.Background(), svc, groupKey)
-	if err != nil {
+func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (net.IP, error) {
+	allocatedIPs := []net.IP{}
+	if err := gsuiteService.Users.List().
+		Customer(gSuiteCustomerId).
+		Projection("custom").
+		CustomFieldMask(gSuiteCustomSchemaKey).
+		Fields("nextPageToken", "users(id,primaryEmail,customSchemas/wireguard)").
+		Query("wireguard.enabled=true").
+		Pages(context.Background(), func(u *admin.Users) error {
+			for _, user := range u.Users {
+				peer, err := gsuiteUserToPeerConfig(user)
+				if err != nil {
+					log.Printf("Could not parse peer config: %v", err)
+					continue
+				}
+				for _, v := range peer.AllowedIPs {
+					allocatedIPs = append(allocatedIPs, v.IP)
+				}
+			}
+			return nil
+		}); err != nil {
 		return nil, err
-	}
-	allocatedIPs := make([]net.IP, len(peers))
-	for i, p := range peers {
-		allocatedIPs[i] = p.AllowedIPs[0].IP // XXX is it always going to be a single address?
 	}
 	availableIPs, err := getAvailableIPAddresses(cidr, allocatedIPs)
 	if err != nil {
@@ -24,16 +39,10 @@ func findNextAvailableAddress(svc *admin.Service, cidr, groupKey string) (net.IP
 	return availableIPs[0], nil
 }
 
-func getAvailableIPAddresses(cidr string, allocated []net.IP) ([]net.IP, error) {
-	ip, ipnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return nil, err
-	}
+func getAvailableIPAddresses(cidr *net.IPNet, allocated []net.IP) ([]net.IP, error) {
 	var ips []net.IP
-	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); incIPAddress(ip) {
-		ipc := make([]byte, len(ip))
-		copy(ipc, ip)
-		ips = append(ips, ipc)
+	for ip := append(cidr.IP[:0:0], cidr.IP...); cidr.Contains(ip); incIPAddress(ip) {
+		ips = append(ips, append(ip[:0:0], ip...))
 	}
 	var available []net.IP
 	for _, ip := range ips[1 : len(ips)-1] {
