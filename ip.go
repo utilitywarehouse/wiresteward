@@ -3,28 +3,7 @@ package main
 import (
 	"bytes"
 	"net"
-
-	"golang.org/x/net/context"
-	admin "google.golang.org/api/admin/directory/v1"
 )
-
-func findNextAvailablePeerAddress(ctx context.Context, svc *admin.Service, cidr *net.IPNet) (*net.IPNet, error) {
-	peers, err := getPeerConfigFromGsuite(ctx, svc)
-	if err != nil {
-		return nil, err
-	}
-	allocatedIPs := []net.IP{}
-	for _, p := range peers {
-		for _, v := range p.AllowedIPs {
-			allocatedIPs = append(allocatedIPs, v.IP)
-		}
-	}
-	availableIPs, err := getAvailableIPAddresses(cidr, allocatedIPs)
-	if err != nil {
-		return nil, err
-	}
-	return &net.IPNet{IP: availableIPs[0], Mask: net.CIDRMask(32, 32)}, nil
-}
 
 func getAvailableIPAddresses(cidr *net.IPNet, allocated []net.IP) ([]net.IP, error) {
 	var ips []net.IP

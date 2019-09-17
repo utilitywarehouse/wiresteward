@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"path"
 	"testing"
@@ -35,7 +36,7 @@ var (
 	{"id":"112345678901234567890","primaryEmail":"foo1-missing-pubkey@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}]}}},
 	{"id":"212345678901234567890","primaryEmail":"foo2-missing-schema@bar.baz"},
 	{"id":"312345678901234567890","primaryEmail":"foo3-malformed-schema@bar.baz","customSchemas":{"wireguard":{"publicKey": 0, "allowedIPs": 0}}},
-	{"id":"412345678901234567890","primaryEmail":"foo4-not-a-member@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"4.4.4.4/32"}],"publicKey":"fLEd048HsN8gtVNjQcoNPUXy2mYISEzSMcOR7YZr+Co="}}}
+	{"id":"412345678901234567890","primaryEmail":"foo4-not-a-member@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.2/32"}],"publicKey":"fLEd048HsN8gtVNjQcoNPUXy2mYISEzSMcOR7YZr+Co="}}}
 ]}`
 
 	responseBodyUserGet = `{"id":"012345678901234567890","primaryEmail":"foo0-valid@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}],"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}}`
@@ -139,6 +140,7 @@ func TestGetPeerConfigFromGsuiteUser(t *testing.T) {
 		t.Errorf("getPeerConfigFromGsuiteUser: did not get expected result:\n%s", diff)
 	}
 }
+
 func TestUpdatePeerConfigForGsuiteUser(t *testing.T) {
 	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
 		if req.Method == http.MethodPut && req.URL.Path == path.Join(pathUsers, "foobarbaz") {
@@ -164,5 +166,26 @@ func TestUpdatePeerConfigForGsuiteUser(t *testing.T) {
 	}
 	if diff := cmp.Diff(expected, peer); diff != "" {
 		t.Errorf("updatePeerConfigInGsuite: did not get expected result:\n%s", diff)
+	}
+}
+
+func TestFindNextAvailablePeerAddress(t *testing.T) {
+	c := newFakeClient(fakeRoundTripFunc(func(req *http.Request) *http.Response {
+		if req.Method == http.MethodGet && req.URL.Path == pathUsers {
+			return newFakeHTTPResponse(200, responseBodyUsersGet)
+		}
+		return newFakeHTTPResponse(400, `{}`)
+	}))
+	svc, err := admin.NewService(context.Background(), option.WithHTTPClient(c))
+	if err != nil {
+		t.Errorf("TestFindNextAvailablePeerAddress: %v", err)
+	}
+	_, n, _ := net.ParseCIDR("1.1.1.0/24")
+	address, err := findNextAvailablePeerAddress(context.Background(), svc, n)
+	if err != nil {
+		t.Errorf("findNextAvailablePeerAddress: %v", err)
+	}
+	if address.String() != "1.1.1.3/32" {
+		t.Errorf("findNextAvailablePeerAddress: did not get expected result: %s", address)
 	}
 }

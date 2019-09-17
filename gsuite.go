@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -143,8 +144,7 @@ func getPeerConfigFromGsuiteGroup(ctx context.Context, svc *admin.Service, group
 	return ret, nil
 }
 
-// Requires scopes:
-// - `admin.AdminDirectoryUserReadonlyScope`
+// Requires scope `admin.AdminDirectoryUserReadonlyScope`
 func getPeerConfigFromGsuite(ctx context.Context, svc *admin.Service) (map[string]wgtypes.PeerConfig, error) {
 	peers := map[string]wgtypes.PeerConfig{}
 	if err := svc.Users.List().
@@ -167,6 +167,25 @@ func getPeerConfigFromGsuite(ctx context.Context, svc *admin.Service) (map[strin
 		return nil, err
 	}
 	return peers, nil
+}
+
+// Requires scope `admin.AdminDirectoryUserReadonlyScope`
+func findNextAvailablePeerAddress(ctx context.Context, svc *admin.Service, cidr *net.IPNet) (*net.IPNet, error) {
+	peers, err := getPeerConfigFromGsuite(ctx, svc)
+	if err != nil {
+		return nil, err
+	}
+	allocatedIPs := []net.IP{}
+	for _, p := range peers {
+		for _, v := range p.AllowedIPs {
+			allocatedIPs = append(allocatedIPs, v.IP)
+		}
+	}
+	availableIPs, err := getAvailableIPAddresses(cidr, allocatedIPs)
+	if err != nil {
+		return nil, err
+	}
+	return &net.IPNet{IP: availableIPs[0], Mask: net.CIDRMask(32, 32)}, nil
 }
 
 func gsuiteUserToPeerConfig(user *admin.User) (*wgtypes.PeerConfig, error) {
