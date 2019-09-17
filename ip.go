@@ -9,7 +9,7 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
-func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (net.IP, error) {
+func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (*net.IPNet, error) {
 	allocatedIPs := []net.IP{}
 	if err := svc.Users.List().
 		Customer(gSuiteCustomerId).
@@ -36,7 +36,7 @@ func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (net.IP, 
 	if err != nil {
 		return nil, err
 	}
-	return availableIPs[0], nil
+	return &net.IPNet{IP: availableIPs[0], Mask: net.CIDRMask(32, 32)}, nil
 }
 
 func getAvailableIPAddresses(cidr *net.IPNet, allocated []net.IP) ([]net.IP, error) {
