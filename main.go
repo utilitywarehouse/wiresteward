@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 	defaultServerPeerConfigPath  = "servers.json"
 	defaultServiceAccountKeyPath = "sa.json"
 	defaultUserPeerSubnet        = "10.250.0.0/24"
+	defaultRefreshInterval       = 5 * time.Minute
 )
 
 var (
@@ -42,6 +44,7 @@ var (
 	cookieAuthenticationKey, cookieEncryptionKey []byte
 	serverPeers                                  []map[string]string
 	userPeerSubnet                               *net.IPNet
+	refreshInterval                              time.Duration
 )
 
 func init() {
@@ -160,6 +163,14 @@ func serve() {
 
 func initAgent() {
 	var err error
+	ri, err := strconv.Atoi(os.Getenv("WGS_REFRESH_INTERVAL"))
+	if err != nil {
+		log.Fatalf("Cannot convert refresh interval to a number: %v", err)
+	}
+	refreshInterval = time.Duration(ri) * time.Minute
+	if refreshInterval == 0 {
+		refreshInterval = defaultRefreshInterval
+	}
 	if googleAdminEmail == "" {
 		log.Fatal("Environment variable WGS_ADMIN_EMAIL is not set")
 	}
@@ -184,7 +195,7 @@ func initAgent() {
 func agent() {
 	initAgent()
 	ctx := context.Background()
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(refreshInterval)
 	quit := make(chan struct{})
 	log.Print("Starting sync loop")
 	for {
