@@ -35,14 +35,12 @@ var (
 	responseBodyUsersGet = map[string]string{
 		// valid
 		`012345678901234567890`: `{"primaryEmail":"foo0@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}],"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}}`,
-		// missing allowedIPs
-		`112345678901234567890`: `{"primaryEmail":"foo1@bar.baz","customSchemas":{"wireguard":{"publicKey":"NkEtSA6GosX40iZFNe9+byAkXweYKvQe3utnFYkQ+00="}}}`,
 		// missing publicKey
-		`212345678901234567890`: `{"primaryEmail":"foo2@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}]}}}`,
+		`112345678901234567890`: `{"primaryEmail":"foo1@bar.baz","customSchemas":{"wireguard":{"allowedIPs":[{"type":"work","value":"1.1.1.1/32"}]}}}`,
 		// missing schema
-		`312345678901234567890`: `{"primaryEmail":"foo3@bar.baz"}`,
+		`212345678901234567890`: `{"primaryEmail":"foo2@bar.baz"}`,
 		// malformed schema
-		`412345678901234567890`: `{"primaryEmail":"foo4@bar.baz","customSchemas":{"wireguard":{"publicKey": 0, "allowedIPs": 0}}}`,
+		`312345678901234567890`: `{"primaryEmail":"foo3@bar.baz","customSchemas":{"wireguard":{"publicKey": 0, "allowedIPs": 0}}}`,
 		// missing id (foo5@bar.baz)
 	}
 )

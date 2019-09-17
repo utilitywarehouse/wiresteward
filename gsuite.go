@@ -154,7 +154,7 @@ func gsuiteUserToPeerConfig(user *admin.User) (*wgtypes.PeerConfig, error) {
 	if err := json.Unmarshal(schema, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.PublicKey == "" || len(cfg.AllowedIPs) == 0 {
+	if cfg.PublicKey == "" {
 		return nil, fmt.Errorf("%w: %s", errUserMissingConfiguration, user.PrimaryEmail)
 	}
 	ips := make([]string, len(cfg.AllowedIPs))

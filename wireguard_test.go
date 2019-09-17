@@ -19,10 +19,6 @@ func TestNewPeerConfig(t *testing.T) {
 	if err == nil {
 		t.Errorf("newPeerConfig: invalid publicKey should generate an error")
 	}
-	_, err = newPeerConfig(validPublicKey, "", "", nil)
-	if err != errMissingAllowedIPs {
-		t.Errorf("newPeerConfig: empty allowedIPs should generate an error")
-	}
 	_, err = newPeerConfig(validPublicKey, "", "", []string{""})
 	if err == nil {
 		t.Errorf("newPeerConfig: invalid allowedIPs should generate an error")
