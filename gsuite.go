@@ -90,7 +90,7 @@ func ensureGSuiteCustomSchema(svc *admin.Service) error {
 	if !ok || e.Code != 404 {
 		return err
 	}
-	log.Printf("GSuite custom schema 'wireguard' not found, creating now")
+	log.Printf("GSuite custom schema '%s' not found, creating now", gSuiteCustomSchemaKey)
 	_, err = svc.Schemas.Insert(gSuiteCustomerId, gSuiteCustomSchema).Do()
 	return err
 }
@@ -100,7 +100,7 @@ func getPeerConfigFromGsuite(svc *admin.Service, userId string) (*wgtypes.PeerCo
 	user, err := svc.Users.Get(userId).
 		Projection("custom").
 		CustomFieldMask(gSuiteCustomSchemaKey).
-		Fields("id", "primaryEmail", "customSchemas/wireguard").
+		Fields("id", "primaryEmail", "customSchemas/"+gSuiteCustomSchemaKey).
 		Do()
 	if err != nil {
 		return nil, err

@@ -15,8 +15,8 @@ func findNextAvailablePeerAddress(svc *admin.Service, cidr *net.IPNet) (net.IP, 
 		Customer(gSuiteCustomerId).
 		Projection("custom").
 		CustomFieldMask(gSuiteCustomSchemaKey).
-		Fields("nextPageToken", "users(id,primaryEmail,customSchemas/wireguard)").
-		Query("wireguard.enabled=true").
+		Fields("nextPageToken", "users(id,primaryEmail,customSchemas/"+gSuiteCustomSchemaKey+")").
+		Query(gSuiteCustomSchemaKey+".enabled=true").
 		Pages(context.Background(), func(u *admin.Users) error {
 			for _, user := range u.Users {
 				peer, err := gsuiteUserToPeerConfig(user)
