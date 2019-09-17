@@ -145,6 +145,32 @@ func getPeerConfigFromGsuiteGroup(ctx context.Context, svc *admin.Service, group
 	return ret, nil
 }
 
+// Requires scopes:
+// - `admin.AdminDirectoryUserReadonlyScope`
+func getPeerConfigFromGsuite(ctx context.Context, svc *admin.Service) (map[string]wgtypes.PeerConfig, error) {
+	peers := map[string]wgtypes.PeerConfig{}
+	if err := svc.Users.List().
+		Customer(gSuiteCustomerId).
+		Projection("custom").
+		CustomFieldMask(gSuiteCustomSchemaKey).
+		Fields("nextPageToken", "users(id,primaryEmail,customSchemas/"+gSuiteCustomSchemaKey+")").
+		Query(gSuiteCustomSchemaKey+".enabled=true").
+		Pages(ctx, func(u *admin.Users) error {
+			for _, user := range u.Users {
+				peer, err := gsuiteUserToPeerConfig(user)
+				if err != nil {
+					log.Printf("Could not parse peer config: %v", err)
+					continue
+				}
+				peers[user.Id] = *peer
+			}
+			return nil
+		}); err != nil {
+		return nil, err
+	}
+	return peers, nil
+}
+
 func gsuiteUserToPeerConfig(user *admin.User) (*wgtypes.PeerConfig, error) {
 	schema, ok := user.CustomSchemas[gSuiteCustomSchemaKey]
 	if !ok {
