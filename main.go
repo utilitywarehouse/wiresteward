@@ -162,7 +162,8 @@ func serve() {
 		signal.Notify(quit, os.Interrupt)
 		<-quit
 		log.Print("Shutting down")
-		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
 			log.Printf("error: %v", err)
 		}
