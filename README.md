@@ -30,7 +30,7 @@ agent configures the wireguard interfaces on the server peers.
 
 | environment variable | description | default
 | --- | --- | ---
-| `WGS_REFRESH_INTERVAL` | refresh interval in minutes | 5
+| `WGS_REFRESH_INTERVAL` | refresh interval in minutes | `5`
 | `WGS_ADMIN_EMAIL` | gsuite admin user email |
 | `WGS_SERVICE_ACCOUNT_KEY_PATH` | path to the gcp service account token file (json) | `sa.json`
 | `WGS_ALLOWED_GOOGLE_GROUPS` | comma-separated list of google groups from which to pull user config |
