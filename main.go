@@ -213,27 +213,32 @@ func agent() {
 	initAgent()
 	ctx := context.Background()
 	ticker := time.NewTicker(refreshInterval)
+	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	log.Print("Starting sync loop")
+	agentSync(ctx)
 	for {
 		select {
 		case <-ticker.C:
-			for _, groupKey := range allowedGoogleGroups {
-				peers, err := getPeerConfigFromGsuiteGroup(ctx, gsuiteService, groupKey)
-				if err != nil {
-					log.Printf("Failed to fetch peer config: %v", err)
-					continue
-				}
-				if err := setPeers("", peers); err != nil {
-					log.Printf("Failed to reconfigure peers: %v", err)
-					continue
-				}
-			}
+			agentSync(ctx)
 		case <-quit:
 			log.Print("Quitting")
-			ticker.Stop()
 			return
+		}
+	}
+}
+
+func agentSync(ctx context.Context) {
+	for _, groupKey := range allowedGoogleGroups {
+		peers, err := getPeerConfigFromGsuiteGroup(ctx, gsuiteService, groupKey)
+		if err != nil {
+			log.Printf("Failed to fetch peer config: %v", err)
+			continue
+		}
+		if err := setPeers("", peers); err != nil {
+			log.Printf("Failed to reconfigure peers: %v", err)
+			continue
 		}
 	}
 }
