@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -129,10 +130,13 @@ func initServer() {
 		Scopes:       []string{"email", "profile"},
 		Endpoint:     google.Endpoint,
 	}
+	cu, err := url.Parse(googleCallbackURL)
+	if err != nil {
+		log.Fatalf("Could not parse redirect URL: %v", err)
+	}
 	sessionStore = sessions.NewCookieStore(cookieAuthenticationKey, cookieEncryptionKey)
 	sessionStore.MaxAge(defaultSessionDuration)
-	//sessionStore.Options = &sessions.Options{Secure: true, HttpOnly: true} // XXX
-	sessionStore.Options = &sessions.Options{HttpOnly: true}
+	sessionStore.Options = &sessions.Options{Secure: cu.Scheme == "https", HttpOnly: true}
 	gsuiteService, err = newDirectoryService(
 		context.Background(),
 		googleServiceAccountKeyPath,
