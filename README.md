@@ -2,6 +2,8 @@
 
 # wiresteward
 
+[![Docker Repository on Quay](https://quay.io/repository/utilitywarehouse/wiresteward/status "Docker Repository on Quay")](https://quay.io/repository/utilitywarehouse/wiresteward)
+
 wiresteward is a peer manager for wireguard instances. It uses gsuite as a
 state store and identity provider and is comprised of two components, a server
 and an agent.
