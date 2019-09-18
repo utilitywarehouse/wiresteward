@@ -83,6 +83,10 @@ func initServer() {
 	if googleCallbackURL == "" {
 		log.Fatal("Environment variable WGS_CALLBACK_URL is not set")
 	}
+	cburl, err := url.Parse(googleCallbackURL)
+	if err != nil {
+		log.Fatalf("Could not parse redirect URL: %v", err)
+	}
 	if googleClientID == "" {
 		log.Fatal("Environment variable WGS_CLIENT_ID is not set")
 	}
@@ -130,13 +134,9 @@ func initServer() {
 		Scopes:       []string{"email", "profile"},
 		Endpoint:     google.Endpoint,
 	}
-	cu, err := url.Parse(googleCallbackURL)
-	if err != nil {
-		log.Fatalf("Could not parse redirect URL: %v", err)
-	}
 	sessionStore = sessions.NewCookieStore(cookieAuthenticationKey, cookieEncryptionKey)
 	sessionStore.MaxAge(defaultSessionDuration)
-	sessionStore.Options = &sessions.Options{Secure: cu.Scheme == "https", HttpOnly: true}
+	sessionStore.Options = &sessions.Options{Secure: cburl.Scheme == "https", HttpOnly: true}
 	gsuiteService, err = newDirectoryService(
 		context.Background(),
 		googleServiceAccountKeyPath,
