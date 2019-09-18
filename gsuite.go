@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"log"
 	"net"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	admin "google.golang.org/api/admin/directory/v1"
