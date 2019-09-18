@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -154,11 +155,24 @@ func serve() {
 	m.Handle("/config", configHandler())
 	m.Handle("/callback", callbackHandler())
 	m.Handle("/", mainHandler())
-	http.Handle("/", m)
+	server := &http.Server{Addr: listenAddress, Handler: m}
+	running := make(chan struct{})
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt)
+		<-quit
+		log.Print("Shutting down")
+		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("error: %v", err)
+		}
+		close(running)
+	}()
 	log.Printf("Listening on %s", listenAddress)
-	if err := http.ListenAndServe(listenAddress, nil); err != nil {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("error: %v", err)
 	}
+	<-running
 }
 
 func initAgent() {
@@ -198,7 +212,8 @@ func agent() {
 	initAgent()
 	ctx := context.Background()
 	ticker := time.NewTicker(refreshInterval)
-	quit := make(chan struct{})
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
 	log.Print("Starting sync loop")
 	for {
 		select {
@@ -215,6 +230,7 @@ func agent() {
 				}
 			}
 		case <-quit:
+			log.Print("Quitting")
 			ticker.Stop()
 			return
 		}
