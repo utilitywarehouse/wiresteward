@@ -13,6 +13,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"golang.org/x/oauth2"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	oauth2api "google.golang.org/api/oauth2/v2"
 )
 
@@ -148,6 +149,9 @@ func mainHandler() http.Handler {
 		if err != nil && !errors.Is(err, errUserMissingConfiguration) {
 			reportFatalError(w, err)
 			return
+		}
+		if peer == nil {
+			peer = &wgtypes.PeerConfig{}
 		}
 		if r.Method == http.MethodPost {
 			p, err := newPeerConfig(r.FormValue("publicKey"), "", "", nil)
