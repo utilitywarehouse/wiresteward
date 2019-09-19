@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net"
 	"syscall"
@@ -69,7 +70,7 @@ func addNetlinkRoute() error {
 		return err
 	}
 	err = netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: userPeerSubnet})
-	if err == syscall.EEXIST {
+	if errors.Is(err, syscall.EEXIST) {
 		log.Printf("Could not add route: %v", err)
 		return nil
 	}
