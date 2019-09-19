@@ -145,7 +145,7 @@ func mainHandler() http.Handler {
 			return
 		}
 		peer, err := getPeerConfigFromGsuiteUser(gsuiteService, email)
-		if err != nil {
+		if err != nil && err != errUserMissingConfiguration {
 			reportFatalError(w, err)
 			return
 		}

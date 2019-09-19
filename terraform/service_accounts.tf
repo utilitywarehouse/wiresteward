@@ -26,7 +26,7 @@ Domain-wide Delegation. See the README for more information.
 Then, visit https://admin.google.com/utilitywarehouse.co.uk/AdminHome#OGX:ManageOauthClients
 and add two new entries:
 
-- Server: ${google_service_account.wiresteward_server.unique_id}
+- Client: ${google_service_account.wiresteward_server.unique_id}
   Scopes: https://www.googleapis.com/auth/admin.directory.user,https://www.googleapis.com/auth/admin.directory.group.member.readonly,https://www.googleapis.com/auth/admin.directory.userschema
 
 - Client: ${google_service_account.wiresteward_agent.unique_id}
