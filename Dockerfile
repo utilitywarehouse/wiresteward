@@ -10,4 +10,4 @@ RUN \
 FROM alpine:3.10
 RUN apk add --no-cache ca-certificates
 COPY --from=build /wiresteward /wiresteward
-CMD [ "/wiresteward" ]
+ENTRYPOINT [ "/wiresteward" ]
