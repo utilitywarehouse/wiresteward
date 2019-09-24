@@ -25,7 +25,7 @@ agent configures the wireguard interfaces on the server peers.
 | `WGS_COOKIE_AUTHENTICATION_KEY` | base64-encoded cookie authentication key [[1]][session-keys] | &lt;randomly-generated&gt;
 | `WGS_COOKIE_ENCRYPTION_KEY` | base64-encoded cookie encryption key [[1]][session-keys] | &lt;randomly-generated&gt;
 | `WGS_SERVICE_ACCOUNT_KEY_PATH` | path to the gcp service account JSON token file | `sa.json`
-| `WGS_USER_PEER_SUBNET` | subnet from which to allocate user peer addresses | `10.250.0.0/24`
+| `WGS_USER_PEER_SUBNET` | subnet from which to allocate user peer addresses |
 | `WGS_SERVER_PEER_CONFIG_PATH` | path to the JSON file containing server configuration | `servers.json`
 
 `wiresteward agent`
@@ -36,6 +36,7 @@ agent configures the wireguard interfaces on the server peers.
 | `WGS_ADMIN_EMAIL` | gsuite admin user email |
 | `WGS_SERVICE_ACCOUNT_KEY_PATH` | path to the gcp service account token file (json) | `sa.json`
 | `WGS_ALLOWED_GOOGLE_GROUPS` | comma-separated list of google groups from which to pull user config |
+| `WGS_USER_PEER_SUBNET` | subnet from which to allocate user peer addresses (optional, used to add ip routes) | ``
 
 [session-keys]: https://godoc.org/github.com/gorilla/sessions#NewCookieStore
 
