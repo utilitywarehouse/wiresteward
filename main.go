@@ -27,7 +27,6 @@ const (
 	usage                        = `usage: wiresteward (server|agent)`
 	defaultServerPeerConfigPath  = "servers.json"
 	defaultServiceAccountKeyPath = "sa.json"
-	defaultUserPeerSubnet        = "10.250.0.0/24"
 	defaultRefreshInterval       = 5 * time.Minute
 )
 
@@ -49,18 +48,6 @@ var (
 	userPeerSubnet                               *net.IPNet
 	refreshInterval                              time.Duration
 )
-
-func init() {
-	ups := os.Getenv("WGS_USER_PEER_SUBNET")
-	if ups == "" {
-		ups = defaultUserPeerSubnet
-	}
-	_, net, err := net.ParseCIDR(ups)
-	if err != nil {
-		log.Fatalf("Could not parse user peer subnet: %v", err)
-	}
-	userPeerSubnet = net
-}
 
 func main() {
 	if len(os.Args) != 2 {
@@ -121,6 +108,15 @@ func initServer() {
 			log.Fatalf("Could not decode cookie encryption key: %v", err)
 		}
 	}
+	ups := os.Getenv("WGS_USER_PEER_SUBNET")
+	if ups == "" {
+		log.Fatal("Environment variable WGS_USER_PEER_SUBNET is not set")
+	}
+	_, network, err := net.ParseCIDR(ups)
+	if err != nil {
+		log.Fatalf("Could not parse user peer subnet: %v", err)
+	}
+	userPeerSubnet = network
 	sp, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
 	if err != nil {
 		log.Fatalf("Could not load server peer info: %v", err)
@@ -199,6 +195,14 @@ func initAgent() {
 	if googleServiceAccountKeyPath == "" {
 		googleServiceAccountKeyPath = defaultServiceAccountKeyPath
 	}
+	ups := os.Getenv("WGS_USER_PEER_SUBNET")
+	if ups != "" {
+		_, network, err := net.ParseCIDR(ups)
+		if err != nil {
+			log.Fatalf("Could not parse user peer subnet: %v", err)
+		}
+		userPeerSubnet = network
+	}
 	gsuiteService, err = newDirectoryService(
 		context.Background(),
 		googleServiceAccountKeyPath,
@@ -209,8 +213,10 @@ func initAgent() {
 	if err != nil {
 		log.Fatalf("Could not initialise google client: %v", err)
 	}
-	if err := addNetlinkRoute(); err != nil {
-		log.Fatalf("Could not setup ip routes: %v", err)
+	if userPeerSubnet != nil {
+		if err := addNetlinkRoute(); err != nil {
+			log.Fatalf("Could not setup ip routes: %v", err)
+		}
 	}
 }
 
