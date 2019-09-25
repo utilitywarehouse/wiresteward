@@ -67,7 +67,8 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	}
 	for _, ep := range device.Peers {
 		found := false
-		for _, np := range peers {
+		for i, np := range peers {
+			peers[i].ReplaceAllowedIPs = true
 			if ep.PublicKey.String() == np.PublicKey.String() {
 				found = true
 				break
