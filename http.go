@@ -37,11 +37,12 @@ const (
 	</tr>
 	<tr>
 	  <td>wireguard <b>public</b> key</td>
-	  <td><input type="text" name="publicKey" size="64" value="{{.PublicKey}}"></td>
+	  <td><input type="text" name="publicKey" size="64" value="{{.PublicKey}}"/></td>
 	</tr>
 	<tr>
 	  <td>assigned ip address</td>
-	  <td><input type="text" name="allowedIPs" size="64" value="{{.AllowedIPs}}" readonly></td>
+	  <td>{{.AllowedIPs}}</td>
+	  <td><input type="checkbox" name="resetIP" value="true"/><label>reset</label></td>
 	</tr>
 	<tr>
 	  <td></td>
@@ -160,7 +161,7 @@ func mainHandler() http.Handler {
 				return
 			}
 			peer.PublicKey = p.PublicKey
-			if len(peer.AllowedIPs) == 0 {
+			if len(peer.AllowedIPs) == 0 || r.FormValue("resetIP") == "true" {
 				ip, err := findNextAvailablePeerAddress(context.Background(), gsuiteService, userPeerSubnet)
 				if err != nil {
 					reportFatalError(w, err)
