@@ -36,20 +36,21 @@ const (
 	  <td>{{.Email}}</td>
 	</tr>
 	<tr>
-	  <td>wireguard <b>public</b> key</td>
-	  <td><input type="text" name="publicKey" size="64" value="{{.PublicKey}}"/></td>
-	</tr>
-	<tr>
 	  <td>assigned ip address</td>
 	  <td>{{.AllowedIPs}}</td>
 	  <td><input type="checkbox" name="resetIP" value="true"/><label>reset</label></td>
 	</tr>
 	<tr>
+	  <td>wireguard <b>public</b> key</td>
+	  <td><input type="text" name="publicKey" size="64" value="{{.PublicKey}}"/></td>
+	  <td><input type="submit" value="update"></td>
+	</tr>
+	<tr><td></td><td><hr/></td></tr>
+	<tr>
 	  <td></td>
-	  <td><input type="submit" value="update public key"></td>
+	  <td><a href="/config">view config</a></td>
 	</tr>
   </table>
-  <a href="/config">Download config</a>
 </form>
 </body>
 </html>`
