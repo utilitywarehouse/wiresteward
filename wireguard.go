@@ -61,7 +61,24 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	if deviceName == "" {
 		deviceName = defaultWireguardDeviceName
 	}
-	return wg.ConfigureDevice(deviceName, wgtypes.Config{ReplacePeers: true, Peers: peers})
+	device, err := wg.Device(deviceName)
+	if err != nil {
+		return err
+	}
+	for _, ep := range device.Peers {
+		found := false
+		for i, np := range peers {
+			peers[i].ReplaceAllowedIPs = true
+			if ep.PublicKey.String() == np.PublicKey.String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			peers = append(peers, wgtypes.PeerConfig{PublicKey: ep.PublicKey, Remove: true})
+		}
+	}
+	return wg.ConfigureDevice(deviceName, wgtypes.Config{Peers: peers})
 }
 
 func addNetlinkRoute() error {
