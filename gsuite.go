@@ -175,6 +175,7 @@ func getPeerConfigFromGsuite(ctx context.Context, svc *admin.Service) (map[strin
 }
 
 // Requires scope `admin.AdminDirectoryUserReadonlyScope`
+// TODO: concurency safe?
 func findNextAvailablePeerAddress(ctx context.Context, svc *admin.Service, cidr *net.IPNet) (*net.IPNet, error) {
 	peers, err := getPeerConfigFromGsuite(ctx, svc)
 	if err != nil {

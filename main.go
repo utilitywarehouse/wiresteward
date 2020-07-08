@@ -28,6 +28,9 @@ const (
 	defaultServerPeerConfigPath  = "servers.json"
 	defaultServiceAccountKeyPath = "sa.json"
 	defaultRefreshInterval       = 5 * time.Minute
+	defaultLeaserSyncInterval    = 1 * time.Minute
+	defaultLeaseTime             = 12 * time.Hour
+	defaultLeasesFilename        = "/etc/wiresteward/leases"
 )
 
 var (
@@ -47,6 +50,9 @@ var (
 	serverPeers                                  []map[string]string
 	userPeerSubnet                               *net.IPNet
 	refreshInterval                              time.Duration
+	leaserSyncInterval                           time.Duration
+	ipLeaseTime                                  = os.Getenv("WGS_IP_LEASE_TIME")
+	leasesFilename                               = os.Getenv("WGS_IP_LEASEs_FILENAME")
 )
 
 func main() {
@@ -58,6 +64,8 @@ func main() {
 		serve()
 	case "agent":
 		agent()
+	case "leaser":
+		leaser()
 	default:
 		log.Fatalln(usage)
 	}
@@ -233,6 +241,64 @@ func agent() {
 		select {
 		case <-ticker.C:
 			agentSync(ctx)
+		case <-quit:
+			log.Print("Quitting")
+			return
+		}
+	}
+}
+
+func leaser() {
+	if leaserSyncInterval == 0 {
+		leaserSyncInterval = defaultLeaserSyncInterval
+	}
+	leasetime := defaultLeaseTime
+	var err error
+	if ipLeaseTime != "" {
+		leasetime, err = time.ParseDuration(ipLeaseTime)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if leasesFilename == "" {
+		leasesFilename = defaultLeasesFilename
+	}
+
+	ups := os.Getenv("WGS_USER_PEER_SUBNET")
+	if ups == "" {
+		log.Fatal("Environment variable WGS_USER_PEER_SUBNET is not set")
+	}
+	_, network, err := net.ParseCIDR(ups)
+	if err != nil {
+		log.Fatalf("Could not parse user peer subnet: %v", err)
+	}
+	if err := initWithFile(leasesFilename, network, leasetime); err != nil {
+		log.Fatal(err)
+	}
+
+	if wireguardServerPeerConfigPath == "" {
+		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
+	}
+	sp, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
+	if err != nil {
+		log.Fatalf("Could not load server peer info: %v", err)
+	}
+	if err := json.Unmarshal(sp, &serverPeers); err != nil {
+		log.Fatalf("Could not parse server peer info: %v", err)
+	}
+
+	go newLeaseHandler()
+	ticker := time.NewTicker(leaserSyncInterval)
+	defer ticker.Stop()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	log.Print("Starting leaser loop")
+	for {
+		select {
+		case <-ticker.C:
+			if err := syncWgRecords(); err != nil {
+				log.Print(err)
+			}
 		case <-quit:
 			log.Print("Quitting")
 			return
