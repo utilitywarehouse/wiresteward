@@ -11,6 +11,10 @@ type PeerConfig struct {
 	PubKey string
 }
 
+type Request struct {
+	PubKey string
+}
+
 type Response struct {
 	Status     string
 	IP         string
@@ -20,11 +24,6 @@ type Response struct {
 }
 
 func newPeerLease(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/newPeerLease" {
-		http.Error(w, "404 not found.", http.StatusNotFound)
-		return
-	}
-
 	switch r.Method {
 	case "POST":
 		decoder := json.NewDecoder(r.Body)
@@ -39,10 +38,10 @@ func newPeerLease(w http.ResponseWriter, r *http.Request) {
 		} else {
 			response := &Response{
 				Status:     "success",
-				IP:         wg.IP.String(),
-				AllowedIPs: serverPeers[0]["AllowedIPs"],
-				PubKey:     serverPeers[0]["PublicKey"],
-				Endpoint:   serverPeers[0]["Endpoint"],
+				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
+				AllowedIPs: serverConfig["AllowedIPs"],
+				PubKey:     serverConfig["PublicKey"],
+				Endpoint:   serverConfig["Endpoint"],
 			}
 			r, _ := json.Marshal(response)
 			fmt.Fprintf(w, string(r))

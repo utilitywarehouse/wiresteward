@@ -1,0 +1,6 @@
+{
+  "clientID": "id",
+  "clientSecret": "secret",
+  "authUrl": "https://login.uw.systems/oauth2/v1/authorize",
+  "tokenUrl": "https://login.uw.systems/oauth2/v1/token"
+}

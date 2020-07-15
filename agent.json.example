@@ -1,0 +1,11 @@
+[
+  {
+    "name": "wg1",
+    "peers": [
+      {
+        "url": "https://wireguard.dev.uw.systems"
+      }
+    ]
+  }
+]
+

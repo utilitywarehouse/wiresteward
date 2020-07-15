@@ -81,6 +81,46 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	return wg.ConfigureDevice(deviceName, wgtypes.Config{Peers: peers})
 }
 
+func setPrivateKey(deviceName string, privKey string) error {
+	wg, err := wgctrl.New()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := wg.Close(); err != nil {
+			log.Printf("Failed to close wireguard client: %v", err)
+		}
+	}()
+	if deviceName == "" {
+		deviceName = defaultWireguardDeviceName
+	}
+
+	key, err := wgtypes.ParseKey(privKey)
+	if err != nil {
+		return err
+	}
+	return wg.ConfigureDevice(deviceName, wgtypes.Config{PrivateKey: &key})
+}
+
+func getKeys(deviceName string) (string, string, error) {
+	wg, err := wgctrl.New()
+	if err != nil {
+		return "", "", err
+	}
+	defer func() {
+		if err := wg.Close(); err != nil {
+			log.Printf("Failed to close wireguard client: %v", err)
+		}
+	}()
+
+	dev, err := wg.Device(deviceName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return dev.PublicKey.String(), dev.PrivateKey.String(), nil
+}
+
 func addNetlinkRoute() error {
 	link, err := netlink.LinkByName(defaultWireguardDeviceName)
 	if err != nil {
