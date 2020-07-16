@@ -130,9 +130,6 @@ func getAgentOidcConfig() map[string]string {
 	if _, ok := oidcCfg["clientID"]; !ok {
 		log.Fatal("oidc config missing `clientID`")
 	}
-	if _, ok := oidcCfg["clientSecret"]; !ok {
-		log.Fatal("oidc config missing `clientSecret`")
-	}
 	if _, ok := oidcCfg["authUrl"]; !ok {
 		log.Fatal("oidc config missing `authUrl`")
 	}
@@ -150,7 +147,6 @@ func agent() {
 		oidcCfg["authUrl"],
 		oidcCfg["tokenUrl"],
 		oidcCfg["clientID"],
-		oidcCfg["clientSecret"],
 	)
 
 	// Read agent config
