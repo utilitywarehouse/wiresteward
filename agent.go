@@ -20,6 +20,7 @@ type Agent struct {
 	tokenHandler  *OauthTokenHandler
 }
 
+// NewAgent: Creates an agent associated with a net device
 func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
 	a := &Agent{
 		tokenHandler: tHandler,
@@ -43,6 +44,8 @@ func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
 	if err != nil {
 		return a, err
 	}
+	// the base64 value of an empty key will come as
+	// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 	if privKey == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" {
 		newKey, err := wgtypes.GeneratePrivateKey()
 		if err != nil {
@@ -126,33 +129,23 @@ func (a *Agent) SetPrivKey() error {
 	return setPrivateKey(a.device.Attrs().Name, a.privKey)
 }
 
-// GetNewWgLease: talks to the peer server to ask for a new lease
-func (a *Agent) GetNewWgLease(serverUrl string) error {
-	resp, err := a.requestWgConfig(serverUrl)
-	if err != nil {
-		return err
-	}
-
-	devIP, err := netlink.ParseIPNet(resp.IP)
+func (a *Agent) addIpToDev(ip string) error {
+	devIP, err := netlink.ParseIPNet(ip)
 	if err != nil {
 		return fmt.Errorf("Cannot parse offered ip net: %v", err)
 	}
-	fmt.Printf("Offered ip: %v\n", devIP)
-
+	fmt.Printf(
+		"Configuring offered ip: %v on dev: %s\n",
+		devIP,
+		a.device.Attrs().Name,
+	)
 	if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
 		return err
 	}
+	return nil
+}
 
-	allowed_ips := strings.Split(resp.AllowedIPs, ",")
-	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, allowed_ips)
-	if err != nil {
-		return err
-	}
-
-	if err := setPeers(a.device.Attrs().Name, []wgtypes.PeerConfig{*peer}); err != nil {
-		return err
-	}
-
+func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 	for _, aip := range allowed_ips {
 		dst, err := netlink.ParseIPNet(aip)
 		if err != nil {
@@ -164,5 +157,40 @@ func (a *Agent) GetNewWgLease(serverUrl string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *Agent) setNewPeer(pubKey, endpoint string, allowed_ips []string) error {
+	peer, err := newPeerConfig(pubKey, "", endpoint, allowed_ips)
+	if err != nil {
+		return err
+	}
+
+	if err := setPeers(a.device.Attrs().Name, []wgtypes.PeerConfig{*peer}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetNewWgLease: talks to the peer server to ask for a new lease
+func (a *Agent) GetNewWgLease(serverUrl string) error {
+	resp, err := a.requestWgConfig(serverUrl)
+	if err != nil {
+		return err
+	}
+
+	if err := a.addIpToDev(resp.IP); err != nil {
+		return err
+	}
+
+	allowed_ips := strings.Split(resp.AllowedIPs, ",")
+	if err := a.setNewPeer(resp.PubKey, resp.Endpoint, allowed_ips); err != nil {
+		return err
+	}
+
+	if err := a.addRoutesForAllowedIps(allowed_ips); err != nil {
+		return err
+	}
+
 	return nil
 }

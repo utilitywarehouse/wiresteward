@@ -20,7 +20,7 @@ const (
 
 var (
 	wireguardServerPeerConfigPath = os.Getenv("WGS_SERVER_PEER_CONFIG_PATH")
-	serverConfig                  map[string]string
+	serverConfig                  map[string]string // static config that the server will pass to potential peers
 	userPeerSubnet                *net.IPNet
 	leaserSyncInterval            time.Duration
 	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
@@ -38,6 +38,29 @@ func main() {
 		agent()
 	default:
 		log.Fatalln(usage)
+	}
+}
+
+// reads config into serverConfig map[string]string
+func readServerStaticConfig() {
+	if wireguardServerPeerConfigPath == "" {
+		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
+	}
+	sc, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
+	if err != nil {
+		log.Fatalf("Could not load server peer info: %v", err)
+	}
+	if err := json.Unmarshal(sc, &serverConfig); err != nil {
+		log.Fatalf("Could not parse server peer info: %v", err)
+	}
+	if _, ok := serverConfig["AllowedIPs"]; !ok {
+		log.Fatal("server static config missing `AllowedIPs`")
+	}
+	if _, ok := serverConfig["PublicKey"]; !ok {
+		log.Fatal("server static config missing `PublicKey`")
+	}
+	if _, ok := serverConfig["Endpoint"]; !ok {
+		log.Fatal("server static config missing `Endpoint`")
 	}
 }
 
@@ -69,16 +92,8 @@ func server() {
 		log.Fatal(err)
 	}
 
-	if wireguardServerPeerConfigPath == "" {
-		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
-	}
-	sc, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
-	if err != nil {
-		log.Fatalf("Could not load server peer info: %v", err)
-	}
-	if err := json.Unmarshal(sc, &serverConfig); err != nil {
-		log.Fatalf("Could not parse server peer info: %v", err)
-	}
+	// Read the static config that server will provide to peers
+	readServerStaticConfig()
 
 	go newLeaseHandler()
 	ticker := time.NewTicker(leaserSyncInterval)
@@ -126,7 +141,10 @@ func getAgentOidcConfig() map[string]string {
 	}
 	return oidcCfg
 }
+
 func agent() {
+	// Read oidc config and make a token handler. The oauth server shall be
+	// the same for all the needed remote server authentications
 	oidcCfg := getAgentOidcConfig()
 	tokenHandler := NewOauthTokenHandler(
 		oidcCfg["authUrl"],
@@ -135,13 +153,13 @@ func agent() {
 		oidcCfg["clientSecret"],
 	)
 
+	// Read agent config
 	agentCfgPath := os.Getenv("WGS_AGENT_CONFIG_PATH")
 	if agentCfgPath == "" {
 		log.Fatal("Environment variable WGS_AGENT_CONFIG_PATH is not set")
 	}
 
 	agentCfg := []map[string]interface{}{}
-
 	ac, err := ioutil.ReadFile(agentCfgPath)
 	if err != nil {
 		log.Fatalf("Could not load agent config: %v", err)
@@ -156,16 +174,27 @@ func agent() {
 			log.Fatal("A name must be set for every wg device")
 		}
 
+		// Create an agent for each dev specified in the config
 		agent, err := NewAgent(
 			name,
 			tokenHandler,
 		)
 		if err != nil {
-			panic(err)
+			log.Fatalf(
+				"Cannot create agent fot dev: %s : %v",
+				name,
+				err,
+			)
 		}
 
+		// Clear all the device ips, new ones will be added according
+		// to peers responses
 		if err := agent.FlushDeviceIPs(); err != nil {
-			panic(err)
+			log.Fatalf(
+				"Cannot clear ips fot dev: %s : %v",
+				name,
+				err,
+			)
 		}
 
 		peers, ok := dev["peers"].([]interface{})
@@ -176,7 +205,11 @@ func agent() {
 			p := peer.(map[string]interface{})
 			url := p["url"].(string)
 			if err := agent.GetNewWgLease(url); err != nil {
-				log.Println(err)
+				log.Printf(
+					"cannot get lease from peer: %s :%v",
+					url,
+					err,
+				)
 			}
 		}
 	}

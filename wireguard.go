@@ -1,13 +1,10 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"net"
-	"syscall"
 	"time"
 
-	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -119,17 +116,4 @@ func getKeys(deviceName string) (string, string, error) {
 	}
 
 	return dev.PublicKey.String(), dev.PrivateKey.String(), nil
-}
-
-func addNetlinkRoute() error {
-	link, err := netlink.LinkByName(defaultWireguardDeviceName)
-	if err != nil {
-		return err
-	}
-	err = netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: userPeerSubnet})
-	if errors.Is(err, syscall.EEXIST) {
-		log.Printf("Could not add route: %v", err)
-		return nil
-	}
-	return err
 }
