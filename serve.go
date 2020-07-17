@@ -36,11 +36,16 @@ func newPeerLease(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
+			pubKey, _, err := getKeys("")
+			if err != nil {
+				http.Error(w, "cannot get public key", http.StatusInternalServerError)
+				return
+			}
 			response := &Response{
 				Status:     "success",
 				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
 				AllowedIPs: serverConfig["AllowedIPs"],
-				PubKey:     serverConfig["PublicKey"],
+				PubKey:     pubKey,
 				Endpoint:   serverConfig["Endpoint"],
 			}
 			r, _ := json.Marshal(response)

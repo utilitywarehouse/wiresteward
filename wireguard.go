@@ -110,6 +110,10 @@ func getKeys(deviceName string) (string, string, error) {
 		}
 	}()
 
+	if deviceName == "" {
+		deviceName = defaultWireguardDeviceName
+	}
+
 	dev, err := wg.Device(deviceName)
 	if err != nil {
 		return "", "", err

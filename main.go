@@ -56,9 +56,6 @@ func readServerStaticConfig() {
 	if _, ok := serverConfig["AllowedIPs"]; !ok {
 		log.Fatal("server static config missing `AllowedIPs`")
 	}
-	if _, ok := serverConfig["PublicKey"]; !ok {
-		log.Fatal("server static config missing `PublicKey`")
-	}
 	if _, ok := serverConfig["Endpoint"]; !ok {
 		log.Fatal("server static config missing `Endpoint`")
 	}
