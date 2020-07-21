@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 )
 
@@ -25,10 +27,12 @@ var (
 	leaserSyncInterval            time.Duration
 	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
 	leasesFilename                = os.Getenv("WGS_IP_LEASEs_FILENAME")
+	flagSet                       = flag.NewFlagSet("", flag.ExitOnError)
+	flagConfig                    = flagSet.String("config", "", "(Required for agent) Path of the config file")
 )
 
 func main() {
-	if len(os.Args) != 2 {
+	if len(os.Args) < 2 {
 		log.Fatalln(usage)
 	}
 	switch os.Args[1] {
@@ -111,71 +115,48 @@ func server() {
 	}
 }
 
-func getAgentOidcConfig() map[string]string {
-	oidcCfgPath := os.Getenv("WGS_AGENT_OIDC_CONFIG_PATH")
-	if oidcCfgPath == "" {
-		log.Fatal("Environment variable WGS_AGENT_OIDC_CONFIG_PATH is not set")
-	}
-	oidcCfg := map[string]string{}
-	oc, err := ioutil.ReadFile(oidcCfgPath)
+func getAgentConfigPathFromHome() string {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		log.Fatalf("Could not load oidc client config: %v", err)
+		log.Fatalf("Cannot get user's home dir to read config: %v", err)
 	}
-	if err := json.Unmarshal(oc, &oidcCfg); err != nil {
-		log.Fatalf("Could not read oidc config info: %v", err)
-	}
-	if _, ok := oidcCfg["clientID"]; !ok {
-		log.Fatal("oidc config missing `clientID`")
-	}
-	if _, ok := oidcCfg["authUrl"]; !ok {
-		log.Fatal("oidc config missing `authUrl`")
-	}
-	if _, ok := oidcCfg["tokenUrl"]; !ok {
-		log.Fatal("oidc config missing `tokenUrl`")
-	}
-	return oidcCfg
+	return path.Join(home, "wiresteward.json")
 }
 
 func agent() {
-	// Read oidc config and make a token handler. The oauth server shall be
-	// the same for all the needed remote server authentications
-	oidcCfg := getAgentOidcConfig()
+
+	flagSet.Parse(os.Args[2:])
+
+	cfgPath := *flagConfig
+	if cfgPath == "" {
+		cfgPath = getAgentConfigPathFromHome()
+		log.Printf(
+			"no -config flag found, will try default path: %s\n",
+			cfgPath,
+		)
+	}
+
+	agentConf, err := ReadAgentConfig(cfgPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	tokenHandler := NewOauthTokenHandler(
-		oidcCfg["authUrl"],
-		oidcCfg["tokenUrl"],
-		oidcCfg["clientID"],
+		agentConf.Oidc.AuthUrl,
+		agentConf.Oidc.TokenUrl,
+		agentConf.Oidc.ClientID,
 	)
 
-	// Read agent config
-	agentCfgPath := os.Getenv("WGS_AGENT_CONFIG_PATH")
-	if agentCfgPath == "" {
-		log.Fatal("Environment variable WGS_AGENT_CONFIG_PATH is not set")
-	}
-
-	agentCfg := []map[string]interface{}{}
-	ac, err := ioutil.ReadFile(agentCfgPath)
-	if err != nil {
-		log.Fatalf("Could not load agent config: %v", err)
-	}
-	if err := json.Unmarshal(ac, &agentCfg); err != nil {
-		log.Fatalf("Could not read agent config info: %v", err)
-	}
-
-	for _, dev := range agentCfg {
-		name, ok := dev["name"].(string)
-		if !ok {
-			log.Fatal("A name must be set for every wg device")
-		}
-
+	for _, dev := range *agentConf.Devs {
 		// Create an agent for each dev specified in the config
 		agent, err := NewAgent(
-			name,
+			dev.Name,
 			tokenHandler,
 		)
 		if err != nil {
 			log.Fatalf(
 				"Cannot create agent fot dev: %s : %v",
-				name,
+				dev.Name,
 				err,
 			)
 		}
@@ -185,22 +166,16 @@ func agent() {
 		if err := agent.FlushDeviceIPs(); err != nil {
 			log.Fatalf(
 				"Cannot clear ips fot dev: %s : %v",
-				name,
+				dev.Name,
 				err,
 			)
 		}
 
-		peers, ok := dev["peers"].([]interface{})
-		if !ok {
-			log.Fatalf("No peers list found for wg dev %s", name)
-		}
-		for _, peer := range peers {
-			p := peer.(map[string]interface{})
-			url := p["url"].(string)
-			if err := agent.GetNewWgLease(url); err != nil {
+		for _, peer := range *dev.Peers {
+			if err := agent.GetNewWgLease(peer.Url); err != nil {
 				log.Printf(
 					"cannot get lease from peer: %s :%v",
-					url,
+					peer.Url,
 					err,
 				)
 			}
