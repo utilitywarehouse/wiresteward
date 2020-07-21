@@ -86,7 +86,7 @@ func server() {
 		log.Fatalf("Could not parse user peer subnet: %v", err)
 	}
 	if err := initWithFile(leasesFilename, network, leasetime); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Cannot start lease server: %v", err)
 	}
 
 	// Read the static config that server will provide to peers

@@ -53,7 +53,7 @@ func (oa *OauthTokenHandler) GetToken() (string, error) {
 		codeChallengeOpt,
 		codeChallengeMethodOpt,
 	)
-	fmt.Printf("Visit the URL for the auth dialog: %v", url)
+	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
 
 	tok := <-oa.t
 
@@ -82,7 +82,7 @@ func (oa *OauthTokenHandler) localCallbackHandle(w http.ResponseWriter, r *http.
 func (oa *OauthTokenHandler) newCallbackHandler() {
 	http.HandleFunc("/oauth2/callback", oa.localCallbackHandle)
 
-	fmt.Printf("Starting server for lease requests\n")
+	fmt.Printf("Starting server on localhost:8080 to catch callback\n")
 	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
 		log.Fatal(err)
 	}
