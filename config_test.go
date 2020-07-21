@@ -18,7 +18,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 	conf := &AgentConfig{}
-	err := UnmarshalAgentConfig(oidcOnly, conf)
+	err := unmarshalAgentConfig(oidcOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = UnmarshalAgentConfig(devsOnly, conf)
+	err = unmarshalAgentConfig(devsOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = UnmarshalAgentConfig(full, conf)
+	err = unmarshalAgentConfig(full, conf)
 	if err != nil {
 		t.Fatal(err)
 	}

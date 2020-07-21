@@ -27,7 +27,7 @@ type AgentConfig struct {
 	Devs []AgentDevConfig `json:"devs"`
 }
 
-func UnmarshalAgentConfig(data []byte, v interface{}) error {
+func unmarshalAgentConfig(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
@@ -59,7 +59,7 @@ func verifyAgentDevsConfig(conf *AgentConfig) error {
 	return nil
 }
 
-func ReadAgentConfig(path string) (*AgentConfig, error) {
+func readAgentConfig(path string) (*AgentConfig, error) {
 	conf := &AgentConfig{}
 
 	confFile, err := os.Open(path)
@@ -72,7 +72,7 @@ func ReadAgentConfig(path string) (*AgentConfig, error) {
 		return conf, fmt.Errorf("error reading config file: %v", err)
 	}
 
-	if err = UnmarshalAgentConfig(fileContent, conf); err != nil {
+	if err = unmarshalAgentConfig(fileContent, conf); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
 	if err = verifyAgentOidcConfig(conf); err != nil {

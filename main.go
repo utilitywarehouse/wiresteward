@@ -136,7 +136,7 @@ func agent() {
 		)
 	}
 
-	agentConf, err := ReadAgentConfig(cfgPath)
+	agentConf, err := readAgentConfig(cfgPath)
 	if err != nil {
 		log.Fatal(err)
 	}
