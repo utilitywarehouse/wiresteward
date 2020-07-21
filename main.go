@@ -147,7 +147,7 @@ func agent() {
 		agentConf.Oidc.ClientID,
 	)
 
-	for _, dev := range *agentConf.Devs {
+	for _, dev := range agentConf.Devs {
 		// Create an agent for each dev specified in the config
 		agent, err := NewAgent(
 			dev.Name,
@@ -171,7 +171,7 @@ func agent() {
 			)
 		}
 
-		for _, peer := range *dev.Peers {
+		for _, peer := range dev.Peers {
 			if err := agent.GetNewWgLease(peer.Url); err != nil {
 				log.Printf(
 					"cannot get lease from peer: %s :%v",

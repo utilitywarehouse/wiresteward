@@ -18,7 +18,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 	conf := &AgentConfig{}
-	err := UnmarshallAgentConfig(oidcOnly, conf)
+	err := UnmarshalAgentConfig(oidcOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,17 +50,17 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = UnmarshallAgentConfig(devsOnly, conf)
+	err = UnmarshalAgentConfig(devsOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, len(*conf.Devs), 1)
-	assert.Equal(t, (*conf.Devs)[0].Name, "wg_test")
-	peers := (*conf.Devs)[0].Peers
-	assert.Equal(t, len(*peers), 2)
-	assert.Equal(t, (*peers)[0].Url, "example1.com")
-	assert.Equal(t, (*peers)[1].Url, "example2.com")
+	assert.Equal(t, len(conf.Devs), 1)
+	assert.Equal(t, conf.Devs[0].Name, "wg_test")
+	peers := (conf.Devs)[0].Peers
+	assert.Equal(t, len(peers), 2)
+	assert.Equal(t, peers[0].Url, "example1.com")
+	assert.Equal(t, peers[1].Url, "example2.com")
 	err = verifyAgentDevsConfig(conf)
 	if err != nil {
 		t.Fatal(err)
@@ -87,18 +87,18 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = UnmarshallAgentConfig(full, conf)
+	err = UnmarshalAgentConfig(full, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
 	assert.Equal(t, conf.Oidc.AuthUrl, "example.com/auth")
 	assert.Equal(t, conf.Oidc.TokenUrl, "example.com/token")
-	assert.Equal(t, len(*conf.Devs), 1)
-	assert.Equal(t, (*conf.Devs)[0].Name, "wg_test")
-	peers = (*conf.Devs)[0].Peers
-	assert.Equal(t, len(*peers), 1)
-	assert.Equal(t, (*peers)[0].Url, "example1.com")
+	assert.Equal(t, len(conf.Devs), 1)
+	assert.Equal(t, conf.Devs[0].Name, "wg_test")
+	peers = conf.Devs[0].Peers
+	assert.Equal(t, len(peers), 1)
+	assert.Equal(t, peers[0].Url, "example1.com")
 	err = verifyAgentOidcConfig(conf)
 	if err != nil {
 		t.Fatal(err)

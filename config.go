@@ -18,16 +18,16 @@ type AgentPeerConfig struct {
 }
 
 type AgentDevConfig struct {
-	Name  string             `json:"name"`
-	Peers *[]AgentPeerConfig `json:"peers"`
+	Name  string            `json:"name"`
+	Peers []AgentPeerConfig `json:"peers"`
 }
 
 type AgentConfig struct {
-	Oidc *AgentOidcConfig  `json:"oidc"`
-	Devs *[]AgentDevConfig `json:"devs"`
+	Oidc AgentOidcConfig  `json:"oidc"`
+	Devs []AgentDevConfig `json:"devs"`
 }
 
-func UnmarshallAgentConfig(data []byte, v interface{}) error {
+func UnmarshalAgentConfig(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
@@ -46,11 +46,11 @@ func verifyAgentOidcConfig(conf *AgentConfig) error {
 }
 
 func verifyAgentDevsConfig(conf *AgentConfig) error {
-	for _, dev := range *conf.Devs {
+	for _, dev := range conf.Devs {
 		if dev.Name == "" {
 			return fmt.Errorf("Device name not specified in config")
 		}
-		for _, peer := range *dev.Peers {
+		for _, peer := range dev.Peers {
 			if peer.Url == "" {
 				return fmt.Errorf("Missing peer url from config")
 			}
@@ -72,7 +72,7 @@ func ReadAgentConfig(path string) (*AgentConfig, error) {
 		return conf, fmt.Errorf("error reading config file: %v", err)
 	}
 
-	if err = UnmarshallAgentConfig(fileContent, conf); err != nil {
+	if err = UnmarshalAgentConfig(fileContent, conf); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
 	if err = verifyAgentOidcConfig(conf); err != nil {
