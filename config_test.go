@@ -31,9 +31,9 @@ func TestAgentConfigFmt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	devsOnly := []byte(`
+	interfacesOnly := []byte(`
 {
-  "devs": [
+  "interfaces": [
     {
       "name": "wg_test",
       "peers": [
@@ -50,18 +50,18 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = unmarshalAgentConfig(devsOnly, conf)
+	err = unmarshalAgentConfig(interfacesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, len(conf.Devs), 1)
-	assert.Equal(t, conf.Devs[0].Name, "wg_test")
-	peers := (conf.Devs)[0].Peers
+	assert.Equal(t, len(conf.Interfaces), 1)
+	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
+	peers := (conf.Interfaces)[0].Peers
 	assert.Equal(t, len(peers), 2)
 	assert.Equal(t, peers[0].Url, "example1.com")
 	assert.Equal(t, peers[1].Url, "example2.com")
-	err = verifyAgentDevsConfig(conf)
+	err = verifyAgentInterfacesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestAgentConfigFmt(t *testing.T) {
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
   },
-  "devs": [
+  "interfaces": [
     {
       "name": "wg_test",
       "peers": [
@@ -94,16 +94,16 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
 	assert.Equal(t, conf.Oidc.AuthUrl, "example.com/auth")
 	assert.Equal(t, conf.Oidc.TokenUrl, "example.com/token")
-	assert.Equal(t, len(conf.Devs), 1)
-	assert.Equal(t, conf.Devs[0].Name, "wg_test")
-	peers = conf.Devs[0].Peers
+	assert.Equal(t, len(conf.Interfaces), 1)
+	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
+	peers = conf.Interfaces[0].Peers
 	assert.Equal(t, len(peers), 1)
 	assert.Equal(t, peers[0].Url, "example1.com")
 	err = verifyAgentOidcConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = verifyAgentDevsConfig(conf)
+	err = verifyAgentInterfacesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
