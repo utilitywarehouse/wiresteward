@@ -1,0 +1,18 @@
+{
+  "oidc": {
+    "clientID": "xxxxx",
+    "authUrl": "example.com/auth",
+    "tokenUrl": "example.com/token"
+  },
+  "devs": [
+    {
+      "name": "wg_test",
+      "peers": [
+        {
+	  "url": "example1.com"
+	}
+      ]
+    }
+  ]
+}
+

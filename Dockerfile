@@ -1,4 +1,4 @@
-FROM golang:alpine AS build
+FROM golang:1.14.4-alpine3.12 AS build
 WORKDIR /go/src/github.com/utilitywarehouse/wiresteward
 COPY . /go/src/github.com/utilitywarehouse/wiresteward
 RUN \
