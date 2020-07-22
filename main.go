@@ -147,31 +147,31 @@ func agent() {
 		agentConf.Oidc.ClientID,
 	)
 
-	for _, dev := range agentConf.Devs {
-		// Create an agent for each dev specified in the config
+	for _, iface := range agentConf.Interfaces {
+		// Create an agent for each interface specified in the config
 		agent, err := NewAgent(
-			dev.Name,
+			iface.Name,
 			tokenHandler,
 		)
 		if err != nil {
 			log.Fatalf(
-				"Cannot create agent fot dev: %s : %v",
-				dev.Name,
+				"Cannot create agent fot interface: %s : %v",
+				iface.Name,
 				err,
 			)
 		}
 
-		// Clear all the device ips, new ones will be added according
+		// Clear all the interface ips, new ones will be added according
 		// to peers responses
 		if err := agent.FlushDeviceIPs(); err != nil {
 			log.Fatalf(
-				"Cannot clear ips fot dev: %s : %v",
-				dev.Name,
+				"Cannot clear ips for interface: %s : %v",
+				iface.Name,
 				err,
 			)
 		}
 
-		for _, peer := range dev.Peers {
+		for _, peer := range iface.Peers {
 			if err := agent.GetNewWgLease(peer.Url); err != nil {
 				log.Printf(
 					"cannot get lease from peer: %s :%v",

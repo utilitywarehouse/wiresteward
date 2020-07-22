@@ -4,7 +4,7 @@
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
   },
-  "devs": [
+  "interfaces": [
     {
       "name": "wg_test",
       "peers": [
