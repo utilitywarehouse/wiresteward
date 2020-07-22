@@ -15,6 +15,7 @@ jobs:
     working_directory: /go/src/github.com/utilitywarehouse/wiresteward
     steps:
       - checkout
+      - run: go get -t ./...
       - run: curl -sL https://git.io/goreleaser | bash
 workflows:
   version: 2
