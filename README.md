@@ -87,7 +87,7 @@ A config file to talk to the dev-aws wiresteward servers:
     "authUrl": "https://login.uw.systems/oauth2/v1/authorize",
     "tokenUrl": "https://login.uw.systems/oauth2/v1/token"
   },
-  "devs": [
+  "interfaces": [
     {
       "name": "wg-dev-aws",
       "peers": [
