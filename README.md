@@ -89,7 +89,7 @@ A config file to talk to the dev-aws wiresteward servers:
   },
   "interfaces": [
     {
-      "name": "wg-dev-aws",
+      "name": "wg-uw-dev-aws",
       "peers": [
         {
           "url": "https://wireguard.dev.aws.uw.systems"
