@@ -2,16 +2,26 @@ package main
 
 import (
 	"fmt"
+	"net"
 
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
 )
 
-func startTunDevice(name string) error {
+type TunDevice struct {
+	tun    tun.Device
+	device *device.Device
+	logger *device.Logger
+	uapi   net.Listener
+	errs   chan error
+	stop   chan bool
+}
+
+func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
 	tun, err := tun.CreateTUN(name, device.DefaultMTU)
 	if err != nil {
-		return fmt.Errorf("Cannot create tun device %v", err)
+		return &TunDevice{}, fmt.Errorf("Cannot create tun device %v", err)
 	}
 
 	logger := device.NewLogger(
@@ -22,29 +32,52 @@ func startTunDevice(name string) error {
 	device := device.NewDevice(tun, logger)
 	logger.Info.Println("Device started")
 
-	errs := make(chan error)
-
 	fileUAPI, err := ipc.UAPIOpen(name)
 	if err != nil {
-		return fmt.Errorf("Failed to open uapi socket file: %v", err)
+		return &TunDevice{}, fmt.Errorf("Failed to open uapi socket file: %v", err)
 	}
 
 	uapi, err := ipc.UAPIListen(name, fileUAPI)
 	if err != nil {
-		return fmt.Errorf("Failed to listen on uapi socket: %v", err)
+		return &TunDevice{}, fmt.Errorf("Failed to listen on uapi socket: %v", err)
 	}
+	tundev := &TunDevice{
+		tun:    tun,
+		device: device,
+		logger: logger,
+		uapi:   uapi,
+		errs:   make(chan error),
+		stop:   stop,
+	}
+
+	return tundev, nil
+}
+
+func (td *TunDevice) Run() {
 	go func() {
 		for {
-			conn, err := uapi.Accept()
+			conn, err := td.uapi.Accept()
 			if err != nil {
-				errs <- err
+				td.errs <- err
 				return
 			}
-			go device.IpcHandle(conn)
+			go td.device.IpcHandle(conn)
 		}
 	}()
+	td.logger.Info.Println("UAPI listener started")
 
-	logger.Info.Println("UAPI listener started")
-	return nil
+	select {
+	case <-td.stop:
+	case <-td.errs:
+	case <-td.device.Wait():
+	}
 
+	td.CleanUp()
+}
+
+func (td *TunDevice) CleanUp() {
+	td.uapi.Close()
+	td.device.Close()
+
+	td.logger.Info.Println("Shutting down")
 }

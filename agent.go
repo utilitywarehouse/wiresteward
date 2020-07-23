@@ -18,6 +18,8 @@ type Agent struct {
 	privKey       string
 	netlinkHandle *netlinkHandle
 	tokenHandler  *OauthTokenHandler
+	stop          chan bool
+	tundev        *TunDevice
 }
 
 // NewAgent: Creates an agent associated with a net device
@@ -27,21 +29,22 @@ func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
 	}
 	a.netlinkHandle = NewNetLinkHandle()
 
-	// Get or create device
-	//dev, err := a.getWgDevice(deviceName)
-	//if err != nil {
-	//	return a, err
-	//}
-	//a.device = dev
 	a.device = deviceName
-	if err := startTunDevice(deviceName); err != nil {
+	stop := make(chan bool)
+	tundev, err := startTunDevice(deviceName, stop)
+	if err != nil {
 		return a, fmt.Errorf("Error starting wg device: %s: %v", deviceName, err)
 	}
 
+	a.stop = stop
+	a.tundev = tundev
+
+	go a.tundev.Run()
+
 	// Bring device up
-	//if err := a.netlinkHandle.EnsureLinkUp(deviceName); err != nil {
-	//	return a, err
-	//}
+	if err := a.netlinkHandle.EnsureLinkUp(deviceName); err != nil {
+		return a, err
+	}
 
 	// Check if there is a private key or generate one
 	_, privKey, err := getKeys(deviceName)
@@ -121,14 +124,6 @@ func (a *Agent) requestWgConfig(serverUrl string) (*Response, error) {
 
 }
 
-func (a *Agent) getWgDevice(devName string) (netlink.Link, error) {
-	return a.netlinkHandle.GetDevice(devName)
-}
-
-//func (a *Agent) FlushDeviceIPs() error {
-//	return a.netlinkHandle.FlushIPs(a.device)
-//}
-
 func (a *Agent) SetPrivKey() error {
 	return setPrivateKey(a.device, a.privKey)
 }
@@ -143,9 +138,9 @@ func (a *Agent) addIpToDev(ip string) error {
 		devIP,
 		a.device,
 	)
-	//if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
-	//	return err
-	//}
+	if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -157,9 +152,9 @@ func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 		}
 
 		fmt.Printf("Adding route: %v on dev %s\n", dst, a.device)
-		//if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
-		//	return err
-		//}
+		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -197,4 +192,8 @@ func (a *Agent) GetNewWgLease(serverUrl string) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) Stop() {
+	a.stop <- true
 }
