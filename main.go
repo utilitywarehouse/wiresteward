@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"syscall"
 	"time"
 )
 
@@ -147,6 +148,8 @@ func agent() {
 		agentConf.Oidc.ClientID,
 	)
 
+	agents := []*Agent{}
+
 	for _, iface := range agentConf.Interfaces {
 		// Create an agent for each interface specified in the config
 		agent, err := NewAgent(
@@ -160,16 +163,7 @@ func agent() {
 				err,
 			)
 		}
-
-		// Clear all the interface ips, new ones will be added according
-		// to peers responses
-		if err := agent.FlushDeviceIPs(); err != nil {
-			log.Fatalf(
-				"Cannot clear ips for interface: %s : %v",
-				iface.Name,
-				err,
-			)
-		}
+		agents = append(agents, agent)
 
 		for _, peer := range iface.Peers {
 			if err := agent.GetNewWgLease(peer.Url); err != nil {
@@ -180,5 +174,17 @@ func agent() {
 				)
 			}
 		}
+
 	}
+
+	term := make(chan os.Signal, 1)
+	signal.Notify(term, syscall.SIGTERM)
+	signal.Notify(term, os.Interrupt)
+	select {
+	case <-term:
+	}
+	for _, agent := range agents {
+		agent.Stop()
+	}
+
 }
