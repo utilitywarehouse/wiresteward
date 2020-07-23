@@ -13,7 +13,7 @@ import (
 )
 
 type Agent struct {
-	device        netlink.Link
+	device        string
 	pubKey        string
 	privKey       string
 	netlinkHandle *netlinkHandle
@@ -28,21 +28,25 @@ func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
 	a.netlinkHandle = NewNetLinkHandle()
 
 	// Get or create device
-	dev, err := a.getWgDevice(deviceName)
-	if err != nil {
-		return a, err
+	//dev, err := a.getWgDevice(deviceName)
+	//if err != nil {
+	//	return a, err
+	//}
+	//a.device = dev
+	a.device = deviceName
+	if err := startTunDevice(deviceName); err != nil {
+		return a, fmt.Errorf("Error starting wg device: %s: %v", deviceName, err)
 	}
-	a.device = dev
 
 	// Bring device up
-	if err := a.netlinkHandle.EnsureLinkUp(dev); err != nil {
-		return a, err
-	}
+	//if err := a.netlinkHandle.EnsureLinkUp(deviceName); err != nil {
+	//	return a, err
+	//}
 
 	// Check if there is a private key or generate one
 	_, privKey, err := getKeys(deviceName)
 	if err != nil {
-		return a, err
+		return a, fmt.Errorf("Cannot get keys for device: %s: %v", deviceName, err)
 	}
 	// the base64 value of an empty key will come as
 	// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -121,12 +125,12 @@ func (a *Agent) getWgDevice(devName string) (netlink.Link, error) {
 	return a.netlinkHandle.GetDevice(devName)
 }
 
-func (a *Agent) FlushDeviceIPs() error {
-	return a.netlinkHandle.FlushIPs(a.device)
-}
+//func (a *Agent) FlushDeviceIPs() error {
+//	return a.netlinkHandle.FlushIPs(a.device)
+//}
 
 func (a *Agent) SetPrivKey() error {
-	return setPrivateKey(a.device.Attrs().Name, a.privKey)
+	return setPrivateKey(a.device, a.privKey)
 }
 
 func (a *Agent) addIpToDev(ip string) error {
@@ -137,11 +141,11 @@ func (a *Agent) addIpToDev(ip string) error {
 	fmt.Printf(
 		"Configuring offered ip: %v on dev: %s\n",
 		devIP,
-		a.device.Attrs().Name,
+		a.device,
 	)
-	if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
-		return err
-	}
+	//if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -152,10 +156,10 @@ func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 			return err
 		}
 
-		fmt.Printf("Adding route: %v on dev %s\n", dst, a.device.Attrs().Name)
-		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
-			return err
-		}
+		fmt.Printf("Adding route: %v on dev %s\n", dst, a.device)
+		//if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
+		//	return err
+		//}
 	}
 	return nil
 }
@@ -166,7 +170,7 @@ func (a *Agent) setNewPeer(pubKey, endpoint string, allowed_ips []string) error 
 		return err
 	}
 
-	if err := setPeers(a.device.Attrs().Name, []wgtypes.PeerConfig{*peer}); err != nil {
+	if err := setPeers(a.device, []wgtypes.PeerConfig{*peer}); err != nil {
 		return err
 	}
 	return nil

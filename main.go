@@ -163,13 +163,13 @@ func agent() {
 
 		// Clear all the interface ips, new ones will be added according
 		// to peers responses
-		if err := agent.FlushDeviceIPs(); err != nil {
-			log.Fatalf(
-				"Cannot clear ips for interface: %s : %v",
-				iface.Name,
-				err,
-			)
-		}
+		//if err := agent.FlushDeviceIPs(); err != nil {
+		//	log.Fatalf(
+		//		"Cannot clear ips for interface: %s : %v",
+		//		iface.Name,
+		//		err,
+		//	)
+		//}
 
 		for _, peer := range iface.Peers {
 			if err := agent.GetNewWgLease(peer.Url); err != nil {
@@ -179,6 +179,9 @@ func agent() {
 					err,
 				)
 			}
+		}
+		for {
+			time.Sleep(1 * time.Minute)
 		}
 	}
 }

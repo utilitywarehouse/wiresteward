@@ -39,7 +39,7 @@ func (h *netlinkHandle) GetDevice(devName string) (netlink.Link, error) {
 
 // FlushIPs: will delete all ips from a device
 func (h *netlinkHandle) FlushIPs(link netlink.Link) error {
-	ips, err := h.AddrList(link, netlink.FAMILY_V4)
+	ips, err := h.AddrList(link, 2)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (h *netlinkHandle) FlushIPs(link netlink.Link) error {
 // AddrReplace: will replace (or, if not present, add) an IP address on a link
 // device.
 func (h *netlinkHandle) UpdateIP(link netlink.Link, ipnet *net.IPNet) error {
-	return h.AddrReplace(link, &netlink.Addr{IPNet: ipnet})
+	return h.AddrAdd(link, &netlink.Addr{IPNet: ipnet})
 }
 
 func (h *netlinkHandle) AddRoute(link netlink.Link, dst *net.IPNet) error {
