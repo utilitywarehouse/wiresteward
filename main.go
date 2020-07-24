@@ -158,7 +158,7 @@ func agent() {
 		)
 		if err != nil {
 			log.Fatalf(
-				"Cannot create agent fot interface: %s : %v",
+				"Cannot create agent for interface: %s : %v",
 				iface.Name,
 				err,
 			)
