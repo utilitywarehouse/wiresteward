@@ -67,7 +67,7 @@ wiresteward agent --config=path-to-config.json
 
 ### Agent config
 
-Agent takes a config file as an argument (or `~/wiresteward.json` if not
+Agent takes a config file as an argument (or `~/.wiresteward.json` if not
 specified), from where it gets all the details needed to get a token from okta
 and create/update the wg interfaces and routes after talking to the remote
 wiresteward peers.

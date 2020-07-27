@@ -121,7 +121,7 @@ func getAgentConfigPathFromHome() string {
 	if err != nil {
 		log.Fatalf("Cannot get user's home dir to read config: %v", err)
 	}
-	return path.Join(home, "wiresteward.json")
+	return path.Join(home, ".wiresteward.json")
 }
 
 func agent() {
