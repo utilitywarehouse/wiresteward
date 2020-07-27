@@ -2,6 +2,7 @@
 builds:
   - id: main
     goos:
+      - darwin
       - linux
     goarch:
       - 386
