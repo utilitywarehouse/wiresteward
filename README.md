@@ -47,8 +47,8 @@ https://github.com/utilitywarehouse/wiresteward/releases
 to install on linux simply:
 
 ```
-wget -O /usr/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
-chmod +x /usr/bin/wiresteward
+wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
+chmod +x /usr/local/bin/wiresteward
 ```
 
 A successful wiresteward agent run will:
