@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
 	"golang.org/x/oauth2"
@@ -13,13 +16,19 @@ import (
 type OauthTokenHandler struct {
 	ctx          context.Context
 	config       *oauth2.Config
+	tokFile      string             // File path to cache the token
 	t            chan *oauth2.Token // to feed the token from the redirect uri
 	codeVerifier *cv.CodeVerifier
 }
 
+type IdToken struct {
+	IdToken string    `json:"id_token"`
+	Expiry  time.Time `json:"expiry,omitempty"`
+}
+
 //func NewOauthTokenHandler(authUrl, tokenUrl, clientID, clientSecret string) *OauthTokenHandler {
-func NewOauthTokenHandler(authUrl, tokenUrl, clientID string) *OauthTokenHandler {
-	return &OauthTokenHandler{
+func NewOauthTokenHandler(authUrl, tokenUrl, clientID, tokFile string) *OauthTokenHandler {
+	oa := &OauthTokenHandler{
 		ctx: context.Background(),
 		config: &oauth2.Config{
 			ClientID: clientID,
@@ -31,16 +40,43 @@ func NewOauthTokenHandler(authUrl, tokenUrl, clientID string) *OauthTokenHandler
 				TokenURL: tokenUrl,
 			},
 		},
-		t: make(chan *oauth2.Token),
+		t:       make(chan *oauth2.Token),
+		tokFile: tokFile,
 	}
+
+	go oa.newCallbackHandler()
+
+	return oa
 }
 
 func (oa *OauthTokenHandler) GetToken() (string, error) {
-	go oa.newCallbackHandler()
 
+	tok, err := oa.getTokenFromFile()
+	if err != nil || tok.IdToken == "" {
+		log.Println("cannot get cached token, need a new one")
+		tok, err = oa.getTokenFromWeb()
+		if err != nil {
+			return "", err
+		}
+		oa.saveToken(tok)
+	}
+
+	if tok.Expiry.Before(time.Now()) {
+		log.Println("need to renew expired token")
+		tok, err = oa.getTokenFromWeb()
+		if err != nil {
+			return "", err
+		}
+		oa.saveToken(tok)
+	}
+
+	return tok.IdToken, nil
+}
+
+func (oa *OauthTokenHandler) getTokenFromWeb() (*IdToken, error) {
 	codeVerifier, err := cv.CreateCodeVerifier()
 	if err != nil {
-		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
+		return &IdToken{}, fmt.Errorf("Cannot create a code verifier: %v", err)
 	}
 	oa.codeVerifier = codeVerifier
 	codeChallenge := oa.codeVerifier.CodeChallengeS256()
@@ -59,10 +95,33 @@ func (oa *OauthTokenHandler) GetToken() (string, error) {
 
 	rawIDToken, ok := tok.Extra("id_token").(string)
 	if !ok {
-		return "", fmt.Errorf("Cannot get id_token data from returned token")
+		return &IdToken{}, fmt.Errorf("Cannot get id_token data from token")
 	}
-	return rawIDToken, nil
+	return &IdToken{
+		IdToken: rawIDToken,
+		Expiry:  tok.Expiry,
+	}, nil
+}
 
+func (oa *OauthTokenHandler) getTokenFromFile() (*IdToken, error) {
+	f, err := os.Open(oa.tokFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	tok := &IdToken{}
+	err = json.NewDecoder(f).Decode(tok)
+	return tok, err
+}
+
+func (oa *OauthTokenHandler) saveToken(token *IdToken) {
+	fmt.Printf("Saving credential file to: %s\n", oa.tokFile)
+	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		log.Fatalf("Unable to cache oauth token: %v", err)
+	}
+	defer f.Close()
+	json.NewEncoder(f).Encode(token)
 }
 
 func (oa *OauthTokenHandler) localCallbackHandle(w http.ResponseWriter, r *http.Request) {
