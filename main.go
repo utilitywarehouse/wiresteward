@@ -52,11 +52,11 @@ func main() {
 		log.Fatalln("Must only set --agent or --server, not both")
 	}
 
-	if *flagAgent || flag.Arg(0) == "agent" {
+	if *flagAgent {
 		agent()
 	}
 
-	if *flagServer || flag.Arg(0) == "server" {
+	if *flagServer {
 		server()
 	}
 	flag.PrintDefaults()
