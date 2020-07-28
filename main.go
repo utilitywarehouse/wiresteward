@@ -41,6 +41,7 @@ func main() {
 
 	if len(os.Args) < 2 {
 		flag.PrintDefaults()
+		return
 	}
 
 	if *flagVersion || (flag.NArg() == 1 && flag.Arg(0) == "version") {
