@@ -124,7 +124,7 @@ func getAgentConfigPathFromHome() string {
 	return path.Join(home, "wiresteward.json")
 }
 
-func getAgentTokFilePathFromHome() string {
+func getAgentTokenFilePathFromHome() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("Cannot get user's home dir to make cache token location")
