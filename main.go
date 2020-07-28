@@ -116,12 +116,39 @@ func server() {
 	}
 }
 
-func getAgentConfigPathFromHome() string {
+// return home location or die
+func deriveHome() string {
+	// Try os.UserHomeDir() which works in most cases, but may not work with CGO disabled.
 	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Cannot get user's home dir to read config: %v", err)
+	if err == nil && home != "" {
+		return home
 	}
-	return path.Join(home, ".wiresteward.json")
+	// try HOME env var
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+
+	log.Fatal("Could not call os/UserHomeDir() or find $HOME. Please recompile with CGO enabled or set $HOME")
+	// not reached
+	return ""
+}
+
+func getDefaultConfigDir() string {
+	path := path.Join(deriveHome(), ".config/wiresteward/")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err := os.MkdirAll(path, 0700); err != nil {
+			log.Fatalf("Could not create dir %s: %v", path, err)
+		}
+	}
+	return path
+}
+
+func getDefaultAgentConfigPath() string {
+	return path.Join(getDefaultConfigDir(), "wiresteward.json")
+}
+
+func getDefaultAgentTokenFilePath() string {
+	return path.Join(getDefaultConfigDir(), "token")
 }
 
 func agent() {
@@ -130,7 +157,7 @@ func agent() {
 
 	cfgPath := *flagConfig
 	if cfgPath == "" {
-		cfgPath = getAgentConfigPathFromHome()
+		cfgPath = getDefaultAgentConfigPath()
 		log.Printf(
 			"no -config flag found, will try default path: %s\n",
 			cfgPath,
@@ -146,6 +173,7 @@ func agent() {
 		agentConf.Oidc.AuthUrl,
 		agentConf.Oidc.TokenUrl,
 		agentConf.Oidc.ClientID,
+		getDefaultAgentTokenFilePath(),
 	)
 
 	agents := []*Agent{}
