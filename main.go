@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -14,11 +15,11 @@ import (
 )
 
 const (
-	usage                       = `usage: wiresteward (server|agent)`
 	defaultServerPeerConfigPath = "servers.json"
 	defaultLeaserSyncInterval   = 1 * time.Minute
 	defaultLeaseTime            = 12 * time.Hour
 	defaultLeasesFilename       = "/etc/wiresteward/leases"
+	version                     = "v0.1.0-dev"
 )
 
 var (
@@ -28,22 +29,38 @@ var (
 	leaserSyncInterval            time.Duration
 	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
 	leasesFilename                = os.Getenv("WGS_IP_LEASEs_FILENAME")
-	flagSet                       = flag.NewFlagSet("", flag.ExitOnError)
-	flagConfig                    = flagSet.String("config", "", "(Required for agent) Path of the config file")
+
+	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
+	flagConfig  = flag.String("config", "", "Config file (only used in agent mode)")
+	flagServer  = flag.Bool("server", false, "Run application in \"server\" mode")
+	flagVersion = flag.Bool("version", false, "Prints out application version")
 )
 
 func main() {
+	flag.Parse()
+
 	if len(os.Args) < 2 {
-		log.Fatalln(usage)
+		flag.PrintDefaults()
+		return
 	}
-	switch os.Args[1] {
-	case "server":
-		server()
-	case "agent":
+
+	if *flagVersion {
+		fmt.Println(version)
+		return
+	}
+
+	if *flagAgent && *flagServer {
+		log.Fatalln("Must only set -agent or -server, not both")
+	}
+
+	if *flagAgent {
 		agent()
-	default:
-		log.Fatalln(usage)
 	}
+
+	if *flagServer {
+		server()
+	}
+	flag.PrintDefaults()
 }
 
 // reads config into serverConfig map[string]string
@@ -152,9 +169,6 @@ func getDefaultAgentTokenFilePath() string {
 }
 
 func agent() {
-
-	flagSet.Parse(os.Args[2:])
-
 	cfgPath := *flagConfig
 	if cfgPath == "" {
 		cfgPath = getDefaultAgentConfigPath()
