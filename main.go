@@ -137,12 +137,20 @@ func deriveHome() string {
 	return ""
 }
 
-func getAgentConfigPathFromHome() string {
-	return path.Join(deriveHome(), ".wiresteward.json")
+func getDefaultConfigDir() string {
+	path := path.Join(deriveHome(), ".config/wiresteward/")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, 0700)
+	}
+	return path
 }
 
-func getAgentTokenFilePathFromHome() string {
-	return path.Join(deriveHome(), ".wiresteward_token")
+func getDefaultAgentConfigPath() string {
+	return path.Join(getDefaultConfigDir(), "wiresteward.json")
+}
+
+func getDefaultAgentTokenFilePath() string {
+	return path.Join(getDefaultConfigDir(), "token")
 }
 
 func agent() {
@@ -151,7 +159,7 @@ func agent() {
 
 	cfgPath := *flagConfig
 	if cfgPath == "" {
-		cfgPath = getAgentConfigPathFromHome()
+		cfgPath = getDefaultAgentConfigPath()
 		log.Printf(
 			"no -config flag found, will try default path: %s\n",
 			cfgPath,
@@ -167,7 +175,7 @@ func agent() {
 		agentConf.Oidc.AuthUrl,
 		agentConf.Oidc.TokenUrl,
 		agentConf.Oidc.ClientID,
-		getAgentTokenFilePathFromHome(),
+		getDefaultAgentTokenFilePath(),
 	)
 
 	agents := []*Agent{}
