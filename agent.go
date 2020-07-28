@@ -148,50 +148,42 @@ func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 	for _, aip := range allowed_ips {
 		dst, err := netlink.ParseIPNet(aip)
 		if err != nil {
-			return err
+			return fmt.Errorf("Cannot parse ip: %s: %v", aip, err)
 		}
 
 		fmt.Printf("Adding route: %v on dev %s\n", dst, a.device)
 		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
-			return err
+			return fmt.Errorf(
+				"Eror adding route %v via %s: %v",
+				dst,
+				a.device,
+				err,
+			)
 		}
 	}
 	return nil
 }
 
-func (a *Agent) setNewPeer(pubKey, endpoint string, allowed_ips []string) error {
-	peer, err := newPeerConfig(pubKey, "", endpoint, allowed_ips)
-	if err != nil {
-		return err
-	}
-
-	if err := setPeers(a.device, []wgtypes.PeerConfig{*peer}); err != nil {
-		return err
-	}
-	return nil
-}
-
-// GetNewWgLease: talks to the peer server to ask for a new lease
-func (a *Agent) GetNewWgLease(serverUrl string) error {
+// GetNewWgLease: talks to the peer server to ask for a new ip lease and
+// and configures that ip on the related net interface. Returns the remote
+// wireguard peer config and a list of allowed ips
+func (a *Agent) GetNewWgLease(serverUrl string) (*wgtypes.PeerConfig, []string, error) {
 	resp, err := a.requestWgConfig(serverUrl)
 	if err != nil {
-		return err
+		return &wgtypes.PeerConfig{}, []string{}, err
 	}
 
 	if err := a.addIpToDev(resp.IP); err != nil {
-		return err
+		return &wgtypes.PeerConfig{}, []string{}, err
 	}
 
 	allowed_ips := strings.Split(resp.AllowedIPs, ",")
-	if err := a.setNewPeer(resp.PubKey, resp.Endpoint, allowed_ips); err != nil {
-		return err
+	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, allowed_ips)
+	if err != nil {
+		return &wgtypes.PeerConfig{}, []string{}, err
 	}
 
-	if err := a.addRoutesForAllowedIps(allowed_ips); err != nil {
-		return err
-	}
-
-	return nil
+	return peer, allowed_ips, nil
 }
 
 func (a *Agent) Stop() {

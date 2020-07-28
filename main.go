@@ -12,6 +12,8 @@ import (
 	"path"
 	"syscall"
 	"time"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 const (
@@ -206,15 +208,40 @@ func agent() {
 			)
 		}
 		agents = append(agents, agent)
-
+		peers := []wgtypes.PeerConfig{}
+		allowed_ips := map[string]bool{}
 		for _, peer := range iface.Peers {
-			if err := agent.GetNewWgLease(peer.Url); err != nil {
+			p, aips, err := agent.GetNewWgLease(peer.Url)
+			if err != nil {
 				log.Printf(
 					"cannot get lease from peer: %s :%v",
 					peer.Url,
 					err,
 				)
 			}
+			peers = append(peers, *p)
+			for _, aip := range aips {
+				allowed_ips[aip] = true
+			}
+		}
+
+		// set all the peers for the interface
+		if err := setPeers(agent.device, peers); err != nil {
+			log.Printf(
+				"Error setting new peers for interface: %s: %v\n",
+				iface.Name,
+				err,
+			)
+		}
+
+		// Add a set of allowed ips to routes via the interface
+		allowed_ips_set := make([]string, 0, len(allowed_ips))
+		for ip, _ := range allowed_ips {
+			allowed_ips_set = append(allowed_ips_set, ip)
+		}
+
+		if err := agent.addRoutesForAllowedIps(allowed_ips_set); err != nil {
+			log.Printf("Error adding routes: %v\n", err)
 		}
 
 	}
