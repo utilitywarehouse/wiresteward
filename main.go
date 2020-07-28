@@ -118,10 +118,6 @@ func server() {
 
 // return home location or die
 func deriveHome() string {
-	// try explicitly set WIRESTEWARD_HOME
-	if home := os.Getenv("WIRESTEWARD_HOME"); home != "" {
-		return home
-	}
 	// Try os.UserHomeDir() which works in most cases, but may not work with CGO disabled.
 	home, err := os.UserHomeDir()
 	if err == nil && home != "" {
@@ -132,7 +128,7 @@ func deriveHome() string {
 		return home
 	}
 
-	log.Fatal("Could not call os/UserHomeDir() or find $WIRESTEWARD_HOME or $HOME. Please recompile with CGO enabled or set $WIRESTEWARD_HOME or $HOME")
+	log.Fatal("Could not call os/UserHomeDir() or find $HOME. Please recompile with CGO enabled or set $HOME")
 	// not reached
 	return ""
 }
