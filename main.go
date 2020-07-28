@@ -44,13 +44,13 @@ func main() {
 		return
 	}
 
-	if *flagVersion || (flag.NArg() == 1 && flag.Arg(0) == "version") {
+	if *flagVersion {
 		fmt.Println(version)
 		return
 	}
 
 	if *flagAgent && *flagServer {
-		log.Fatalln("Must only set --agent or --server, not both")
+		log.Fatalln("Must only set -agent or -server, not both")
 	}
 
 	if *flagAgent {
