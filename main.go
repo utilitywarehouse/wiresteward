@@ -140,7 +140,9 @@ func deriveHome() string {
 func getDefaultConfigDir() string {
 	path := path.Join(deriveHome(), ".config/wiresteward/")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.MkdirAll(path, 0700)
+		if err := os.MkdirAll(path, 0700); err != nil {
+			log.Fatalf("Could not create dir %s: %v", path, err)
+		}
 	}
 	return path
 }
