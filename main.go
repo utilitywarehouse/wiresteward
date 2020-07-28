@@ -116,20 +116,33 @@ func server() {
 	}
 }
 
-func getAgentConfigPathFromHome() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Cannot get user's home dir to read config: %v", err)
+// return home location or die
+func deriveHome() string {
+	// try explicitly set WIRESTEWARD_HOME
+	if home := os.Getenv("WIRESTEWARD_HOME"); home != "" {
+		return home
 	}
-	return path.Join(home, ".wiresteward.json")
+	// Try os.UserHomeDir() which works in most cases, but may not work with CGO disabled.
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" {
+		return home
+	}
+	// try HOME env var
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+
+	log.Fatal("Could not call os/UserHomeDir() or find $WIRESTEWARD_HOME or $HOME. Please recompile with CGO enabled or set $WIRESTEWARD_HOME or $HOME")
+	// not reached
+	return ""
+}
+
+func getAgentConfigPathFromHome() string {
+	return path.Join(deriveHome(), ".wiresteward.json")
 }
 
 func getAgentTokenFilePathFromHome() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Cannot get user's home dir to make cache token location")
-	}
-	return path.Join(home, ".wiresteward_token")
+	return path.Join(deriveHome(), ".wiresteward_token")
 }
 
 func agent() {
