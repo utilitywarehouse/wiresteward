@@ -154,7 +154,7 @@ func agent() {
 		agentConf.Oidc.AuthUrl,
 		agentConf.Oidc.TokenUrl,
 		agentConf.Oidc.ClientID,
-		getAgentTokFilePathFromHome(),
+		getAgentTokenFilePathFromHome(),
 	)
 
 	agents := []*Agent{}
