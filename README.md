@@ -47,8 +47,8 @@ https://github.com/utilitywarehouse/wiresteward/releases
 to install on linux simply:
 
 ```
-wget -O /usr/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
-chmod +x /usr/bin/wiresteward
+wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
+chmod +x /usr/local/bin/wiresteward
 ```
 
 A successful wiresteward agent run will:
@@ -67,7 +67,7 @@ wiresteward agent --config=path-to-config.json
 
 ### Agent config
 
-Agent takes a config file as an argument (or `~/wiresteward.json` if not
+Agent takes a config file as an argument (or `~/.wiresteward.json` if not
 specified), from where it gets all the details needed to get a token from okta
 and create/update the wg interfaces and routes after talking to the remote
 wiresteward peers.
