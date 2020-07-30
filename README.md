@@ -28,14 +28,14 @@ public
 
 ## Usage
 
-`wiresteward server`
+`wiresteward -server`
 
 | environment variable | description | default
 | --- | --- | ---
 | `WGS_USER_PEER_SUBNET` | subnet from which to allocate user peer addresses |
 | `WGS_SERVER_PEER_CONFIG_PATH` | path to the JSON file containing server configuration | `server.json`
 
-`wiresteward agent --config=path-to-config.json`
+`wiresteward -agent -config=path-to-config.json`
 
 ## Agent
 
@@ -62,7 +62,7 @@ thus it needs NET_ADMIN capabilities.
 
 To run simply:
 ```
-wiresteward agent --config=path-to-config.json
+wiresteward -agent -config=path-to-config.json
 ```
 
 ### Agent config
