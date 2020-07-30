@@ -110,7 +110,8 @@ func (lm *FileLeaseManager) findNextAvailableIpAddress() (*net.IPNet, error) {
 	for _, r := range lm.wgRecords {
 		allocatedIPs = append(allocatedIPs, r.IP)
 	}
-	availableIPs, err := getAvailableIPAddresses(lm.cidr, lm.ip, allocatedIPs)
+	// Add the gateway IP to the list of already allocated IPs
+	availableIPs, err := getAvailableIPAddresses(lm.cidr, append(allocatedIPs, lm.ip))
 	if err != nil {
 		return nil, err
 	}

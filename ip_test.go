@@ -30,14 +30,12 @@ func TestIncIPAddress(t *testing.T) {
 func TestGetAvailableIPAddresses(t *testing.T) {
 	testCases := []struct {
 		c    string
-		i    net.IP
-		a, e []net.IP
+		t, e []net.IP
 	}{
 		{
 			c: "10.10.10.0/29",
-			i: net.IP{10, 10, 10, 1},
-			a: []net.IP{[]byte{10, 10, 10, 2}, []byte{10, 10, 10, 4}},
-			e: []net.IP{[]byte{10, 10, 10, 3}, []byte{10, 10, 10, 5}, []byte{10, 10, 10, 6}},
+			t: []net.IP{[]byte{10, 10, 10, 1}, []byte{10, 10, 10, 3}},
+			e: []net.IP{[]byte{10, 10, 10, 2}, []byte{10, 10, 10, 4}, []byte{10, 10, 10, 5}, []byte{10, 10, 10, 6}},
 		},
 	}
 	for _, test := range testCases {
@@ -45,7 +43,7 @@ func TestGetAvailableIPAddresses(t *testing.T) {
 		if err != nil {
 			t.Errorf("net.ParseCIDR: %v", err)
 		}
-		a, err := getAvailableIPAddresses(c, test.i, test.a)
+		a, err := getAvailableIPAddresses(c, test.t)
 		if err != nil {
 			t.Errorf("getAvailableIPAddresses: %v", err)
 		}
