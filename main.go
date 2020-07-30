@@ -113,14 +113,8 @@ func server() {
 		log.Fatalf("Could not parse user peer subnet: %v", err)
 	}
 
-	lm := FileLeaseManager{
-		filename:  leasesFilename,
-		ip:        ip,
-		cidr:      network,
-		leaseTime: leasetime,
-	}
-
-	if err := lm.initWithFile(); err != nil {
+	lm, err := NewFileLeaseManager(leasesFilename, network, leasetime, ip)
+	if err != nil {
 		log.Fatalf("Cannot start lease server: %v", err)
 	}
 

@@ -24,10 +24,10 @@ type Response struct {
 }
 
 type HTTPLeaseHandler struct {
-	leaseManager FileLeaseManager
+	leaseManager *FileLeaseManager
 }
 
-func (lh HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) {
+func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		decoder := json.NewDecoder(r.Body)
@@ -61,7 +61,7 @@ func (lh HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (lh HTTPLeaseHandler) start() {
+func (lh *HTTPLeaseHandler) start() {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
 	fmt.Printf("Starting server for lease requests\n")
