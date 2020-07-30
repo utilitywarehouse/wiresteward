@@ -57,11 +57,14 @@ func main() {
 
 	if *flagAgent {
 		agent()
+		return
 	}
 
 	if *flagServer {
 		server()
+		return
 	}
+
 	flag.PrintDefaults()
 }
 
