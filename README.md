@@ -32,7 +32,7 @@ public
 
 | environment variable | description | default
 | --- | --- | ---
-| `WGS_USER_PEER_SUBNET` | subnet from which to allocate user peer addresses |
+| `WGS_ADDRESS` | Address of the gateway and the subnet for peers |
 | `WGS_SERVER_PEER_CONFIG_PATH` | path to the JSON file containing server configuration | `server.json`
 
 `wiresteward -agent -config=path-to-config.json`

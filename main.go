@@ -30,7 +30,8 @@ var (
 	userPeerSubnet                *net.IPNet
 	leaserSyncInterval            time.Duration
 	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
-	leasesFilename                = os.Getenv("WGS_IP_LEASEs_FILENAME")
+	leasesFilename                = os.Getenv("WGS_IP_LEASES_FILENAME")
+	ups                           = os.Getenv("WGS_ADDRESS")
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig  = flag.String("config", "", "Config file (only used in agent mode)")
@@ -104,7 +105,6 @@ func server() {
 		leasesFilename = defaultLeasesFilename
 	}
 
-	ups := os.Getenv("WGS_USER_PEER_SUBNET")
 	if ups == "" {
 		log.Fatal("Environment variable WGS_USER_PEER_SUBNET is not set")
 	}

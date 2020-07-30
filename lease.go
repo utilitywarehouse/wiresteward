@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -31,14 +32,14 @@ func NewFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Durati
 	if filename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
-	fmt.Printf("leases filename: %s\n", filename)
+	log.Printf("leases filename: %s\n", filename)
 	r, err := os.Open(filename)
 	defer r.Close()
 	wgRecords, err := loadWgRecords(r)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("records loaded")
+	log.Println("records loaded")
 
 	lm := &FileLeaseManager{
 		wgRecords: wgRecords,
@@ -109,7 +110,8 @@ func (lm *FileLeaseManager) findNextAvailableIpAddress() (*net.IPNet, error) {
 	for _, r := range lm.wgRecords {
 		allocatedIPs = append(allocatedIPs, r.IP)
 	}
-	availableIPs, err := getAvailableIPAddresses(lm.cidr, allocatedIPs)
+	// Add the gateway IP to the list of already allocated IPs
+	availableIPs, err := getAvailableIPAddresses(lm.cidr, append(allocatedIPs, lm.ip))
 	if err != nil {
 		return nil, err
 	}
