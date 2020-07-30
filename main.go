@@ -62,7 +62,10 @@ func main() {
 	if *flagServer {
 		server()
 	}
-	flag.PrintDefaults()
+
+	if !*flagAgent && !*flagServer {
+		flag.PrintDefaults()
+	}
 }
 
 // reads config into serverConfig map[string]string
