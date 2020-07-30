@@ -57,15 +57,15 @@ func main() {
 
 	if *flagAgent {
 		agent()
+		return
 	}
 
 	if *flagServer {
 		server()
+		return
 	}
 
-	if !*flagAgent && !*flagServer {
-		flag.PrintDefaults()
-	}
+	flag.PrintDefaults()
 }
 
 // reads config into serverConfig map[string]string
