@@ -32,7 +32,6 @@ var (
 	userPeerSubnet                *net.IPNet
 	leaserSyncInterval            time.Duration
 	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
-	leasesFilename                = os.Getenv("WGS_IP_LEASEs_FILENAME")
 	leasesFilename                = os.Getenv("WGS_IP_LEASES_FILENAME")
 	ups                           = os.Getenv("WGS_ADDRESS")
 	agentsList                    []*Agent // to keep track of the agents we start
