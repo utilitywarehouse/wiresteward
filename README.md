@@ -3,11 +3,15 @@
 Table of Contents
 =================
 
+   * [Table of Contents](#table-of-contents)
    * [wiresteward](#wiresteward)
       * [Usage](#usage)
       * [Agent](#agent)
-         * [Getting and running the agent](#getting-and-running-the-agent)
-         * [Agent config](#agent-config)
+         * [Install](#install)
+         * [Try](#try)
+         * [Running as systemd service](#running-as-systemd-service)
+         * [Run](#run)
+         * [Config](#config)
          * [Dev aws config - Example](#dev-aws-config---example)
 
 Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
@@ -39,42 +43,82 @@ public
 
 ## Agent
 
-### Getting and running the agent
+### Install
 
 Agent binaries can be found under wiresteward releases:
 https://github.com/utilitywarehouse/wiresteward/releases
 
-to install on linux simply:
+To install on linux simply:
 
 ```
 wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
-A successful wiresteward agent run will:
+### Try
+The wiresteward agent is responsible for:
 
-- create new network devices
-- Generate and post wireguard keys
-- Configure wireguard peers
-- Configure routes for the subnets advertised by the server
-
+- creating new network itun devices
+- Generating and posting wireguard keys to the server
+- Fetching oauth tokens to pass server authentication
+- Configuring wireguard peers
+- Configuring routes for the subnets allowed by the server
 thus it needs NET_ADMIN capabilities.
 
-To run simply:
+To try it one can simply:
 ```
 wiresteward -agent -config=path-to-config.json
 ```
 
-### Agent config
+It is recommended that the agent is run as a systemd service.
 
-Agent takes a config file as an argument (or `~/.wiresteward.json` if not
-specified), from where it gets all the details needed to get a token from okta
-and create/update the wg interfaces and routes after talking to the remote
-wiresteward peers.
+### Running as systemd service
+The agent is designed to run as a systemd service. An example working service is
+shown below:
+
+```
+[Unit]
+Description=wiresteward agent
+After=network-online.target
+Requires=network-online.target
+[Service]
+Restart=on-failure
+ExecStartPre=-/bin/mkdir -p /etc/wiresteward/
+ExecStart=/usr/local/bin/wiresteward -agent
+[Install]
+WantedBy=multi-user.target
+```
+
+then:
+```
+systemctl enable wiresteward.service
+systemctl start wiresteward.service
+```
+
+to look at it's logs:
+```
+journalctl -u  wiresteward.service
+```
+
+### Run
+
+The agent runs a local server on port 8080 and expects the user to visit
+`localhost:8080/renew` to trigger all the actions described above (under #Usage)
+
+Opening `localhost:8080/renew` on a browser will trigger the oauth process, if
+necessary, and ask the configured remote server peers for details to configure
+them as wg peers under the respective interface (defined in configuration file,
+see below)
+
+### Config
+
+Agent can takes a config file as an argument or look for it under the default
+location `/etc/wiresteward/config.json`, chosen to suit the systemd service.
+The config contains details about the oidc server and the local interfaces that
+we need the agent to manage.
 
 An example, where the config format can be found is here:
 https://github.com/utilitywarehouse/wiresteward/blob/master/agent.json.example
-
 
 ### Dev aws config - Example
 

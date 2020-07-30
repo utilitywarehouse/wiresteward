@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -44,39 +43,14 @@ func NewOauthTokenHandler(authUrl, tokenUrl, clientID, tokFile string) *OauthTok
 		tokFile: tokFile,
 	}
 
-	go oa.newCallbackHandler()
-
 	return oa
 }
 
-func (oa *OauthTokenHandler) GetToken() (string, error) {
-
-	tok, err := oa.getTokenFromFile()
-	if err != nil || tok.IdToken == "" {
-		log.Println("cannot get cached token, need a new one")
-		tok, err = oa.getTokenFromWeb()
-		if err != nil {
-			return "", err
-		}
-		oa.saveToken(tok)
-	}
-
-	if tok.Expiry.Before(time.Now()) {
-		log.Println("need to renew expired token")
-		tok, err = oa.getTokenFromWeb()
-		if err != nil {
-			return "", err
-		}
-		oa.saveToken(tok)
-	}
-
-	return tok.IdToken, nil
-}
-
-func (oa *OauthTokenHandler) getTokenFromWeb() (*IdToken, error) {
+// prepareTokenWebChalenge: returns a url to follow oauth
+func (oa *OauthTokenHandler) prepareTokenWebChalenge() (string, error) {
 	codeVerifier, err := cv.CreateCodeVerifier()
 	if err != nil {
-		return &IdToken{}, fmt.Errorf("Cannot create a code verifier: %v", err)
+		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
 	}
 	oa.codeVerifier = codeVerifier
 	codeChallenge := oa.codeVerifier.CodeChallengeS256()
@@ -89,18 +63,7 @@ func (oa *OauthTokenHandler) getTokenFromWeb() (*IdToken, error) {
 		codeChallengeOpt,
 		codeChallengeMethodOpt,
 	)
-	fmt.Printf("Visit the URL for the auth dialog: %v\n", url)
-
-	tok := <-oa.t
-
-	rawIDToken, ok := tok.Extra("id_token").(string)
-	if !ok {
-		return &IdToken{}, fmt.Errorf("Cannot get id_token data from token")
-	}
-	return &IdToken{
-		IdToken: rawIDToken,
-		Expiry:  tok.Expiry,
-	}, nil
+	return url, nil
 }
 
 func (oa *OauthTokenHandler) getTokenFromFile() (*IdToken, error) {
@@ -124,25 +87,28 @@ func (oa *OauthTokenHandler) saveToken(token *IdToken) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func (oa *OauthTokenHandler) localCallbackHandle(w http.ResponseWriter, r *http.Request) {
+func (oa *OauthTokenHandler) ExchangeToken(code string) (*IdToken, error) {
 	// Use the authorization code that is pushed to the redirect
 	// URL. Exchange will do the handshake to retrieve the
 	// initial access token.
 	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", oa.codeVerifier.String())
-	tok, err := oa.config.Exchange(oa.ctx, r.FormValue("code"), codeVerifierOpt)
+	tok, err := oa.config.Exchange(oa.ctx, code, codeVerifierOpt)
 	if err != nil {
 		log.Fatal(err)
 	}
-	oa.t <- tok
 
-	fmt.Fprintf(w, "you can close this window now and return to terminal")
-}
-
-func (oa *OauthTokenHandler) newCallbackHandler() {
-	http.HandleFunc("/oauth2/callback", oa.localCallbackHandle)
-
-	fmt.Printf("Starting server on localhost:8080 to catch callback\n")
-	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
-		log.Fatal(err)
+	rawIDToken, ok := tok.Extra("id_token").(string)
+	if !ok {
+		return &IdToken{}, fmt.Errorf("Cannot get id_token data from token")
 	}
+
+	id_token := &IdToken{
+		IdToken: rawIDToken,
+		Expiry:  tok.Expiry,
+	}
+
+	oa.saveToken(id_token)
+
+	return id_token, nil
+
 }

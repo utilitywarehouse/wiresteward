@@ -17,19 +17,17 @@ type Agent struct {
 	pubKey        string
 	privKey       string
 	netlinkHandle *netlinkHandle
-	tokenHandler  *OauthTokenHandler
 	stop          chan bool
 	tundev        *TunDevice
 }
 
 // NewAgent: Creates an agent associated with a net device
-func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
+func NewAgent(deviceName string) (*Agent, error) {
 	a := &Agent{
-		tokenHandler: tHandler,
+		device:        deviceName,
+		netlinkHandle: NewNetLinkHandle(),
 	}
-	a.netlinkHandle = NewNetLinkHandle()
 
-	a.device = deviceName
 	stop := make(chan bool)
 	tundev, err := startTunDevice(deviceName, stop)
 	if err != nil {
@@ -73,15 +71,9 @@ func NewAgent(deviceName string, tHandler *OauthTokenHandler) (*Agent, error) {
 	return a, nil
 }
 
-func (a *Agent) requestWgConfig(serverUrl string) (*Response, error) {
+func (a *Agent) requestWgConfig(serverUrl, token string) (*Response, error) {
 	// Marshal key int json
 	r, err := json.Marshal(&Request{PubKey: a.pubKey})
-	if err != nil {
-		return &Response{}, err
-	}
-
-	// Get a token
-	token, err := a.tokenHandler.GetToken()
 	if err != nil {
 		return &Response{}, err
 	}
@@ -167,8 +159,8 @@ func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 // GetNewWgLease: talks to the peer server to ask for a new ip lease and
 // and configures that ip on the related net interface. Returns the remote
 // wireguard peer config and a list of allowed ips
-func (a *Agent) GetNewWgLease(serverUrl string) (*wgtypes.PeerConfig, []string, error) {
-	resp, err := a.requestWgConfig(serverUrl)
+func (a *Agent) GetNewWgLease(serverUrl string, token string) (*wgtypes.PeerConfig, []string, error) {
+	resp, err := a.requestWgConfig(serverUrl, token)
 	if err != nil {
 		return &wgtypes.PeerConfig{}, []string{}, err
 	}

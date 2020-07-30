@@ -20,9 +20,14 @@ func NewNetLinkHandle() *netlinkHandle {
 
 // AddrReplace: will replace (or, if not present, add) an IP address on a link
 // device.
+// TODO: Matches netlink_darwin approach. This will not work in case of many
+// peers on the same device(?)
 func (h *netlinkHandle) UpdateIP(devName string, ipnet *net.IPNet) error {
 	link, err := h.LinkByName(devName)
 	if err != nil {
+		return err
+	}
+	if err := h.flushAddresses(devName); err != nil {
 		return err
 	}
 	return h.AddrAdd(link, &netlink.Addr{IPNet: ipnet})
@@ -42,4 +47,19 @@ func (h *netlinkHandle) EnsureLinkUp(devName string) error {
 		return err
 	}
 	return h.LinkSetUp(link)
+}
+
+func (h *netlinkHandle) flushAddresses(devName string) error {
+	link, err := h.LinkByName(devName)
+	if err != nil {
+		return err
+	}
+
+	ips, err := h.AddrList(link, 2)
+	for _, ip := range ips {
+		if err := h.AddrDel(link, &ip); err != nil {
+			return err
+		}
+	}
+	return nil
 }
