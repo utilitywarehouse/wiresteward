@@ -108,18 +108,29 @@ func server() {
 	if ups == "" {
 		log.Fatal("Environment variable WGS_USER_PEER_SUBNET is not set")
 	}
-	_, network, err := net.ParseCIDR(ups)
+	ip, network, err := net.ParseCIDR(ups)
 	if err != nil {
 		log.Fatalf("Could not parse user peer subnet: %v", err)
 	}
-	if err := initWithFile(leasesFilename, network, leasetime); err != nil {
+
+	lm := FileLeaseManager{
+		filename:  leasesFilename,
+		ip:        ip,
+		cidr:      network,
+		leaseTime: leasetime,
+	}
+
+	if err := lm.initWithFile(); err != nil {
 		log.Fatalf("Cannot start lease server: %v", err)
 	}
 
 	// Read the static config that server will provide to peers
 	readServerStaticConfig()
 
-	go newLeaseHandler()
+	lh := HTTPLeaseHandler{
+		leaseManager: lm,
+	}
+	go lh.start()
 	ticker := time.NewTicker(leaserSyncInterval)
 	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)
@@ -128,7 +139,7 @@ func server() {
 	for {
 		select {
 		case <-ticker.C:
-			if err := syncWgRecords(); err != nil {
+			if err := lm.syncWgRecords(); err != nil {
 				log.Print(err)
 			}
 		case <-quit:
@@ -258,5 +269,4 @@ func agent() {
 	for _, agent := range agents {
 		agent.Stop()
 	}
-
 }
