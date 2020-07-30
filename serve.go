@@ -23,7 +23,11 @@ type Response struct {
 	Endpoint   string
 }
 
-func newPeerLease(w http.ResponseWriter, r *http.Request) {
+type HTTPLeaseHandler struct {
+	leaseManager *FileLeaseManager
+}
+
+func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		decoder := json.NewDecoder(r.Body)
@@ -32,7 +36,7 @@ func newPeerLease(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			panic(err)
 		}
-		wg, err := addNewPeer(p.PubKey)
+		wg, err := lh.leaseManager.addNewPeer(p.PubKey)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -57,8 +61,8 @@ func newPeerLease(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newLeaseHandler() {
-	http.HandleFunc("/newPeerLease", newPeerLease)
+func (lh *HTTPLeaseHandler) start() {
+	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
 	fmt.Printf("Starting server for lease requests\n")
 	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
