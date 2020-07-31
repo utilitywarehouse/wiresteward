@@ -53,7 +53,7 @@ func NewFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Durati
 		return nil, err
 	}
 
-	fmt.Println("Init complete")
+	log.Println("Init complete")
 	return lm, nil
 }
 
@@ -157,7 +157,7 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("peers: %v\n", peers)
+	log.Printf("peers: %v\n", peers)
 	if err := setPeers("", peers); err != nil {
 		return err
 	}
