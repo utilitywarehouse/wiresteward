@@ -23,6 +23,11 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		token, err := oa.getTokenFromFile()
 		if err != nil || token.IdToken == "" || token.Expiry.Before(time.Now()) {
 			log.Println("cannot get a valid cached token, need a new one")
