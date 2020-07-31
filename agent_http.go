@@ -12,14 +12,6 @@ type AgentHttpHandler struct {
 	agentConf *AgentConfig
 }
 
-func startAgentHttpHandler(oa *OauthTokenHandler, agentConf *AgentConfig) {
-	h := &AgentHttpHandler{
-		oa:        oa,
-		agentConf: agentConf,
-	}
-	h.Run()
-}
-
 func (h *AgentHttpHandler) callback(w http.ResponseWriter, r *http.Request) {
 	token, err := h.oa.ExchangeToken(r.FormValue("code"))
 	if err != nil {
