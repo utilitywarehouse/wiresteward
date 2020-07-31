@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"net"
 )
 
@@ -14,7 +13,7 @@ func getAvailableIPAddresses(cidr *net.IPNet, allocated []net.IP) ([]net.IP, err
 	for _, ip := range ips[1 : len(ips)-1] {
 		found := false
 		for _, a := range allocated {
-			found = bytes.Equal(ip, a)
+			found = ip.Equal(a)
 			if found {
 				break
 			}
