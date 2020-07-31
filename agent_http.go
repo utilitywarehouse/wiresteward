@@ -19,7 +19,7 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 			return
 		}
 		agentLeaseLoop(agentConf, token.IdToken)
-		fmt.Fprintf(w, "finished running agent! you can close this window now")
+		fmt.Fprintf(w, "Auth is now complete and agent is running! you can close this window")
 	})
 
 	http.HandleFunc("/renew", func(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +40,7 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 			return
 		}
 		agentLeaseLoop(agentConf, token.IdToken)
-		fmt.Fprintf(w, "finished running agent! you can close this window now")
+		fmt.Fprintf(w, "Agent refreshed and running! you can close this window now")
 	})
 
 	fmt.Printf("Starting agent at localhost:8080\n")

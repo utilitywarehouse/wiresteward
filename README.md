@@ -65,7 +65,7 @@ The wiresteward agent is responsible for:
 - Configuring routes for the subnets allowed by the server
 thus it needs NET_ADMIN capabilities.
 
-To try it one can simply:
+To try it one can:
 ```
 wiresteward -agent -config=path-to-config.json
 ```
