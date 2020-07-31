@@ -48,7 +48,7 @@ public
 Agent binaries can be found under wiresteward releases:
 https://github.com/utilitywarehouse/wiresteward/releases
 
-To install on linux simply:
+To install on linux:
 
 ```
 wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
@@ -95,7 +95,7 @@ systemctl enable wiresteward.service
 systemctl start wiresteward.service
 ```
 
-to look at it's logs:
+To look at it's logs:
 ```
 journalctl -u  wiresteward.service
 ```
