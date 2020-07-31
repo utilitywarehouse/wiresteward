@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -17,26 +15,17 @@ import (
 )
 
 const (
-	defaultServerPeerConfigPath = "servers.json"
-	defaultLeaserSyncInterval   = 1 * time.Minute
-	defaultLeaseTime            = 12 * time.Hour
-	defaultLeasesFilename       = "/etc/wiresteward/leases"
-	defaultAgentConfigPath      = "/etc/wiresteward/config.json"
-	version                     = "v0.1.0-dev"
+	defaultLeaserSyncInterval = 1 * time.Minute
+	version                   = "v0.1.0-dev"
 )
 
 var (
-	wireguardServerPeerConfigPath = os.Getenv("WGS_SERVER_PEER_CONFIG_PATH")
-	serverConfig                  map[string]string // static config that the server will pass to potential peers
-	userPeerSubnet                *net.IPNet
-	leaserSyncInterval            time.Duration
-	ipLeaseTime                   = os.Getenv("WGS_IP_LEASE_TIME")
-	leasesFilename                = os.Getenv("WGS_IP_LEASES_FILENAME")
-	ups                           = os.Getenv("WGS_ADDRESS")
-	agentsList                    []*Agent // to keep track of the agents we start
+	userPeerSubnet     *net.IPNet
+	leaserSyncInterval time.Duration
+	agentsList         []*Agent // to keep track of the agents we start
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig  = flag.String("config", "", "Config file (only used in agent mode)")
+	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
 	flagServer  = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion = flag.Bool("version", false, "Prints out application version")
 )
@@ -71,60 +60,24 @@ func main() {
 	flag.PrintDefaults()
 }
 
-// reads config into serverConfig map[string]string
-func readServerStaticConfig() {
-	if wireguardServerPeerConfigPath == "" {
-		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
-	}
-	sc, err := ioutil.ReadFile(wireguardServerPeerConfigPath)
-	if err != nil {
-		log.Fatalf("Could not load server peer info: %v", err)
-	}
-	if err := json.Unmarshal(sc, &serverConfig); err != nil {
-		log.Fatalf("Could not parse server peer info: %v", err)
-	}
-	if _, ok := serverConfig["AllowedIPs"]; !ok {
-		log.Fatal("server static config missing `AllowedIPs`")
-	}
-	if _, ok := serverConfig["Endpoint"]; !ok {
-		log.Fatal("server static config missing `Endpoint`")
-	}
-}
-
 func server() {
+	cfg, err := readServerConfig(*flagConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if leaserSyncInterval == 0 {
 		leaserSyncInterval = defaultLeaserSyncInterval
 	}
-	leasetime := defaultLeaseTime
-	var err error
-	if ipLeaseTime != "" {
-		leasetime, err = time.ParseDuration(ipLeaseTime)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	if leasesFilename == "" {
-		leasesFilename = defaultLeasesFilename
-	}
 
-	if ups == "" {
-		log.Fatal("Environment variable WGS_USER_PEER_SUBNET is not set")
-	}
-	ip, network, err := net.ParseCIDR(ups)
-	if err != nil {
-		log.Fatalf("Could not parse user peer subnet: %v", err)
-	}
-
-	lm, err := NewFileLeaseManager(leasesFilename, network, leasetime, ip)
+	lm, err := NewFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.LeaseTime, cfg.WireguardIPAddress)
 	if err != nil {
 		log.Fatalf("Cannot start lease server: %v", err)
 	}
 
-	// Read the static config that server will provide to peers
-	readServerStaticConfig()
-
 	lh := HTTPLeaseHandler{
 		leaseManager: lm,
+		serverConfig: cfg,
 	}
 	go lh.start()
 	ticker := time.NewTicker(leaserSyncInterval)
@@ -220,16 +173,7 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 }
 
 func agent() {
-	cfgPath := *flagConfig
-	if cfgPath == "" {
-		cfgPath = defaultAgentConfigPath
-		log.Printf(
-			"no -config flag found, will try default path: %s\n",
-			cfgPath,
-		)
-	}
-
-	agentConf, err := readAgentConfig(cfgPath)
+	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
