@@ -102,10 +102,10 @@ journalctl -u  wiresteward.service
 
 ### Run
 
-The agent runs a local server on port 8080 and expects the user to visit
-`localhost:8080/renew` to trigger all the actions described above (under #Usage)
+The agent runs a local server on port 7773 and expects the user to visit
+`localhost:7773/` to trigger all the actions described above (under #Usage)
 
-Opening `localhost:8080/renew` on a browser will trigger the oauth process, if
+Opening `localhost:7773/` on a browser will trigger the oauth process, if
 necessary, and ask the configured remote server peers for details to configure
 them as wg peers under the respective interface (defined in configuration file,
 see below)

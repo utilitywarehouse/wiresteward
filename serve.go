@@ -64,7 +64,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 func (lh *HTTPLeaseHandler) start() {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
-	fmt.Printf("Starting server for lease requests\n")
+	log.Printf("Starting server for lease requests\n")
 	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
 		log.Fatal(err)
 	}

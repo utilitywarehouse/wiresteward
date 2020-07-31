@@ -43,7 +43,7 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 		fmt.Fprintf(w, "Agent refreshed and running! you can close this window now")
 	})
 
-	fmt.Printf("Starting agent at localhost:7773\n")
+	log.Println("Starting agent at localhost:7773")
 	// Start agent at a high obscure port. That port is hardcoded as oauth
 	// server needs to allow redirections to localhost:7773/oauth2/callback
 	// 7773 is chosen by looking wiresteward initials hex on ascii table

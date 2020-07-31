@@ -78,7 +78,7 @@ func (oa *OauthTokenHandler) getTokenFromFile() (*IdToken, error) {
 }
 
 func (oa *OauthTokenHandler) saveToken(token *IdToken) {
-	fmt.Printf("Saving credential file to: %s\n", oa.tokFile)
+	log.Printf("Saving credential file to: %s\n", oa.tokFile)
 	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalf("Unable to cache oauth token: %v", err)

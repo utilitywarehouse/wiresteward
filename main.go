@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -51,7 +50,7 @@ func main() {
 	}
 
 	if *flagVersion {
-		fmt.Println(version)
+		log.Println(version)
 		return
 	}
 

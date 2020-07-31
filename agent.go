@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 
@@ -125,7 +126,7 @@ func (a *Agent) addIpToDev(ip string) error {
 	if err != nil {
 		return fmt.Errorf("Cannot parse offered ip net: %v", err)
 	}
-	fmt.Printf(
+	log.Printf(
 		"Configuring offered ip: %v on dev: %s\n",
 		devIP,
 		a.device,
@@ -143,7 +144,7 @@ func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
 			return fmt.Errorf("Cannot parse ip: %s: %v", aip, err)
 		}
 
-		fmt.Printf("Adding route: %v on dev %s\n", dst, a.device)
+		log.Printf("Adding route: %v on dev %s\n", dst, a.device)
 		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
 			return fmt.Errorf(
 				"Eror adding route %v via %s: %v",
