@@ -199,7 +199,12 @@ func agent() {
 		agentConf.Oidc.ClientID,
 		getDefaultAgentTokenFilePath(),
 	)
-	go startAgentListener(tokenHandler, agentConf)
+
+	h := &AgentHttpHandler{
+		oa:        tokenHandler,
+		agentConf: agentConf,
+	}
+	go h.Run()
 
 	term := make(chan os.Signal, 1)
 	signal.Notify(term, syscall.SIGTERM)
