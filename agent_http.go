@@ -22,7 +22,7 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 		fmt.Fprintf(w, "Auth is now complete and agent is running! you can close this window")
 	})
 
-	http.HandleFunc("/renew", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		token, err := oa.getTokenFromFile()
 		if err != nil || token.IdToken == "" || token.Expiry.Before(time.Now()) {
 			log.Println("cannot get a valid cached token, need a new one")
@@ -43,8 +43,12 @@ func startAgentListener(oa *OauthTokenHandler, agentConf *AgentConfig) {
 		fmt.Fprintf(w, "Agent refreshed and running! you can close this window now")
 	})
 
-	fmt.Printf("Starting agent at localhost:8080\n")
-	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
+	fmt.Printf("Starting agent at localhost:7773\n")
+	// Start agent at a high obscure port. That port is hardcoded as oauth
+	// server needs to allow redirections to localhost:7773/oauth2/callback
+	// 7773 is chosen by looking wiresteward initials hex on ascii table
+	// (w = 0x77 and s = 0x73)
+	if err := http.ListenAndServe("127.0.0.1:7773", nil); err != nil {
 		log.Fatal(err)
 	}
 }
