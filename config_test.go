@@ -1,8 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"net"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +22,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 	conf := &AgentConfig{}
-	err := unmarshalAgentConfig(oidcOnly, conf)
+	err := json.Unmarshal(oidcOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +54,7 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = unmarshalAgentConfig(interfacesOnly, conf)
+	err = json.Unmarshal(interfacesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +91,7 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &AgentConfig{}
-	err = unmarshalAgentConfig(full, conf)
+	err = json.Unmarshal(full, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,5 +110,71 @@ func TestAgentConfigFmt(t *testing.T) {
 	err = verifyAgentInterfacesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestServerConfig(t *testing.T) {
+	ip, net, _ := net.ParseCIDR("10.0.0.1/24")
+	testCases := []struct {
+		input []byte
+		cfg   *ServerConfig
+		err   bool
+	}{
+		{
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["1.2.3.4/8"],
+				"endpoint": "1.2.3.4"
+			}`),
+			&ServerConfig{
+				Address:            "10.0.0.1/24",
+				AllowedIPs:         []string{"1.2.3.4/8"},
+				Endpoint:           "1.2.3.4",
+				LeasesFilename:     defaultLeasesFilename,
+				LeaseTime:          defaultLeaseTime,
+				WireguardIPAddress: ip,
+				WireguardIPNetwork: net,
+			},
+			false,
+		},
+		{
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"endpoint": "1.2.3.4",
+				"leasesFilename": "foo",
+				"leaseTime": "2h"
+			}`),
+			&ServerConfig{
+				Address:            "10.0.0.1/24",
+				Endpoint:           "1.2.3.4",
+				LeasesFilename:     "foo",
+				LeaseTime:          time.Duration(time.Hour * 2),
+				WireguardIPAddress: ip,
+				WireguardIPNetwork: net,
+			},
+			false,
+		},
+		{
+			[]byte(`{
+				"endpoint": ""
+			}`),
+			&ServerConfig{},
+			true,
+		},
+	}
+
+	for i, tc := range testCases {
+		cfg := &ServerConfig{}
+		if err := json.Unmarshal(tc.input, cfg); err != nil && !tc.err {
+			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
+			continue
+		}
+		if err := verifyServerConfig(cfg); err != nil && !tc.err {
+			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
+			continue
+		}
+		if diff := cmp.Diff(tc.cfg, cfg); diff != "" {
+			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected results:\n%s", i, diff)
+		}
 	}
 }

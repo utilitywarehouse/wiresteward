@@ -18,13 +18,14 @@ type Request struct {
 type Response struct {
 	Status     string
 	IP         string
-	AllowedIPs string
+	AllowedIPs []string
 	PubKey     string
 	Endpoint   string
 }
 
 type HTTPLeaseHandler struct {
 	leaseManager *FileLeaseManager
+	serverConfig *ServerConfig
 }
 
 func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) {
@@ -48,9 +49,9 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			response := &Response{
 				Status:     "success",
 				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
-				AllowedIPs: serverConfig["AllowedIPs"],
+				AllowedIPs: lh.serverConfig.AllowedIPs,
 				PubKey:     pubKey,
-				Endpoint:   serverConfig["Endpoint"],
+				Endpoint:   lh.serverConfig.Endpoint,
 			}
 			r, _ := json.Marshal(response)
 			fmt.Fprintf(w, string(r))

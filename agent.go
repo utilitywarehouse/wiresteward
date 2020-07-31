@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -170,13 +169,12 @@ func (a *Agent) GetNewWgLease(serverUrl string, token string) (*wgtypes.PeerConf
 		return &wgtypes.PeerConfig{}, []string{}, err
 	}
 
-	allowed_ips := strings.Split(resp.AllowedIPs, ",")
-	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, allowed_ips)
+	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, resp.AllowedIPs)
 	if err != nil {
 		return &wgtypes.PeerConfig{}, []string{}, err
 	}
 
-	return peer, allowed_ips, nil
+	return peer, resp.AllowedIPs, nil
 }
 
 func (a *Agent) Stop() {

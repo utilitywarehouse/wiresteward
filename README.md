@@ -32,14 +32,12 @@ public
 
 ## Usage
 
-`wiresteward -server`
-
-| environment variable | description | default
-| --- | --- | ---
-| `WGS_ADDRESS` | Address of the gateway and the subnet for peers |
-| `WGS_SERVER_PEER_CONFIG_PATH` | path to the JSON file containing server configuration | `server.json`
-
+`wiresteward -server -config=path-to-config.json`
 `wiresteward -agent -config=path-to-config.json`
+
+See [server.json.example](server.json.example) and
+[agent.json.example](agent.json.example) for example configuration.
+
 
 ## Agent
 

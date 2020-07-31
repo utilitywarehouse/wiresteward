@@ -1,5 +1,3 @@
 .terraform/
 *tfstate*
-servers.json
-sa.json
 wiresteward
