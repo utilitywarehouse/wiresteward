@@ -71,8 +71,9 @@ wiresteward -agent -config=path-to-config.json
 It is recommended that the agent is run as a systemd service.
 
 ### Running as systemd service
-The agent is designed to run as a systemd service. An example working service is
-shown below:
+The agent is designed to run as a systemd service. An example working service
+is shown below. Typical location for user defined systemd service:
+`/etc/systemd/system/wiresteward.service`
 
 ```
 [Unit]
