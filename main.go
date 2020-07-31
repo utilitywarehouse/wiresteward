@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	defaultServerPeerConfigPath = "servers.json"
-	defaultLeaserSyncInterval   = 1 * time.Minute
-	defaultAgentConfigPath      = "/etc/wiresteward/config.json"
-	version                     = "v0.1.0-dev"
+	defaultLeaserSyncInterval = 1 * time.Minute
+	defaultConfigPath         = "/etc/wiresteward/config.json"
+	version                   = "v0.1.0-dev"
 )
 
 var (
@@ -63,14 +62,16 @@ func main() {
 }
 
 func server() {
-	if leaserSyncInterval == 0 {
-		leaserSyncInterval = defaultLeaserSyncInterval
+	cfgPath := *flagConfig
+	if cfgPath == "" {
+		cfgPath = defaultConfigPath
+		log.Printf(
+			"no -config flag found, will try default path: %s\n",
+			cfgPath,
+		)
 	}
 
-	if wireguardServerPeerConfigPath == "" {
-		wireguardServerPeerConfigPath = defaultServerPeerConfigPath
-	}
-	cfg, err := readServerConfig(wireguardServerPeerConfigPath)
+	cfg, err := readServerConfig(cfgPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,7 +185,7 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 func agent() {
 	cfgPath := *flagConfig
 	if cfgPath == "" {
-		cfgPath = defaultAgentConfigPath
+		cfgPath = defaultConfigPath
 		log.Printf(
 			"no -config flag found, will try default path: %s\n",
 			cfgPath,
