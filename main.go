@@ -16,7 +16,6 @@ import (
 
 const (
 	defaultLeaserSyncInterval = 1 * time.Minute
-	defaultConfigPath         = "/etc/wiresteward/config.json"
 	version                   = "v0.1.0-dev"
 )
 
@@ -26,7 +25,7 @@ var (
 	agentsList         []*Agent // to keep track of the agents we start
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig  = flag.String("config", "", "Config file (only used in agent mode)")
+	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
 	flagServer  = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion = flag.Bool("version", false, "Prints out application version")
 )
@@ -62,16 +61,7 @@ func main() {
 }
 
 func server() {
-	cfgPath := *flagConfig
-	if cfgPath == "" {
-		cfgPath = defaultConfigPath
-		log.Printf(
-			"no -config flag found, will try default path: %s\n",
-			cfgPath,
-		)
-	}
-
-	cfg, err := readServerConfig(cfgPath)
+	cfg, err := readServerConfig(*flagConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,16 +173,7 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 }
 
 func agent() {
-	cfgPath := *flagConfig
-	if cfgPath == "" {
-		cfgPath = defaultConfigPath
-		log.Printf(
-			"no -config flag found, will try default path: %s\n",
-			cfgPath,
-		)
-	}
-
-	agentConf, err := readAgentConfig(cfgPath)
+	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
