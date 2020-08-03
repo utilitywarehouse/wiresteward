@@ -17,7 +17,6 @@ type Agent struct {
 	pubKey        string
 	privKey       string
 	netlinkHandle *netlinkHandle
-	stop          chan bool
 	tundev        *TunDevice
 }
 
@@ -28,13 +27,11 @@ func NewAgent(deviceName string) (*Agent, error) {
 		netlinkHandle: NewNetLinkHandle(),
 	}
 
-	stop := make(chan bool)
-	tundev, err := startTunDevice(deviceName, stop)
+	tundev, err := startTunDevice(deviceName)
 	if err != nil {
 		return a, fmt.Errorf("Error starting wg device: %s: %v", deviceName, err)
 	}
 
-	a.stop = stop
 	a.tundev = tundev
 
 	go a.tundev.Run()
@@ -176,5 +173,5 @@ func (a *Agent) GetNewWgLease(serverUrl string, token string) (*wgtypes.PeerConf
 }
 
 func (a *Agent) Stop() {
-	a.stop <- true
+	a.tundev.Stop()
 }

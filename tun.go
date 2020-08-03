@@ -17,9 +17,10 @@ type TunDevice struct {
 	uapi       net.Listener
 	errs       chan error
 	stop       chan bool
+	stopped    chan bool
 }
 
-func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
+func startTunDevice(name string) (*TunDevice, error) {
 	tun, err := tun.CreateTUN(name, device.DefaultMTU)
 	if err != nil {
 		return &TunDevice{}, fmt.Errorf("Cannot create tun device %v", err)
@@ -49,7 +50,6 @@ func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
 		logger:     logger,
 		uapi:       uapi,
 		errs:       make(chan error),
-		stop:       stop,
 	}
 
 	return tundev, nil
@@ -60,6 +60,9 @@ func (td *TunDevice) Name() string {
 }
 
 func (td *TunDevice) Run() {
+	td.stop = make(chan bool)
+	td.stopped = make(chan bool)
+
 	go func() {
 		for {
 			conn, err := td.uapi.Accept()
@@ -79,6 +82,12 @@ func (td *TunDevice) Run() {
 	}
 
 	td.CleanUp()
+	close(td.stopped)
+}
+
+func (td *TunDevice) Stop() {
+	close(td.stop)
+	<-td.stopped
 }
 
 func (td *TunDevice) CleanUp() {
