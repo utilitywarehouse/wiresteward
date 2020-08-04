@@ -68,8 +68,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		}
 		decoder := json.NewDecoder(r.Body)
 		var p LeaseRequest
-		err := decoder.Decode(&p)
-		if err != nil {
+		if err := decoder.Decode(&p); err != nil {
 			log.Println("Cannot decode request body", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
