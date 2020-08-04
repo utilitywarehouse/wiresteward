@@ -10,12 +10,13 @@ import (
 )
 
 type TunDevice struct {
-	tun    tun.Device
-	device *device.Device
-	logger *device.Logger
-	uapi   net.Listener
-	errs   chan error
-	stop   chan bool
+	tun        tun.Device
+	device     *device.Device
+	deviceName string
+	logger     *device.Logger
+	uapi       net.Listener
+	errs       chan error
+	stop       chan bool
 }
 
 func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
@@ -42,15 +43,20 @@ func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
 		return &TunDevice{}, fmt.Errorf("Failed to listen on uapi socket: %v", err)
 	}
 	tundev := &TunDevice{
-		tun:    tun,
-		device: device,
-		logger: logger,
-		uapi:   uapi,
-		errs:   make(chan error),
-		stop:   stop,
+		tun:        tun,
+		device:     device,
+		deviceName: name,
+		logger:     logger,
+		uapi:       uapi,
+		errs:       make(chan error),
+		stop:       stop,
 	}
 
 	return tundev, nil
+}
+
+func (td *TunDevice) Name() string {
+	return td.deviceName
 }
 
 func (td *TunDevice) Run() {
