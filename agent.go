@@ -71,11 +71,11 @@ func NewAgent(deviceName string) (*Agent, error) {
 	return a, nil
 }
 
-func (a *Agent) requestWgConfig(serverUrl, token string) (*Response, error) {
+func (a *Agent) requestWgConfig(serverUrl, token string) (*LeaseResponse, error) {
 	// Marshal key int json
-	r, err := json.Marshal(&Request{PubKey: a.pubKey})
+	r, err := json.Marshal(&LeaseRequest{PubKey: a.pubKey})
 	if err != nil {
-		return &Response{}, err
+		return nil, err
 	}
 
 	// Prepare the request
@@ -92,22 +92,20 @@ func (a *Agent) requestWgConfig(serverUrl, token string) (*Response, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return &Response{}, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return &Response{}, fmt.Errorf(
-			"Response status: %s", resp.Status)
+		return nil, fmt.Errorf("Response status: %s", resp.Status)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &Response{}, fmt.Errorf(
-			"error reading response body: %s,", err.Error())
+		return nil, fmt.Errorf("error reading response body: %w,", err)
 	}
 
-	response := &Response{}
+	response := &LeaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
 		return response, err
 	}
