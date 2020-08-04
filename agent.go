@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"net"
 	"net/http"
 
-	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -68,9 +67,47 @@ func NewAgent(deviceName string) (*Agent, error) {
 	return a, nil
 }
 
-func (a *Agent) requestWgConfig(serverUrl, token string) (*LeaseResponse, error) {
-	// Marshal key int json
-	r, err := json.Marshal(&LeaseRequest{PubKey: a.pubKey})
+func (a *Agent) SetPrivKey() error {
+	return setPrivateKey(a.device, a.privKey)
+}
+
+func (a *Agent) Stop() {
+	a.tundev.Stop()
+}
+
+// TODO: remove, temporary method to aid with transition
+func (a *Agent) UpdateDeviceConfig(deviceName string, peerConfig *PeerConfig) error {
+	return a.netlinkHandle.UpdateDeviceConfig(deviceName, nil, peerConfig)
+}
+
+type PeerConfig struct {
+	Address *net.IPNet
+	Routes  []*net.IPNet
+}
+
+func NewPeerConfigFromLeaseResponse(lr *LeaseResponse) (*PeerConfig, error) {
+	ip, mask, err := net.ParseCIDR(lr.IP)
+	if err != nil {
+		return nil, err
+	}
+	address := &net.IPNet{IP: ip, Mask: mask.Mask}
+	allowedIPs := make([]*net.IPNet, len(lr.AllowedIPs))
+	for i, n := range lr.AllowedIPs {
+		_, network, err := net.ParseCIDR(n)
+		if err != nil {
+			return nil, err
+		}
+		allowedIPs[i] = network
+	}
+	return &PeerConfig{
+		Address: address,
+		Routes:  allowedIPs,
+	}, nil
+}
+
+func requestWirestewardConfig(serverUrl, token, publicKey string) (*LeaseResponse, error) {
+	// Marshal key into json
+	r, err := json.Marshal(&LeaseRequest{PubKey: publicKey})
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +119,7 @@ func (a *Agent) requestWgConfig(serverUrl, token string) (*LeaseResponse, error)
 		bytes.NewBuffer(r),
 	)
 	req.Header.Set("Content-Type", "application/json")
-
-	var bearer = "Bearer " + token
-	req.Header.Set("Authorization", bearer)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -92,8 +127,7 @@ func (a *Agent) requestWgConfig(serverUrl, token string) (*LeaseResponse, error)
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Response status: %s", resp.Status)
 	}
 
@@ -106,72 +140,5 @@ func (a *Agent) requestWgConfig(serverUrl, token string) (*LeaseResponse, error)
 	if err := json.Unmarshal(body, response); err != nil {
 		return response, err
 	}
-
 	return response, nil
-
-}
-
-func (a *Agent) SetPrivKey() error {
-	return setPrivateKey(a.device, a.privKey)
-}
-
-func (a *Agent) addIpToDev(ip string) error {
-	devIP, err := netlink.ParseIPNet(ip)
-	if err != nil {
-		return fmt.Errorf("Cannot parse offered ip net: %v", err)
-	}
-	log.Printf(
-		"Configuring offered ip: %v on dev: %s\n",
-		devIP,
-		a.device,
-	)
-	if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
-	for _, aip := range allowed_ips {
-		dst, err := netlink.ParseIPNet(aip)
-		if err != nil {
-			return fmt.Errorf("Cannot parse ip: %s: %v", aip, err)
-		}
-
-		log.Printf("Adding route: %v on dev %s\n", dst, a.device)
-		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
-			return fmt.Errorf(
-				"Eror adding route %v via %s: %v",
-				dst,
-				a.device,
-				err,
-			)
-		}
-	}
-	return nil
-}
-
-// GetNewWgLease: talks to the peer server to ask for a new ip lease and
-// and configures that ip on the related net interface. Returns the remote
-// wireguard peer config and a list of allowed ips
-func (a *Agent) GetNewWgLease(serverUrl string, token string) (*wgtypes.PeerConfig, []string, error) {
-	resp, err := a.requestWgConfig(serverUrl, token)
-	if err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	if err := a.addIpToDev(resp.IP); err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, resp.AllowedIPs)
-	if err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	return peer, resp.AllowedIPs, nil
-}
-
-func (a *Agent) Stop() {
-	a.tundev.Stop()
 }
