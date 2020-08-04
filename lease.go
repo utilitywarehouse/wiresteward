@@ -16,6 +16,7 @@ import (
 )
 
 type WgRecord struct {
+	PubKey  string
 	IP      net.IP
 	expires time.Time
 }
@@ -67,34 +68,39 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 			continue
 		}
 		tokens := strings.Fields(line)
-		if len(tokens) != 3 {
+		if len(tokens) != 4 {
 			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
 		}
 
-		pubKey := tokens[0]
-		ipaddr := net.ParseIP(tokens[1])
+		email := tokens[0]
+		pubKey := tokens[1]
+		ipaddr := net.ParseIP(tokens[2])
 		// TODO: support v6?
 		if ipaddr.To4() == nil {
 			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
-		expires, err := time.Parse(time.RFC3339, tokens[2])
+		expires, err := time.Parse(time.RFC3339, tokens[3])
 		if err != nil {
 			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
 		}
 		if expires.After(time.Now()) {
-			records[pubKey] = &WgRecord{IP: ipaddr, expires: expires}
+			records[email] = &WgRecord{
+				PubKey:  pubKey,
+				IP:      ipaddr,
+				expires: expires,
+			}
 		}
 	}
 	return records, nil
 }
 
-func (lm *FileLeaseManager) saveWgRecord(pubKey string, record *WgRecord) error {
+func (lm *FileLeaseManager) saveWgRecord(email string, record *WgRecord) error {
 	f, err := os.OpenFile(lm.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(pubKey + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
+	_, err = f.WriteString(email + " " + record.PubKey + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
 	if err != nil {
 		return err
 	}
@@ -106,12 +112,12 @@ func (lm *FileLeaseManager) saveWgRecord(pubKey string, record *WgRecord) error 
 }
 
 func (lm *FileLeaseManager) findNextAvailableIpAddress() (*net.IPNet, error) {
-	allocatedIPs := []net.IP{}
+	allocatedIPs := []net.IP{lm.ip}
 	for _, r := range lm.wgRecords {
 		allocatedIPs = append(allocatedIPs, r.IP)
 	}
 	// Add the gateway IP to the list of already allocated IPs
-	availableIPs, err := getAvailableIPAddresses(lm.cidr, append(allocatedIPs, lm.ip))
+	availableIPs, err := getAvailableIPAddresses(lm.cidr, allocatedIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -134,16 +140,16 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 	return nil
 }
 
-func makePeerConfig(pubKey string, record *WgRecord) (*wgtypes.PeerConfig, error) {
+func makePeerConfig(record *WgRecord) (*wgtypes.PeerConfig, error) {
 	var ips []string
 	ips = append(ips, fmt.Sprintf("%s/32", record.IP.String()))
-	return newPeerConfig(pubKey, "", "", ips)
+	return newPeerConfig(record.PubKey, "", "", ips)
 }
 
 func (lm *FileLeaseManager) getPeersConfig() ([]wgtypes.PeerConfig, error) {
 	ret := []wgtypes.PeerConfig{}
-	for k, r := range lm.wgRecords {
-		peerConfig, err := makePeerConfig(k, r)
+	for _, r := range lm.wgRecords {
+		peerConfig, err := makePeerConfig(r)
 		if err != nil {
 			return ret, fmt.Errorf("error calculating peer config %v", err)
 		}
@@ -164,20 +170,29 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	return nil
 }
 
-func (lm *FileLeaseManager) addNewPeer(pubKey string) (*WgRecord, error) {
+func (lm *FileLeaseManager) createOrUpdatePeer(email, pubKey string) (*WgRecord, error) {
 	ipnet, err := lm.findNextAvailableIpAddress()
 	if err != nil {
 		return &WgRecord{}, err
 	}
-	lm.wgRecords[pubKey] = &WgRecord{
+	lm.wgRecords[email] = &WgRecord{
+		PubKey:  pubKey,
 		IP:      ipnet.IP,
 		expires: time.Now().Add(lm.leaseTime),
+	}
+	return lm.wgRecords[email], nil
+}
+
+func (lm *FileLeaseManager) addNewPeer(email, pubKey string) (*WgRecord, error) {
+	record, err := lm.createOrUpdatePeer(email, pubKey)
+	if err != nil {
+		return &WgRecord{}, err
 	}
 	if err := updateWgPeers(lm); err != nil {
 		return &WgRecord{}, err
 	}
-	if err := lm.saveWgRecord(pubKey, lm.wgRecords[pubKey]); err != nil {
+	if err := lm.saveWgRecord(email, record); err != nil {
 		return &WgRecord{}, err
 	}
-	return lm.wgRecords[pubKey], nil
+	return record, nil
 }

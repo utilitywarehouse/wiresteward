@@ -3,6 +3,7 @@ module github.com/utilitywarehouse/wiresteward
 go 1.14
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/google/go-cmp v0.5.1
 	github.com/nirasan/go-oauth-pkce-code-verifier v0.0.0-20170819232839-0fbfe93532da
 	github.com/stretchr/testify v1.6.1
