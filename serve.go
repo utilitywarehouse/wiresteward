@@ -68,6 +68,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 				fmt.Sprintf("cannot user email from token: %v", err),
 				http.StatusInternalServerError,
 			)
+			return
 		}
 		decoder := json.NewDecoder(r.Body)
 		var p PeerConfig
