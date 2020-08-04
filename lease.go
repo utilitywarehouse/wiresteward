@@ -173,7 +173,7 @@ func updateWgPeers(lm *FileLeaseManager) error {
 func (lm *FileLeaseManager) createOrUpdatePeer(email, pubKey string) (*WgRecord, error) {
 	ipnet, err := lm.findNextAvailableIpAddress()
 	if err != nil {
-		return &WgRecord{}, err
+		return nil, err
 	}
 	lm.wgRecords[email] = &WgRecord{
 		PubKey:  pubKey,
@@ -186,13 +186,13 @@ func (lm *FileLeaseManager) createOrUpdatePeer(email, pubKey string) (*WgRecord,
 func (lm *FileLeaseManager) addNewPeer(email, pubKey string) (*WgRecord, error) {
 	record, err := lm.createOrUpdatePeer(email, pubKey)
 	if err != nil {
-		return &WgRecord{}, err
+		return nil, err
 	}
 	if err := updateWgPeers(lm); err != nil {
-		return &WgRecord{}, err
+		return nil, err
 	}
 	if err := lm.saveWgRecord(email, record); err != nil {
-		return &WgRecord{}, err
+		return nil, err
 	}
 	return record, nil
 }
