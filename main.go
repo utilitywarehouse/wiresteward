@@ -99,10 +99,7 @@ func agent() {
 		log.Fatal(err)
 	}
 
-	agent, err := NewAgent(agentConf)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	agent := NewAgent(agentConf)
 	go agent.ListenAndServe()
 
 	term := make(chan os.Signal, 1)
