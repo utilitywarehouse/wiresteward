@@ -11,14 +11,14 @@ func TestExtractEmailFromToken(t *testing.T) {
 	testSignSecret := []byte("testWirestu")
 	// Test empty
 	_, err := extractUserEmailFromToken("")
-	assert.Equal(t, TOKEN_ERROR_MALFORMED, err)
+	assert.Equal(t, errTokenMalformed, err)
 
 	// Test no claims - This will still construct an empty claims struct and
 	// result in a no email error
 	token := jwt.New(jwt.SigningMethodHS256)
 	tokenString, err := token.SignedString(testSignSecret)
 	_, err = extractUserEmailFromToken(tokenString)
-	assert.Equal(t, TOKEN_ERROR_NO_EMAIL, err)
+	assert.Equal(t, errTokenNoEmail, err)
 
 	// Test no email
 	token = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -26,5 +26,5 @@ func TestExtractEmailFromToken(t *testing.T) {
 	})
 	tokenString, err = token.SignedString(testSignSecret)
 	_, err = extractUserEmailFromToken(tokenString)
-	assert.Equal(t, TOKEN_ERROR_NO_EMAIL, err)
+	assert.Equal(t, errTokenNoEmail, err)
 }
