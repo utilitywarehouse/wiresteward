@@ -6,8 +6,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"os/user"
-	"path"
 	"syscall"
 	"time"
 )
@@ -18,9 +16,6 @@ const (
 )
 
 var (
-	// runningAgent is a temporary global instance to aid with restructuring the
-	// various structs.
-	runningAgent       *Agent
 	userPeerSubnet     *net.IPNet
 	leaserSyncInterval time.Duration
 
@@ -98,69 +93,17 @@ func server() {
 	}
 }
 
-// return home location or die
-func deriveHome() string {
-	u, err := user.Current()
-	if err == nil && u.HomeDir != "" {
-		return u.HomeDir
-	}
-	// try HOME env var
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-
-	log.Fatal("Could not call os/user.Current() or find $HOME. Please recompile with CGO enabled or set $HOME")
-	// not reached
-	return ""
-}
-
-func getDefaultTokenDir() string {
-	path := path.Join(deriveHome(), ".wiresteward/")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0700); err != nil {
-			log.Fatalf("Could not create dir %s: %v", path, err)
-		}
-	}
-	return path
-}
-
-func getDefaultAgentTokenFilePath() string {
-	return path.Join(getDefaultTokenDir(), "token")
-}
-
-func agentLeaseLoop(agentConf *AgentConfig, token string) {
-	log.Println("Running renew leases loop..")
-
-	for _, dm := range runningAgent.deviceManagers {
-		if err := dm.RenewLeases(token); err != nil {
-			log.Printf("Failed to renew leases for device `%s`: %v", dm.Name(), err)
-		}
-	}
-}
-
 func agent() {
 	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	runningAgent, err = NewAgent(agentConf)
+	agent, err := NewAgent(agentConf)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	tokenHandler := NewOauthTokenHandler(
-		agentConf.Oidc.AuthUrl,
-		agentConf.Oidc.TokenUrl,
-		agentConf.Oidc.ClientID,
-		getDefaultAgentTokenFilePath(),
-	)
-
-	h := &AgentHttpHandler{
-		oa:        tokenHandler,
-		agentConf: agentConf,
-	}
-	go h.Run()
+	go agent.ListenAndServe()
 
 	term := make(chan os.Signal, 1)
 	signal.Notify(term, syscall.SIGTERM)
@@ -168,5 +111,5 @@ func agent() {
 	select {
 	case <-term:
 	}
-	runningAgent.Stop()
+	agent.Stop()
 }
