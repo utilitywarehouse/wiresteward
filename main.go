@@ -10,8 +10,6 @@ import (
 	"path"
 	"syscall"
 	"time"
-
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 const (
@@ -20,9 +18,11 @@ const (
 )
 
 var (
+	// runningAgent is a temporary global instance to aid with restructuring the
+	// various structs.
+	runningAgent       *Agent
 	userPeerSubnet     *net.IPNet
 	leaserSyncInterval time.Duration
-	agentsList         []*Agent // to keep track of the agents we start
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
@@ -131,30 +131,9 @@ func getDefaultAgentTokenFilePath() string {
 func agentLeaseLoop(agentConf *AgentConfig, token string) {
 	log.Println("Running renew leases loop..")
 
-	for i, iface := range agentConf.Interfaces {
-		agent := agentsList[i]
-		peers := []wgtypes.PeerConfig{}
-		for _, peer := range iface.Peers {
-			publicKey, _, err := getKeys(agent.tundev.Name())
-			wpc, err := requestWirestewardPeerConfig(peer.Url, token, publicKey)
-			if err != nil {
-				log.Printf("Could not get peer config from `%s`: %v", peer.Url, err)
-				continue
-			}
-			peers = append(peers, *wpc.PeerConfig)
-
-			if err := agent.UpdateDeviceConfig(agent.tundev.Name(), wpc); err != nil {
-				log.Printf("Could not update peer configuration for `%s`: %v", peer.Url, err)
-			}
-		}
-
-		// set all the peers for the interface
-		if err := setPeers(agent.device, peers); err != nil {
-			log.Printf(
-				"Error setting new peers for interface: %s: %v\n",
-				iface.Name,
-				err,
-			)
+	for _, dm := range runningAgent.deviceManagers {
+		if err := dm.RenewLeases(token); err != nil {
+			log.Printf("Failed to renew leases for device `%s`: %v", dm.Name(), err)
 		}
 	}
 }
@@ -165,19 +144,9 @@ func agent() {
 		log.Fatal(err)
 	}
 
-	for _, iface := range agentConf.Interfaces {
-		// Create an agent for each interface specified in the config
-		agent, err := NewAgent(
-			iface.Name,
-		)
-		if err != nil {
-			log.Fatalf(
-				"Cannot create agent for interface: %s : %v",
-				iface.Name,
-				err,
-			)
-		}
-		agentsList = append(agentsList, agent)
+	runningAgent, err = NewAgent(agentConf)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	tokenHandler := NewOauthTokenHandler(
@@ -199,7 +168,5 @@ func agent() {
 	select {
 	case <-term:
 	}
-	for _, agent := range agentsList {
-		agent.Stop()
-	}
+	runningAgent.Stop()
 }
