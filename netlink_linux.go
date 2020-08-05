@@ -17,26 +17,26 @@ func NewNetLinkHandle() *netlinkHandle {
 	return &netlinkHandle{netlink.Handle{}}
 }
 
-func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldPeerConfig, peerConfig *PeerConfig) error {
+func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
 	link, err := h.LinkByName(deviceName)
 	if err != nil {
 		return err
 	}
-	if oldPeerConfig != nil {
-		for _, r := range oldPeerConfig.Routes {
-			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: r}); err != nil {
+	if oldConfig != nil {
+		for _, r := range oldConfig.AllowedIPs {
+			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
 				log.Printf("Could not remove old route (%s): %s", r, err)
 			}
 		}
-		if err := h.AddrDel(link, &netlink.Addr{IPNet: oldPeerConfig.Address}); err != nil {
-			log.Printf("Could not remove old address (%s): %s", oldPeerConfig.Address, err)
+		if err := h.AddrDel(link, &netlink.Addr{IPNet: oldConfig.LocalAddress}); err != nil {
+			log.Printf("Could not remove old address (%s): %s", oldConfig.LocalAddress, err)
 		}
 	}
-	if err := h.AddrAdd(link, &netlink.Addr{IPNet: peerConfig.Address}); err != nil {
+	if err := h.AddrAdd(link, &netlink.Addr{IPNet: config.LocalAddress}); err != nil {
 		return err
 	}
-	for _, r := range peerConfig.Routes {
-		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: r}); err != nil {
+	for _, r := range config.AllowedIPs {
+		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
 			log.Printf("Could not add new route (%s): %s", r, err)
 		}
 	}

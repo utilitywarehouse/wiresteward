@@ -136,25 +136,14 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 		peers := []wgtypes.PeerConfig{}
 		for _, peer := range iface.Peers {
 			publicKey, _, err := getKeys(agent.tundev.Name())
-			resp, err := requestWirestewardConfig(peer.Url, token, publicKey)
+			wpc, err := requestWirestewardPeerConfig(peer.Url, token, publicKey)
 			if err != nil {
-				log.Printf("Could not get lease response from `%s`: %v", peer.Url, err)
+				log.Printf("Could not get peer config from `%s`: %v", peer.Url, err)
 				continue
 			}
-			p, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, resp.AllowedIPs)
-			if err != nil {
-				log.Printf("Could not generate peer configuration from lease response: %v", err)
-				continue
-			}
-			peers = append(peers, *p)
+			peers = append(peers, *wpc.PeerConfig)
 
-			peerConfig, err := NewPeerConfigFromLeaseResponse(resp)
-			if err != nil {
-				log.Printf("Could not get peer configuration from lease response for `%s`: %v", peer.Url, err)
-				continue
-			}
-
-			if err := agent.UpdateDeviceConfig(agent.tundev.Name(), peerConfig); err != nil {
+			if err := agent.UpdateDeviceConfig(agent.tundev.Name(), wpc); err != nil {
 				log.Printf("Could not update peer configuration for `%s`: %v", peer.Url, err)
 			}
 		}

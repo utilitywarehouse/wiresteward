@@ -21,7 +21,7 @@ func NewNetLinkHandle() *netlinkHandle {
 	return &netlinkHandle{}
 }
 
-func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldPeerConfig, peerConfig *PeerConfig) error {
+func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
 	fdInet, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.AF_UNSPEC)
 	if err != nil {
 		return err
@@ -41,25 +41,25 @@ func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldPeerConfig, pee
 		}
 	}()
 
-	if oldPeerConfig != nil {
+	if oldConfig != nil {
 		// We could skip removing old routes, since they should go away when
 		// removing the address below. We maintain this for consistency with the
 		// linux implementation and because it will be needed if we should to
 		// routes via interfaces.
-		for _, r := range oldPeerConfig.Routes {
-			if err := delRoute(fdRoute, oldPeerConfig.Address.IP, r.IP, r.Mask); err != nil {
+		for _, r := range oldConfig.AllowedIPs {
+			if err := delRoute(fdRoute, oldConfig.LocalAddress.IP, r.IP, r.Mask); err != nil {
 				log.Printf("Could not remove old route (%s): %s", r, err)
 			}
 		}
-		if err := deleteAddress(fdInet, deviceName, oldPeerConfig.Address.IP); err != nil {
-			log.Printf("Could not remove old address: (%s): %s", oldPeerConfig.Address, err)
+		if err := deleteAddress(fdInet, deviceName, oldConfig.LocalAddress.IP); err != nil {
+			log.Printf("Could not remove old address: (%s): %s", oldConfig.LocalAddress, err)
 		}
 	}
-	if err := addAddress(fdInet, deviceName, peerConfig.Address.IP, peerConfig.Address.IP, peerConfig.Address.Mask); err != nil {
+	if err := addAddress(fdInet, deviceName, config.LocalAddress.IP, config.LocalAddress.IP, config.LocalAddress.Mask); err != nil {
 		return err
 	}
-	for _, r := range peerConfig.Routes {
-		if err := addRoute(fdRoute, peerConfig.Address.IP, r.IP, r.Mask); err != nil {
+	for _, r := range config.AllowedIPs {
+		if err := addRoute(fdRoute, config.LocalAddress.IP, r.IP, r.Mask); err != nil {
 			log.Printf("Could not add new route (%s): %s", r, err)
 		}
 	}

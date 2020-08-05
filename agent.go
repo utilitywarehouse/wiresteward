@@ -76,36 +76,32 @@ func (a *Agent) Stop() {
 }
 
 // TODO: remove, temporary method to aid with transition
-func (a *Agent) UpdateDeviceConfig(deviceName string, peerConfig *PeerConfig) error {
-	return a.netlinkHandle.UpdateDeviceConfig(deviceName, nil, peerConfig)
+func (a *Agent) UpdateDeviceConfig(deviceName string, config *WirestewardPeerConfig) error {
+	return a.netlinkHandle.UpdateDeviceConfig(deviceName, nil, config)
 }
 
-type PeerConfig struct {
-	Address *net.IPNet
-	Routes  []*net.IPNet
+type WirestewardPeerConfig struct {
+	*wgtypes.PeerConfig
+	LocalAddress *net.IPNet
 }
 
-func NewPeerConfigFromLeaseResponse(lr *LeaseResponse) (*PeerConfig, error) {
+func newWirestewardPeerConfigFromLeaseResponse(lr *LeaseResponse) (*WirestewardPeerConfig, error) {
 	ip, mask, err := net.ParseCIDR(lr.IP)
 	if err != nil {
 		return nil, err
 	}
 	address := &net.IPNet{IP: ip, Mask: mask.Mask}
-	allowedIPs := make([]*net.IPNet, len(lr.AllowedIPs))
-	for i, n := range lr.AllowedIPs {
-		_, network, err := net.ParseCIDR(n)
-		if err != nil {
-			return nil, err
-		}
-		allowedIPs[i] = network
+	pc, err := newPeerConfig(lr.PubKey, "", lr.Endpoint, lr.AllowedIPs)
+	if err != nil {
+		return nil, err
 	}
-	return &PeerConfig{
-		Address: address,
-		Routes:  allowedIPs,
+	return &WirestewardPeerConfig{
+		PeerConfig:   pc,
+		LocalAddress: address,
 	}, nil
 }
 
-func requestWirestewardConfig(serverUrl, token, publicKey string) (*LeaseResponse, error) {
+func requestWirestewardPeerConfig(serverUrl, token, publicKey string) (*WirestewardPeerConfig, error) {
 	// Marshal key into json
 	r, err := json.Marshal(&LeaseRequest{PubKey: publicKey})
 	if err != nil {
@@ -138,7 +134,7 @@ func requestWirestewardConfig(serverUrl, token, publicKey string) (*LeaseRespons
 
 	response := &LeaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return response, err
+		return nil, err
 	}
-	return response, nil
+	return newWirestewardPeerConfigFromLeaseResponse(response)
 }
