@@ -31,9 +31,9 @@ type HTTPLeaseHandler struct {
 }
 
 var (
-	TOKEN_ERROR_MALFORMED = fmt.Errorf("Malformed token")
-	TOKEN_ERROR_NO_CLAIMS = fmt.Errorf("Cannot extract claims from token")
-	TOKEN_ERROR_NO_EMAIL  = fmt.Errorf("Cannot extract email from token")
+	errTokenMalformed = fmt.Errorf("Malformed token")
+	errTokenNoClaims  = fmt.Errorf("Cannot extract claims from token")
+	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
 )
 
 func extractUserEmailFromToken(tokenString string) (string, error) {
@@ -43,15 +43,15 @@ func extractUserEmailFromToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, nil)
 	// https://github.com/dgrijalva/jwt-go/issues/44#issuecomment-67357659
 	if err.(*jwt.ValidationError).Errors&jwt.ValidationErrorMalformed != 0 {
-		return "", TOKEN_ERROR_MALFORMED
+		return "", errTokenMalformed
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", TOKEN_ERROR_NO_CLAIMS
+		return "", errTokenNoClaims
 	}
 	email, ok := claims["email"].(string)
 	if !ok {
-		return "", TOKEN_ERROR_NO_EMAIL
+		return "", errTokenNoEmail
 	}
 	return email, nil
 }
