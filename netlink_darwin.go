@@ -14,42 +14,59 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type netlinkHandle struct {
-	localAddr net.IP
-}
+type netlinkHandle struct{}
 
 // NewNetLinkHandle will create a new NetLinkHandle
 func NewNetLinkHandle() *netlinkHandle {
 	return &netlinkHandle{}
 }
 
-// AddrReplace: will replace (or, if not present, add) an IP address on a link
-// device.
-func (h *netlinkHandle) UpdateIP(devName string, ipnet *net.IPNet) error {
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.AF_UNSPEC)
+func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
+	fdInet, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.AF_UNSPEC)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := unix.Close(fd); err != nil {
+		if err := unix.Close(fdInet); err != nil {
 			log.Printf("Could not close AF_INET socket: %v", err)
 		}
 	}()
-	if err := flushAddresses(fd, devName); err != nil {
+	fdRoute, err := unix.Socket(unix.AF_ROUTE, unix.SOCK_RAW, unix.AF_UNSPEC)
+	if err != nil {
 		return err
 	}
-	if err := addAddress(fd, devName, ipnet.IP, ipnet.IP, ipnet.Mask); err != nil {
+	defer func() {
+		if err := unix.Close(fdRoute); err != nil {
+			log.Printf("Could not close AF_ROUTE socket: %v", err)
+		}
+	}()
+
+	if oldConfig != nil {
+		// We could skip removing old routes, since they should go away when
+		// removing the address below. We maintain this for consistency with the
+		// linux implementation and because it will be needed if we should to
+		// routes via interfaces.
+		for _, r := range oldConfig.AllowedIPs {
+			if err := delRoute(fdRoute, oldConfig.LocalAddress.IP, r.IP, r.Mask); err != nil {
+				log.Printf("Could not remove old route (%s): %s", r, err)
+			}
+		}
+		if err := deleteAddress(fdInet, deviceName, oldConfig.LocalAddress.IP); err != nil {
+			log.Printf("Could not remove old address: (%s): %s", oldConfig.LocalAddress, err)
+		}
+	}
+	if err := addAddress(fdInet, deviceName, config.LocalAddress.IP, config.LocalAddress.IP, config.LocalAddress.Mask); err != nil {
 		return err
 	}
-	h.localAddr = ipnet.IP
+	for _, r := range config.AllowedIPs {
+		if err := addRoute(fdRoute, config.LocalAddress.IP, r.IP, r.Mask); err != nil {
+			log.Printf("Could not add new route (%s): %s", r, err)
+		}
+	}
 	return nil
 }
 
-func (h *netlinkHandle) AddRoute(devName string, dst *net.IPNet) error {
-	return addRoute(h.localAddr, dst.IP, dst.Mask)
-}
-
-// TODO: is this no-op? device seems to come up automaticall on creation
+// This is a no-op for darwin, the device seems to be ready on creation.
 func (h *netlinkHandle) EnsureLinkUp(devName string) error {
 	return nil
 }
@@ -170,15 +187,15 @@ func newRoute(gateway, dst net.IP, mask net.IPMask) []route.Addr {
 	}
 }
 
-func addRoute(gateway, dst net.IP, mask net.IPMask) error {
-	return setRoute(unix.RTM_ADD, newRoute(gateway, dst, mask))
+func addRoute(fd int, gateway, dst net.IP, mask net.IPMask) error {
+	return setRoute(fd, unix.RTM_ADD, newRoute(gateway, dst, mask))
 }
 
-func delRoute(gateway, dst net.IP, mask net.IPMask) error {
-	return setRoute(unix.RTM_DELETE, newRoute(gateway, dst, mask))
+func delRoute(fd int, gateway, dst net.IP, mask net.IPMask) error {
+	return setRoute(fd, unix.RTM_DELETE, newRoute(gateway, dst, mask))
 }
 
-func setRoute(tp int, addr []route.Addr) error {
+func setRoute(fd int, tp int, addr []route.Addr) error {
 	rtmsg := route.RouteMessage{
 		Type:    tp,
 		Version: unix.RTM_VERSION,
@@ -190,16 +207,6 @@ func setRoute(tp int, addr []route.Addr) error {
 	if err != nil {
 		return err
 	}
-
-	fd, err := unix.Socket(unix.AF_ROUTE, unix.SOCK_RAW, unix.AF_UNSPEC)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := unix.Close(fd); err != nil {
-			log.Printf("Could not close AF_ROUTE socket: %v", err)
-		}
-	}()
 
 	if _, err = syscall.Write(fd, buf); err != nil {
 		return fmt.Errorf("failed to set route %w", err)

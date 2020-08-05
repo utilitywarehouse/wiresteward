@@ -10,15 +10,17 @@ import (
 )
 
 type TunDevice struct {
-	tun    tun.Device
-	device *device.Device
-	logger *device.Logger
-	uapi   net.Listener
-	errs   chan error
-	stop   chan bool
+	tun        tun.Device
+	device     *device.Device
+	deviceName string
+	logger     *device.Logger
+	uapi       net.Listener
+	errs       chan error
+	stop       chan bool
+	stopped    chan bool
 }
 
-func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
+func startTunDevice(name string) (*TunDevice, error) {
 	tun, err := tun.CreateTUN(name, device.DefaultMTU)
 	if err != nil {
 		return &TunDevice{}, fmt.Errorf("Cannot create tun device %v", err)
@@ -42,18 +44,25 @@ func startTunDevice(name string, stop chan bool) (*TunDevice, error) {
 		return &TunDevice{}, fmt.Errorf("Failed to listen on uapi socket: %v", err)
 	}
 	tundev := &TunDevice{
-		tun:    tun,
-		device: device,
-		logger: logger,
-		uapi:   uapi,
-		errs:   make(chan error),
-		stop:   stop,
+		tun:        tun,
+		device:     device,
+		deviceName: name,
+		logger:     logger,
+		uapi:       uapi,
+		errs:       make(chan error),
 	}
 
 	return tundev, nil
 }
 
+func (td *TunDevice) Name() string {
+	return td.deviceName
+}
+
 func (td *TunDevice) Run() {
+	td.stop = make(chan bool)
+	td.stopped = make(chan bool)
+
 	go func() {
 		for {
 			conn, err := td.uapi.Accept()
@@ -73,6 +82,12 @@ func (td *TunDevice) Run() {
 	}
 
 	td.CleanUp()
+	close(td.stopped)
+}
+
+func (td *TunDevice) Stop() {
+	close(td.stop)
+	<-td.stopped
 }
 
 func (td *TunDevice) CleanUp() {

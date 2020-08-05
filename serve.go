@@ -9,15 +9,11 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-type PeerConfig struct {
+type LeaseRequest struct {
 	PubKey string
 }
 
-type Request struct {
-	PubKey string
-}
-
-type Response struct {
+type LeaseResponse struct {
 	Status     string
 	IP         string
 	AllowedIPs []string
@@ -71,9 +67,8 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
-		var p PeerConfig
-		err = decoder.Decode(&p)
-		if err != nil {
+		var p LeaseRequest
+		if err := decoder.Decode(&p); err != nil {
 			log.Println("Cannot decode request body", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
@@ -87,7 +82,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 				http.Error(w, "cannot get public key", http.StatusInternalServerError)
 				return
 			}
-			response := &Response{
+			response := &LeaseResponse{
 				Status:     "success",
 				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
 				AllowedIPs: lh.serverConfig.AllowedIPs,

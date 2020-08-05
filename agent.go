@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"net"
 	"net/http"
 
-	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -17,7 +16,6 @@ type Agent struct {
 	pubKey        string
 	privKey       string
 	netlinkHandle *netlinkHandle
-	stop          chan bool
 	tundev        *TunDevice
 }
 
@@ -28,13 +26,11 @@ func NewAgent(deviceName string) (*Agent, error) {
 		netlinkHandle: NewNetLinkHandle(),
 	}
 
-	stop := make(chan bool)
-	tundev, err := startTunDevice(deviceName, stop)
+	tundev, err := startTunDevice(deviceName)
 	if err != nil {
 		return a, fmt.Errorf("Error starting wg device: %s: %v", deviceName, err)
 	}
 
-	a.stop = stop
 	a.tundev = tundev
 
 	go a.tundev.Run()
@@ -71,11 +67,45 @@ func NewAgent(deviceName string) (*Agent, error) {
 	return a, nil
 }
 
-func (a *Agent) requestWgConfig(serverUrl, token string) (*Response, error) {
-	// Marshal key int json
-	r, err := json.Marshal(&Request{PubKey: a.pubKey})
+func (a *Agent) SetPrivKey() error {
+	return setPrivateKey(a.device, a.privKey)
+}
+
+func (a *Agent) Stop() {
+	a.tundev.Stop()
+}
+
+// TODO: remove, temporary method to aid with transition
+func (a *Agent) UpdateDeviceConfig(deviceName string, config *WirestewardPeerConfig) error {
+	return a.netlinkHandle.UpdateDeviceConfig(deviceName, nil, config)
+}
+
+type WirestewardPeerConfig struct {
+	*wgtypes.PeerConfig
+	LocalAddress *net.IPNet
+}
+
+func newWirestewardPeerConfigFromLeaseResponse(lr *LeaseResponse) (*WirestewardPeerConfig, error) {
+	ip, mask, err := net.ParseCIDR(lr.IP)
 	if err != nil {
-		return &Response{}, err
+		return nil, err
+	}
+	address := &net.IPNet{IP: ip, Mask: mask.Mask}
+	pc, err := newPeerConfig(lr.PubKey, "", lr.Endpoint, lr.AllowedIPs)
+	if err != nil {
+		return nil, err
+	}
+	return &WirestewardPeerConfig{
+		PeerConfig:   pc,
+		LocalAddress: address,
+	}, nil
+}
+
+func requestWirestewardPeerConfig(serverUrl, token, publicKey string) (*WirestewardPeerConfig, error) {
+	// Marshal key into json
+	r, err := json.Marshal(&LeaseRequest{PubKey: publicKey})
+	if err != nil {
+		return nil, err
 	}
 
 	// Prepare the request
@@ -85,98 +115,26 @@ func (a *Agent) requestWgConfig(serverUrl, token string) (*Response, error) {
 		bytes.NewBuffer(r),
 	)
 	req.Header.Set("Content-Type", "application/json")
-
-	var bearer = "Bearer " + token
-	req.Header.Set("Authorization", bearer)
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return &Response{}, err
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return &Response{}, fmt.Errorf(
-			"Response status: %s", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Response status: %s", resp.Status)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &Response{}, fmt.Errorf(
-			"error reading response body: %s,", err.Error())
+		return nil, fmt.Errorf("error reading response body: %w,", err)
 	}
 
-	response := &Response{}
+	response := &LeaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return response, err
+		return nil, err
 	}
-
-	return response, nil
-
-}
-
-func (a *Agent) SetPrivKey() error {
-	return setPrivateKey(a.device, a.privKey)
-}
-
-func (a *Agent) addIpToDev(ip string) error {
-	devIP, err := netlink.ParseIPNet(ip)
-	if err != nil {
-		return fmt.Errorf("Cannot parse offered ip net: %v", err)
-	}
-	log.Printf(
-		"Configuring offered ip: %v on dev: %s\n",
-		devIP,
-		a.device,
-	)
-	if err := a.netlinkHandle.UpdateIP(a.device, devIP); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *Agent) addRoutesForAllowedIps(allowed_ips []string) error {
-	for _, aip := range allowed_ips {
-		dst, err := netlink.ParseIPNet(aip)
-		if err != nil {
-			return fmt.Errorf("Cannot parse ip: %s: %v", aip, err)
-		}
-
-		log.Printf("Adding route: %v on dev %s\n", dst, a.device)
-		if err := a.netlinkHandle.AddRoute(a.device, dst); err != nil {
-			return fmt.Errorf(
-				"Eror adding route %v via %s: %v",
-				dst,
-				a.device,
-				err,
-			)
-		}
-	}
-	return nil
-}
-
-// GetNewWgLease: talks to the peer server to ask for a new ip lease and
-// and configures that ip on the related net interface. Returns the remote
-// wireguard peer config and a list of allowed ips
-func (a *Agent) GetNewWgLease(serverUrl string, token string) (*wgtypes.PeerConfig, []string, error) {
-	resp, err := a.requestWgConfig(serverUrl, token)
-	if err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	if err := a.addIpToDev(resp.IP); err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	peer, err := newPeerConfig(resp.PubKey, "", resp.Endpoint, resp.AllowedIPs)
-	if err != nil {
-		return &wgtypes.PeerConfig{}, []string{}, err
-	}
-
-	return peer, resp.AllowedIPs, nil
-}
-
-func (a *Agent) Stop() {
-	a.stop <- true
+	return newWirestewardPeerConfigFromLeaseResponse(response)
 }

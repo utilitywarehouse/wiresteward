@@ -134,19 +134,17 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 	for i, iface := range agentConf.Interfaces {
 		agent := agentsList[i]
 		peers := []wgtypes.PeerConfig{}
-		allowed_ips := map[string]bool{}
 		for _, peer := range iface.Peers {
-			p, aips, err := agent.GetNewWgLease(peer.Url, token)
+			publicKey, _, err := getKeys(agent.tundev.Name())
+			wpc, err := requestWirestewardPeerConfig(peer.Url, token, publicKey)
 			if err != nil {
-				log.Printf(
-					"cannot get lease from peer: %s :%v",
-					peer.Url,
-					err,
-				)
+				log.Printf("Could not get peer config from `%s`: %v", peer.Url, err)
+				continue
 			}
-			peers = append(peers, *p)
-			for _, aip := range aips {
-				allowed_ips[aip] = true
+			peers = append(peers, *wpc.PeerConfig)
+
+			if err := agent.UpdateDeviceConfig(agent.tundev.Name(), wpc); err != nil {
+				log.Printf("Could not update peer configuration for `%s`: %v", peer.Url, err)
 			}
 		}
 
@@ -158,17 +156,6 @@ func agentLeaseLoop(agentConf *AgentConfig, token string) {
 				err,
 			)
 		}
-
-		// Add a set of allowed ips to routes via the interface
-		allowed_ips_set := make([]string, 0, len(allowed_ips))
-		for ip, _ := range allowed_ips {
-			allowed_ips_set = append(allowed_ips_set, ip)
-		}
-
-		if err := agent.addRoutesForAllowedIps(allowed_ips_set); err != nil {
-			log.Printf("Error adding routes: %v\n", err)
-		}
-
 	}
 }
 

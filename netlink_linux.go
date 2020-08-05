@@ -3,44 +3,47 @@
 package main
 
 import (
-	"net"
+	"log"
 
 	"github.com/vishvananda/netlink"
 )
 
 type netlinkHandle struct {
 	netlink.Handle
-	isIPv6 bool
 }
 
 // NewNetLinkHandle will create a new NetLinkHandle
 func NewNetLinkHandle() *netlinkHandle {
-	return &netlinkHandle{netlink.Handle{}, false}
+	return &netlinkHandle{netlink.Handle{}}
 }
 
-// AddrReplace: will replace (or, if not present, add) an IP address on a link
-// device.
-// TODO: Matches netlink_darwin approach. This will not work in case of many
-// peers on the same device(?)
-func (h *netlinkHandle) UpdateIP(devName string, ipnet *net.IPNet) error {
-	link, err := h.LinkByName(devName)
+func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
+	link, err := h.LinkByName(deviceName)
 	if err != nil {
 		return err
 	}
-	if err := h.flushAddresses(devName); err != nil {
+	if oldConfig != nil {
+		for _, r := range oldConfig.AllowedIPs {
+			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
+				log.Printf("Could not remove old route (%s): %s", r, err)
+			}
+		}
+		if err := h.AddrDel(link, &netlink.Addr{IPNet: oldConfig.LocalAddress}); err != nil {
+			log.Printf("Could not remove old address (%s): %s", oldConfig.LocalAddress, err)
+		}
+	}
+	if err := h.AddrAdd(link, &netlink.Addr{IPNet: config.LocalAddress}); err != nil {
 		return err
 	}
-	return h.AddrAdd(link, &netlink.Addr{IPNet: ipnet})
-}
-
-func (h *netlinkHandle) AddRoute(devName string, dst *net.IPNet) error {
-	link, err := h.LinkByName(devName)
-	if err != nil {
-		return err
+	for _, r := range config.AllowedIPs {
+		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
+			log.Printf("Could not add new route (%s): %s", r, err)
+		}
 	}
-	return h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: dst})
+	return nil
 }
 
+// TODO: confirm that this is still needed for linux after the switch to tun.
 func (h *netlinkHandle) EnsureLinkUp(devName string) error {
 	link, err := h.LinkByName(devName)
 	if err != nil {
