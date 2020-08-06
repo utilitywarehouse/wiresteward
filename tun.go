@@ -14,6 +14,7 @@ import (
 // userspace wireguard.
 type TunDevice struct {
 	device     *device.Device
+	deviceMTU  int
 	deviceName string
 	errs       chan error
 	logger     *device.Logger
@@ -23,40 +24,20 @@ type TunDevice struct {
 	stopped    chan bool
 }
 
-func startTunDevice(name string, mtu int) (*TunDevice, error) {
+func newTunDevice(name string, mtu int) *TunDevice {
 	if mtu == 0 {
 		mtu = device.DefaultMTU
 	}
-	tunDevice, err := tun.CreateTUN(name, mtu)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot create tun device %v", err)
-	}
-
 	logger := device.NewLogger(
 		device.LogLevelInfo,
 		fmt.Sprintf("(%s) ", name),
 	)
-
-	device := device.NewDevice(tunDevice, logger)
-	logger.Info.Println("Device started")
-
-	uapiSocket, err := ipc.UAPIOpen(name)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open uapi socket file: %v", err)
-	}
-
-	uapi, err := ipc.UAPIListen(name, uapiSocket)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to listen on uapi socket: %v", err)
-	}
 	return &TunDevice{
-		device:     device,
+		deviceMTU:  mtu,
 		deviceName: name,
 		errs:       make(chan error),
 		logger:     logger,
-		uapi:       uapi,
-		uapiSocket: uapiSocket,
-	}, nil
+	}
 }
 
 // Name returns the name of the device.
@@ -64,9 +45,55 @@ func (td *TunDevice) Name() string {
 	return td.deviceName
 }
 
-// Run starts processing UAPI operations for the device. It should only be
-// called once after creating the TunDevice.
-func (td *TunDevice) Run() {
+// Run starts processing UAPI operations for the device.
+func (td *TunDevice) Run() error {
+	if err := td.init(); err != nil {
+		return err
+	}
+	go td.run()
+	return nil
+}
+
+// Stop will stop the device and cleanup underlying resources.
+func (td *TunDevice) Stop() {
+	if td.stop == nil {
+		return
+	}
+	close(td.stop)
+	<-td.stopped
+}
+
+func (td *TunDevice) init() error {
+	tunDevice, err := tun.CreateTUN(td.deviceName, td.deviceMTU)
+	if err != nil {
+		return fmt.Errorf("Cannot create tun device %v", err)
+	}
+
+	device := device.NewDevice(tunDevice, td.logger)
+	td.logger.Info.Println("Device started")
+
+	uapiSocket, err := ipc.UAPIOpen(td.deviceName)
+	if err != nil {
+		device.Close()
+		return fmt.Errorf("Failed to open uapi socket file: %v", err)
+	}
+
+	uapi, err := ipc.UAPIListen(td.deviceName, uapiSocket)
+	if err != nil {
+		if err := td.uapiSocket.Close(); err != nil {
+			td.logger.Error.Println(err)
+		}
+		device.Close()
+		return fmt.Errorf("Failed to listen on uapi socket: %v", err)
+	}
+
+	td.device = device
+	td.uapiSocket = uapiSocket
+	td.uapi = uapi
+	return nil
+}
+
+func (td *TunDevice) run() {
 	td.stop = make(chan bool)
 	td.stopped = make(chan bool)
 
@@ -93,12 +120,6 @@ func (td *TunDevice) Run() {
 
 	td.cleanup()
 	close(td.stopped)
-}
-
-// Stop will stop the device and cleanup underlying resources.
-func (td *TunDevice) Stop() {
-	close(td.stop)
-	<-td.stopped
 }
 
 func (td *TunDevice) cleanup() {
