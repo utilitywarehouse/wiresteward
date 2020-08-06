@@ -10,6 +10,8 @@ import (
 	"golang.zx2c4.com/wireguard/tun"
 )
 
+// TunDevice represents a tun network device on the system, setup for use with
+// userspace wireguard.
 type TunDevice struct {
 	device     *device.Device
 	deviceName string
@@ -19,7 +21,6 @@ type TunDevice struct {
 	uapiSocket *os.File
 	stop       chan bool
 	stopped    chan bool
-	tunDevice  tun.Device
 }
 
 func startTunDevice(name string, mtu int) (*TunDevice, error) {
@@ -28,7 +29,7 @@ func startTunDevice(name string, mtu int) (*TunDevice, error) {
 	}
 	tunDevice, err := tun.CreateTUN(name, mtu)
 	if err != nil {
-		return &TunDevice{}, fmt.Errorf("Cannot create tun device %v", err)
+		return nil, fmt.Errorf("Cannot create tun device %v", err)
 	}
 
 	logger := device.NewLogger(
@@ -41,30 +42,30 @@ func startTunDevice(name string, mtu int) (*TunDevice, error) {
 
 	uapiSocket, err := ipc.UAPIOpen(name)
 	if err != nil {
-		return &TunDevice{}, fmt.Errorf("Failed to open uapi socket file: %v", err)
+		return nil, fmt.Errorf("Failed to open uapi socket file: %v", err)
 	}
 
 	uapi, err := ipc.UAPIListen(name, uapiSocket)
 	if err != nil {
-		return &TunDevice{}, fmt.Errorf("Failed to listen on uapi socket: %v", err)
+		return nil, fmt.Errorf("Failed to listen on uapi socket: %v", err)
 	}
-	tundev := &TunDevice{
+	return &TunDevice{
 		device:     device,
 		deviceName: name,
 		errs:       make(chan error),
 		logger:     logger,
 		uapi:       uapi,
 		uapiSocket: uapiSocket,
-		tunDevice:  tunDevice,
-	}
-
-	return tundev, nil
+	}, nil
 }
 
+// Name returns the name of the device.
 func (td *TunDevice) Name() string {
 	return td.deviceName
 }
 
+// Run starts processing UAPI operations for the device. It should only be
+// called once after creating the TunDevice.
 func (td *TunDevice) Run() {
 	td.stop = make(chan bool)
 	td.stopped = make(chan bool)
@@ -83,14 +84,18 @@ func (td *TunDevice) Run() {
 
 	select {
 	case <-td.stop:
-	case <-td.errs:
+		td.logger.Info.Printf("Device stopping...")
+	case err := <-td.errs:
+		td.logger.Error.Printf("Device error: %v", err)
 	case <-td.device.Wait():
+		td.logger.Info.Printf("Device stopped")
 	}
 
 	td.cleanup()
 	close(td.stopped)
 }
 
+// Stop will stop the device and cleanup underlying resources.
 func (td *TunDevice) Stop() {
 	close(td.stop)
 	<-td.stopped
@@ -98,9 +103,14 @@ func (td *TunDevice) Stop() {
 
 func (td *TunDevice) cleanup() {
 	td.logger.Info.Println("Shutting down")
-	td.uapi.Close()
-	td.logger.Info.Println("UAPI listener stopped")
-	td.uapiSocket.Close()
+	if err := td.uapi.Close(); err != nil {
+		td.logger.Error.Println(err)
+	}
+	td.logger.Debug.Println("UAPI listener stopped")
+	if err := td.uapiSocket.Close(); err != nil {
+		td.logger.Error.Println(err)
+	}
+	td.logger.Debug.Println("UAPI socket stopped")
 	td.device.Close()
-	td.tunDevice.Close()
+	td.logger.Debug.Println("Device closed")
 }
