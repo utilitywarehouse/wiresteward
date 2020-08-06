@@ -6,12 +6,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"os/user"
-	"path"
 	"syscall"
 	"time"
-
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 const (
@@ -22,7 +18,6 @@ const (
 var (
 	userPeerSubnet     *net.IPNet
 	leaserSyncInterval time.Duration
-	agentsList         []*Agent // to keep track of the agents we start
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
@@ -98,100 +93,14 @@ func server() {
 	}
 }
 
-// return home location or die
-func deriveHome() string {
-	u, err := user.Current()
-	if err == nil && u.HomeDir != "" {
-		return u.HomeDir
-	}
-	// try HOME env var
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-
-	log.Fatal("Could not call os/user.Current() or find $HOME. Please recompile with CGO enabled or set $HOME")
-	// not reached
-	return ""
-}
-
-func getDefaultTokenDir() string {
-	path := path.Join(deriveHome(), ".wiresteward/")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0700); err != nil {
-			log.Fatalf("Could not create dir %s: %v", path, err)
-		}
-	}
-	return path
-}
-
-func getDefaultAgentTokenFilePath() string {
-	return path.Join(getDefaultTokenDir(), "token")
-}
-
-func agentLeaseLoop(agentConf *AgentConfig, token string) {
-	log.Println("Running renew leases loop..")
-
-	for i, iface := range agentConf.Interfaces {
-		agent := agentsList[i]
-		peers := []wgtypes.PeerConfig{}
-		for _, peer := range iface.Peers {
-			publicKey, _, err := getKeys(agent.tundev.Name())
-			wpc, err := requestWirestewardPeerConfig(peer.Url, token, publicKey)
-			if err != nil {
-				log.Printf("Could not get peer config from `%s`: %v", peer.Url, err)
-				continue
-			}
-			peers = append(peers, *wpc.PeerConfig)
-
-			if err := agent.UpdateDeviceConfig(agent.tundev.Name(), wpc); err != nil {
-				log.Printf("Could not update peer configuration for `%s`: %v", peer.Url, err)
-			}
-		}
-
-		// set all the peers for the interface
-		if err := setPeers(agent.device, peers); err != nil {
-			log.Printf(
-				"Error setting new peers for interface: %s: %v\n",
-				iface.Name,
-				err,
-			)
-		}
-	}
-}
-
 func agent() {
 	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, iface := range agentConf.Interfaces {
-		// Create an agent for each interface specified in the config
-		agent, err := NewAgent(
-			iface.Name,
-		)
-		if err != nil {
-			log.Fatalf(
-				"Cannot create agent for interface: %s : %v",
-				iface.Name,
-				err,
-			)
-		}
-		agentsList = append(agentsList, agent)
-	}
-
-	tokenHandler := NewOauthTokenHandler(
-		agentConf.Oidc.AuthUrl,
-		agentConf.Oidc.TokenUrl,
-		agentConf.Oidc.ClientID,
-		getDefaultAgentTokenFilePath(),
-	)
-
-	h := &AgentHttpHandler{
-		oa:        tokenHandler,
-		agentConf: agentConf,
-	}
-	go h.Run()
+	agent := NewAgent(agentConf)
+	go agent.ListenAndServe()
 
 	term := make(chan os.Signal, 1)
 	signal.Notify(term, syscall.SIGTERM)
@@ -199,7 +108,5 @@ func agent() {
 	select {
 	case <-term:
 	}
-	for _, agent := range agentsList {
-		agent.Stop()
-	}
+	agent.Stop()
 }
