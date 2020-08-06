@@ -12,8 +12,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// OAuthTokenHandler implements functionality for the oauth2 flow.
-type OAuthTokenHandler struct {
+// oauthTokenHandler implements functionality for the oauth2 flow.
+type oauthTokenHandler struct {
 	ctx          context.Context
 	config       *oauth2.Config
 	tokFile      string             // File path to cache the token
@@ -21,14 +21,14 @@ type OAuthTokenHandler struct {
 	codeVerifier *cv.CodeVerifier
 }
 
-// IDToken represents an oauth id token.
-type IDToken struct {
+// idToken represents an oauth id token.
+type idToken struct {
 	IDToken string    `json:"id_token"`
 	Expiry  time.Time `json:"expiry,omitempty"`
 }
 
-func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *OAuthTokenHandler {
-	oa := &OAuthTokenHandler{
+func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
+	oa := &oauthTokenHandler{
 		ctx: context.Background(),
 		config: &oauth2.Config{
 			ClientID: clientID,
@@ -48,7 +48,7 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *OAuthTok
 }
 
 // prepareTokenWebChalenge returns a url to follow oauth
-func (oa *OAuthTokenHandler) prepareTokenWebChalenge() (string, error) {
+func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
 	codeVerifier, err := cv.CreateCodeVerifier()
 	if err != nil {
 		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
@@ -67,18 +67,18 @@ func (oa *OAuthTokenHandler) prepareTokenWebChalenge() (string, error) {
 	return url, nil
 }
 
-func (oa *OAuthTokenHandler) getTokenFromFile() (*IDToken, error) {
+func (oa *oauthTokenHandler) getTokenFromFile() (*idToken, error) {
 	f, err := os.Open(oa.tokFile)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	tok := &IDToken{}
+	tok := &idToken{}
 	err = json.NewDecoder(f).Decode(tok)
 	return tok, err
 }
 
-func (oa *OAuthTokenHandler) saveToken(token *IDToken) {
+func (oa *oauthTokenHandler) saveToken(token *idToken) {
 	log.Printf("Saving credential file to: %s\n", oa.tokFile)
 	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -88,8 +88,7 @@ func (oa *OAuthTokenHandler) saveToken(token *IDToken) {
 	json.NewEncoder(f).Encode(token)
 }
 
-// ExchangeToken will exchange an oauth code and return an IDToken.
-func (oa *OAuthTokenHandler) ExchangeToken(code string) (*IDToken, error) {
+func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
 	// Use the authorization code that is pushed to the redirect
 	// URL. Exchange will do the handshake to retrieve the
 	// initial access token.
@@ -104,7 +103,7 @@ func (oa *OAuthTokenHandler) ExchangeToken(code string) (*IDToken, error) {
 		return nil, fmt.Errorf("Cannot get id_token data from token")
 	}
 
-	idToken := &IDToken{
+	idToken := &idToken{
 		IDToken: rawIDToken,
 		Expiry:  tok.Expiry,
 	}

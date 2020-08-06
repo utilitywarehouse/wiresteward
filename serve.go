@@ -15,15 +15,15 @@ var (
 	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
 )
 
-// LeaseRequest defines the payload of a lease HTTP request submitted by an
+// leaseRequest defines the payload of a lease HTTP request submitted by an
 // agent.
-type LeaseRequest struct {
+type leaseRequest struct {
 	PubKey string
 }
 
-// LeaseResponse define the payload of a lease HTTP response returned by a
+// leaseResponse define the payload of a lease HTTP response returned by a
 // server.
-type LeaseResponse struct {
+type leaseResponse struct {
 	Status     string
 	IP         string
 	AllowedIPs []string
@@ -34,7 +34,7 @@ type LeaseResponse struct {
 // HTTPLeaseHandler implements the HTTP server that manages peer address leases.
 type HTTPLeaseHandler struct {
 	leaseManager *FileLeaseManager
-	serverConfig *ServerConfig
+	serverConfig *serverConfig
 }
 
 func extractUserEmailFromToken(tokenString string) (string, error) {
@@ -72,7 +72,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
-		var p LeaseRequest
+		var p leaseRequest
 		if err := decoder.Decode(&p); err != nil {
 			log.Println("Cannot decode request body", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
@@ -87,7 +87,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 				http.Error(w, "cannot get public key", http.StatusInternalServerError)
 				return
 			}
-			response := &LeaseResponse{
+			response := &leaseResponse{
 				Status:     "success",
 				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
 				AllowedIPs: lh.serverConfig.AllowedIPs,

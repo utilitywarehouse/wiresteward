@@ -21,7 +21,7 @@ func TestAgentConfigFmt(t *testing.T) {
   }
 }
 `)
-	conf := &AgentConfig{}
+	conf := &agentConfig{}
 	err := json.Unmarshal(oidcOnly, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 
-	conf = &AgentConfig{}
+	conf = &agentConfig{}
 	err = json.Unmarshal(interfacesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 
-	conf = &AgentConfig{}
+	conf = &agentConfig{}
 	err = json.Unmarshal(full, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestServerConfig(t *testing.T) {
 	ip, net, _ := net.ParseCIDR("10.0.0.1/24")
 	testCases := []struct {
 		input []byte
-		cfg   *ServerConfig
+		cfg   *serverConfig
 		err   bool
 	}{
 		{
@@ -126,7 +126,7 @@ func TestServerConfig(t *testing.T) {
 				"allowedIPs": ["1.2.3.4/8"],
 				"endpoint": "1.2.3.4"
 			}`),
-			&ServerConfig{
+			&serverConfig{
 				Address:            "10.0.0.1/24",
 				AllowedIPs:         []string{"1.2.3.4/8"},
 				Endpoint:           "1.2.3.4",
@@ -146,7 +146,7 @@ func TestServerConfig(t *testing.T) {
 				"leasesFilename": "foo",
 				"leaseTime": "2h"
 			}`),
-			&ServerConfig{
+			&serverConfig{
 				Address:            "10.0.0.1/24",
 				Endpoint:           "1.2.3.4",
 				LeasesFilename:     "foo",
@@ -161,13 +161,13 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"endpoint": ""
 			}`),
-			&ServerConfig{},
+			&serverConfig{},
 			true,
 		},
 	}
 
 	for i, tc := range testCases {
-		cfg := &ServerConfig{}
+		cfg := &serverConfig{}
 		if err := json.Unmarshal(tc.input, cfg); err != nil && !tc.err {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue

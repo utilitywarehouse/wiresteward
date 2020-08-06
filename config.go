@@ -15,32 +15,32 @@ const (
 	defaultLeaseTime          = 12 * time.Hour
 )
 
-// AgentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
-type AgentOidcConfig struct {
+// agentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
+type agentOidcConfig struct {
 	ClientID string `json:"clientID"`
 	AuthURL  string `json:"authUrl"`
 	TokenURL string `json:"tokenUrl"`
 }
 
-// AgentPeerConfig contains the agent-side configuration for a wiresteward
+// agentPeerConfig contains the agent-side configuration for a wiresteward
 // server.
-type AgentPeerConfig struct {
+type agentPeerConfig struct {
 	URL string `json:"url"`
 }
 
-// AgentInterfaceConfig defines an interface and associated wiresteward servers.
-type AgentInterfaceConfig struct {
+// agentInterfaceConfig defines an interface and associated wiresteward servers.
+type agentInterfaceConfig struct {
 	Name  string            `json:"name"`
-	Peers []AgentPeerConfig `json:"peers"`
+	Peers []agentPeerConfig `json:"peers"`
 }
 
 // AgentConfig describes the agent-side configuration of wiresteward.
-type AgentConfig struct {
-	Oidc       AgentOidcConfig        `json:"oidc"`
-	Interfaces []AgentInterfaceConfig `json:"interfaces"`
+type agentConfig struct {
+	Oidc       agentOidcConfig        `json:"oidc"`
+	Interfaces []agentInterfaceConfig `json:"interfaces"`
 }
 
-func verifyAgentOidcConfig(conf *AgentConfig) error {
+func verifyAgentOidcConfig(conf *agentConfig) error {
 	if conf.Oidc.ClientID == "" {
 		return fmt.Errorf("oidc config missing `clientID`")
 	}
@@ -53,7 +53,7 @@ func verifyAgentOidcConfig(conf *AgentConfig) error {
 	return nil
 }
 
-func verifyAgentInterfacesConfig(conf *AgentConfig) error {
+func verifyAgentInterfacesConfig(conf *agentConfig) error {
 	for _, iface := range conf.Interfaces {
 		if iface.Name == "" {
 			return fmt.Errorf("Interface name not specified in config")
@@ -67,8 +67,8 @@ func verifyAgentInterfacesConfig(conf *AgentConfig) error {
 	return nil
 }
 
-func readAgentConfig(path string) (*AgentConfig, error) {
-	conf := &AgentConfig{}
+func readAgentConfig(path string) (*agentConfig, error) {
+	conf := &agentConfig{}
 	fileContent, err := ioutil.ReadFile(path)
 	if err != nil {
 		return conf, fmt.Errorf("error reading config file: %v", err)
@@ -85,8 +85,8 @@ func readAgentConfig(path string) (*AgentConfig, error) {
 	return conf, nil
 }
 
-// ServerConfig describes the server-side configuration of wiresteward.
-type ServerConfig struct {
+// serverConfig describes the server-side configuration of wiresteward.
+type serverConfig struct {
 	Address            string
 	AllowedIPs         []string
 	Endpoint           string
@@ -97,8 +97,7 @@ type ServerConfig struct {
 	WireguardIPNetwork *net.IPNet
 }
 
-// UnmarshalJSON decodes and parses json into a ServerConfig struct.
-func (c *ServerConfig) UnmarshalJSON(data []byte) error {
+func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
 		Address            string   `json:"address"`
 		AllowedIPs         []string `json:"allowedIPs"`
@@ -131,7 +130,7 @@ func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func verifyServerConfig(conf *ServerConfig) error {
+func verifyServerConfig(conf *serverConfig) error {
 	if conf.Address == "" {
 		return fmt.Errorf("config missing `address`")
 	}
@@ -162,8 +161,8 @@ func verifyServerConfig(conf *ServerConfig) error {
 	return nil
 }
 
-func readServerConfig(path string) (*ServerConfig, error) {
-	conf := &ServerConfig{}
+func readServerConfig(path string) (*serverConfig, error) {
+	conf := &serverConfig{}
 	fileContent, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %v", err)

@@ -106,7 +106,7 @@ type WirestewardPeerConfig struct {
 	LocalAddress *net.IPNet
 }
 
-func newWirestewardPeerConfigFromLeaseResponse(lr *LeaseResponse) (*WirestewardPeerConfig, error) {
+func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardPeerConfig, error) {
 	ip, mask, err := net.ParseCIDR(lr.IP)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func newWirestewardPeerConfigFromLeaseResponse(lr *LeaseResponse) (*WirestewardP
 
 func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, error) {
 	// Marshal key into json
-	r, err := json.Marshal(&LeaseRequest{PubKey: publicKey})
+	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*Wirestew
 		return nil, fmt.Errorf("error reading response body: %w,", err)
 	}
 
-	response := &LeaseResponse{}
+	response := &leaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
 		return nil, err
 	}
