@@ -14,21 +14,26 @@ const (
 	defaultLeaseTime      = 12 * time.Hour
 )
 
+// AgentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
 type AgentOidcConfig struct {
 	ClientID string `json:"clientID"`
-	AuthUrl  string `json:"authUrl"`
-	TokenUrl string `json:"tokenUrl"`
+	AuthURL  string `json:"authUrl"`
+	TokenURL string `json:"tokenUrl"`
 }
 
+// AgentPeerConfig contains the agent-side configuration for a wiresteward
+// server.
 type AgentPeerConfig struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
+// AgentInterfaceConfig defines an interface and associated wiresteward servers.
 type AgentInterfaceConfig struct {
 	Name  string            `json:"name"`
 	Peers []AgentPeerConfig `json:"peers"`
 }
 
+// AgentConfig describes the agent-side configuration of wiresteward.
 type AgentConfig struct {
 	Oidc       AgentOidcConfig        `json:"oidc"`
 	Interfaces []AgentInterfaceConfig `json:"interfaces"`
@@ -38,10 +43,10 @@ func verifyAgentOidcConfig(conf *AgentConfig) error {
 	if conf.Oidc.ClientID == "" {
 		return fmt.Errorf("oidc config missing `clientID`")
 	}
-	if conf.Oidc.AuthUrl == "" {
+	if conf.Oidc.AuthURL == "" {
 		return fmt.Errorf("oidc config missing `authUrl`")
 	}
-	if conf.Oidc.TokenUrl == "" {
+	if conf.Oidc.TokenURL == "" {
 		return fmt.Errorf("oidc config missing `tokenUrl`")
 	}
 	return nil
@@ -53,7 +58,7 @@ func verifyAgentInterfacesConfig(conf *AgentConfig) error {
 			return fmt.Errorf("Interface name not specified in config")
 		}
 		for _, peer := range iface.Peers {
-			if peer.Url == "" {
+			if peer.URL == "" {
 				return fmt.Errorf("Missing peer url from config")
 			}
 		}
@@ -79,6 +84,7 @@ func readAgentConfig(path string) (*AgentConfig, error) {
 	return conf, nil
 }
 
+// ServerConfig describes the server-side configuration of wiresteward.
 type ServerConfig struct {
 	Address            string
 	AllowedIPs         []string
@@ -89,6 +95,7 @@ type ServerConfig struct {
 	WireguardIPNetwork *net.IPNet
 }
 
+// UnmarshalJSON decodes and parses json into a ServerConfig struct.
 func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
 		Address        string   `json:"address"`
