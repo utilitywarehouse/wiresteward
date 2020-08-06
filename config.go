@@ -32,6 +32,7 @@ type agentPeerConfig struct {
 // servers.
 type agentDeviceConfig struct {
 	Name  string            `json:"name"`
+	MTU   int               `json:"mtu"`
 	Peers []agentPeerConfig `json:"peers"`
 }
 

@@ -28,7 +28,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 			urls = append(urls, peer.URL)
 		}
 		dm := newDeviceManager(urls)
-		if err := dm.Run(dev.Name); err != nil {
+		if err := dm.Run(dev.Name, dev.MTU); err != nil {
 			log.Printf("Error setting up device `%s`: %v", dev.Name, err)
 			dm.Stop()
 			continue

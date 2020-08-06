@@ -22,8 +22,11 @@ type TunDevice struct {
 	tunDevice  tun.Device
 }
 
-func startTunDevice(name string) (*TunDevice, error) {
-	tunDevice, err := tun.CreateTUN(name, device.DefaultMTU)
+func startTunDevice(name string, mtu int) (*TunDevice, error) {
+	if mtu == 0 {
+		mtu = device.DefaultMTU
+	}
+	tunDevice, err := tun.CreateTUN(name, mtu)
 	if err != nil {
 		return &TunDevice{}, fmt.Errorf("Cannot create tun device %v", err)
 	}

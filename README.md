@@ -119,7 +119,15 @@ we need the agent to manage.
 An example, where the config format can be found is here:
 https://github.com/utilitywarehouse/wiresteward/blob/master/agent.json.example
 
-### Dev aws config - Example
+### MTU
+
+The default mtu for the interfaces created via the agent is `1420` and it comes
+from the default value of wireguard-go package.
+(https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14)
+Optionally, mtu can be set explicitly per wg device created by the agent via the
+configuration file (using the "mtu" key under device config)
+
+### Dev config - Example
 
 A config file to talk to the dev-aws wiresteward servers:
 
@@ -135,8 +143,17 @@ A config file to talk to the dev-aws wiresteward servers:
       "name": "wg-uw-dev-aws",
       "peers": [
         {
-          "url": "https://wireguard.dev.aws.uw.systems"
-        }
+	  "url": "https://wiresteward.dev.aws.uw.systems"
+	}
+      ]
+    },
+    {
+      "name": "wg-uw-dev-gcp",
+      "mtu": 1380,
+      "peers": [
+        {
+	  "url": "https://wiresteward.dev.gcp.uw.systems"
+	}
       ]
     }
   ]
