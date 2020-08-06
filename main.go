@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,7 +15,6 @@ const (
 )
 
 var (
-	userPeerSubnet     *net.IPNet
 	leaserSyncInterval time.Duration
 
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
