@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	defaultLeasesFilename = "/etc/wiresteward/leases"
-	defaultLeaseTime      = 12 * time.Hour
+	defaultLeaserSyncInterval = 1 * time.Minute
+	defaultLeasesFilename     = "/etc/wiresteward/leases"
+	defaultLeaseTime          = 12 * time.Hour
 )
 
 // AgentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
@@ -89,6 +90,7 @@ type ServerConfig struct {
 	Address            string
 	AllowedIPs         []string
 	Endpoint           string
+	LeaserSyncInterval time.Duration
 	LeasesFilename     string
 	LeaseTime          time.Duration
 	WireguardIPAddress net.IP
@@ -98,14 +100,22 @@ type ServerConfig struct {
 // UnmarshalJSON decodes and parses json into a ServerConfig struct.
 func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
-		Address        string   `json:"address"`
-		AllowedIPs     []string `json:"allowedIPs"`
-		Endpoint       string   `json:"endpoint"`
-		LeasesFilename string   `json:"leasesFilename"`
-		LeaseTime      string   `json:"leaseTime"`
+		Address            string   `json:"address"`
+		AllowedIPs         []string `json:"allowedIPs"`
+		Endpoint           string   `json:"endpoint"`
+		LeaserSyncInterval string   `json:"leaserSyncInterval"`
+		LeasesFilename     string   `json:"leasesFilename"`
+		LeaseTime          string   `json:"leaseTime"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return err
+	}
+	if cfg.LeaserSyncInterval != "" {
+		lsi, err := time.ParseDuration(cfg.LeaserSyncInterval)
+		if err != nil {
+			return err
+		}
+		c.LeaserSyncInterval = lsi
 	}
 	if cfg.LeaseTime != "" {
 		lt, err := time.ParseDuration(cfg.LeaseTime)
@@ -136,6 +146,10 @@ func verifyServerConfig(conf *ServerConfig) error {
 	}
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
+	}
+	if conf.LeaserSyncInterval == 0 {
+		conf.LeaserSyncInterval = defaultLeaserSyncInterval
+		log.Printf("config missing `leaserSyncInterval`, using default: %s", defaultLeaserSyncInterval)
 	}
 	if conf.LeasesFilename == "" {
 		conf.LeasesFilename = defaultLeasesFilename

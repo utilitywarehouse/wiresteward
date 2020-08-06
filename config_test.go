@@ -130,6 +130,7 @@ func TestServerConfig(t *testing.T) {
 				Address:            "10.0.0.1/24",
 				AllowedIPs:         []string{"1.2.3.4/8"},
 				Endpoint:           "1.2.3.4",
+				LeaserSyncInterval: defaultLeaserSyncInterval,
 				LeasesFilename:     defaultLeasesFilename,
 				LeaseTime:          defaultLeaseTime,
 				WireguardIPAddress: ip,
@@ -141,6 +142,7 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"address": "10.0.0.1/24",
 				"endpoint": "1.2.3.4",
+				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
 				"leaseTime": "2h"
 			}`),
@@ -148,6 +150,7 @@ func TestServerConfig(t *testing.T) {
 				Address:            "10.0.0.1/24",
 				Endpoint:           "1.2.3.4",
 				LeasesFilename:     "foo",
+				LeaserSyncInterval: time.Duration(time.Hour * 3),
 				LeaseTime:          time.Duration(time.Hour * 2),
 				WireguardIPAddress: ip,
 				WireguardIPNetwork: net,
