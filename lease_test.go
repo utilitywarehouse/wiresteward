@@ -10,11 +10,11 @@ import (
 func TestFileLeaseManager_FindNextAvailableIpAddress(t *testing.T) {
 	// Test that lm.ip is skipped
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
-	test_lm := &FileLeaseManager{
+	lm := &FileLeaseManager{
 		cidr: network,
 		ip:   ip,
 	}
-	aip, err := test_lm.findNextAvailableIpAddress()
+	aip, err := lm.findNextAvailableIPAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestFileLeaseManager_FindNextAvailableIpAddress(t *testing.T) {
 
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
-	test_lm := &FileLeaseManager{
+	lm := &FileLeaseManager{
 		wgRecords: map[string]*WgRecord{},
 		cidr:      network,
 		ip:        ip,
@@ -34,18 +34,18 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	testPubKey2 := "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo="
 	testEmail := "test@example.com"
 
-	_, err := test_lm.createOrUpdatePeer(testEmail, testPubKey1)
+	_, err := lm.createOrUpdatePeer(testEmail, testPubKey1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 1, len(test_lm.wgRecords))
-	assert.Equal(t, testPubKey1, test_lm.wgRecords[testEmail].PubKey)
+	assert.Equal(t, 1, len(lm.wgRecords))
+	assert.Equal(t, testPubKey1, lm.wgRecords[testEmail].PubKey)
 	// Test that same email with different public key will replace the
 	// existing record, instead of adding a new one
-	_, err = test_lm.createOrUpdatePeer(testEmail, testPubKey2)
+	_, err = lm.createOrUpdatePeer(testEmail, testPubKey2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 1, len(test_lm.wgRecords))
-	assert.Equal(t, testPubKey2, test_lm.wgRecords[testEmail].PubKey)
+	assert.Equal(t, 1, len(lm.wgRecords))
+	assert.Equal(t, testPubKey2, lm.wgRecords[testEmail].PubKey)
 }

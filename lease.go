@@ -15,12 +15,15 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// WgRecord describes a lease entry for a peer.
 type WgRecord struct {
 	PubKey  string
 	IP      net.IP
 	expires time.Time
 }
 
+// FileLeaseManager implements functionality for managing address leases for
+// peers, using a file as a state backend.
 type FileLeaseManager struct {
 	wgRecords map[string]*WgRecord
 	filename  string
@@ -29,7 +32,7 @@ type FileLeaseManager struct {
 	ip        net.IP
 }
 
-func NewFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Duration, ip net.IP) (*FileLeaseManager, error) {
+func newFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Duration, ip net.IP) (*FileLeaseManager, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
@@ -111,7 +114,7 @@ func (lm *FileLeaseManager) saveWgRecord(email string, record *WgRecord) error {
 	return nil
 }
 
-func (lm *FileLeaseManager) findNextAvailableIpAddress() (*net.IPNet, error) {
+func (lm *FileLeaseManager) findNextAvailableIPAddress() (*net.IPNet, error) {
 	allocatedIPs := []net.IP{lm.ip}
 	for _, r := range lm.wgRecords {
 		allocatedIPs = append(allocatedIPs, r.IP)
@@ -171,7 +174,7 @@ func updateWgPeers(lm *FileLeaseManager) error {
 }
 
 func (lm *FileLeaseManager) createOrUpdatePeer(email, pubKey string) (*WgRecord, error) {
-	ipnet, err := lm.findNextAvailableIpAddress()
+	ipnet, err := lm.findNextAvailableIPAddress()
 	if err != nil {
 		return nil, err
 	}

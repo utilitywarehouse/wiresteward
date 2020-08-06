@@ -9,10 +9,20 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
+var (
+	errTokenMalformed = fmt.Errorf("Malformed token")
+	errTokenNoClaims  = fmt.Errorf("Cannot extract claims from token")
+	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
+)
+
+// LeaseRequest defines the payload of a lease HTTP request submitted by an
+// agent.
 type LeaseRequest struct {
 	PubKey string
 }
 
+// LeaseResponse define the payload of a lease HTTP response returned by a
+// server.
 type LeaseResponse struct {
 	Status     string
 	IP         string
@@ -21,16 +31,11 @@ type LeaseResponse struct {
 	Endpoint   string
 }
 
+// HTTPLeaseHandler implements the HTTP server that manages peer address leases.
 type HTTPLeaseHandler struct {
 	leaseManager *FileLeaseManager
 	serverConfig *ServerConfig
 }
-
-var (
-	errTokenMalformed = fmt.Errorf("Malformed token")
-	errTokenNoClaims  = fmt.Errorf("Cannot extract claims from token")
-	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
-)
 
 func extractUserEmailFromToken(tokenString string) (string, error) {
 	// No validation method is passed as we do not have a secret key to
