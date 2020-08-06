@@ -124,7 +124,7 @@ https://github.com/utilitywarehouse/wiresteward/blob/master/agent.json.example
 The default mtu for the interfaces created via the agent is `1420` and it comes
 from the default value of wireguard-go package.
 (https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14)
-Optioanlly, mtu can be set explicitly per wg device created by the agent via the
+Optionally, mtu can be set explicitly per wg device created by the agent via the
 configuration file (using the "mtu" key under device config)
 
 ### Dev config - Example
