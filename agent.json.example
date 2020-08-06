@@ -4,13 +4,13 @@
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
   },
-  "interfaces": [
+  "devices": [
     {
       "name": "wg_test",
       "peers": [
         {
-	  "url": "example1.com"
-	}
+            "url": "example1.com"
+        }
       ]
     }
   ]

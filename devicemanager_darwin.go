@@ -165,7 +165,7 @@ func flushAddresses(fd int, name string) error {
 		ip, err := getAddress(fd, name)
 		if err != nil {
 			if errors.Is(err, unix.EADDRNOTAVAIL) {
-				// there are no more addresses on the interface, we're done here
+				// there are no more addresses on the device, we're done here
 				return nil
 			}
 			return err

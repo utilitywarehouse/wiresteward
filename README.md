@@ -24,8 +24,8 @@ wiresteward is a peer manager for wireguard instances. It is comprised by a
 server and an agent functionality.
 
 The agents post their public keys to the server and receive back configuration
-to configure the wireguard interfaces on their host machine. The server updates
-its peers list per agent request to add the advertised public key.
+to configure the wireguard devices on their host machine. The server updates its
+peers list per agent request to add the advertised public key.
 
 The server needs to run behind an oauth2 proxy, so that it is not "open" to the
 public
@@ -106,14 +106,14 @@ The agent runs a local server on port 7773 and expects the user to visit
 
 Opening `localhost:7773/` on a browser will trigger the oauth process, if
 necessary, and ask the configured remote server peers for details to configure
-them as wg peers under the respective interface (defined in configuration file,
+them as wg peers under the respective device (defined in configuration file,
 see below)
 
 ### Config
 
 Agent can takes a config file as an argument or look for it under the default
 location `/etc/wiresteward/config.json`, chosen to suit the systemd service.
-The config contains details about the oidc server and the local interfaces that
+The config contains details about the oidc server and the local devices that
 we need the agent to manage.
 
 An example, where the config format can be found is here:
@@ -130,7 +130,7 @@ A config file to talk to the dev-aws wiresteward servers:
     "authUrl": "https://login.uw.systems/oauth2/v1/authorize",
     "tokenUrl": "https://login.uw.systems/oauth2/v1/token"
   },
-  "interfaces": [
+  "devices": [
     {
       "name": "wg-uw-dev-aws",
       "peers": [

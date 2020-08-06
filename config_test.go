@@ -35,18 +35,18 @@ func TestAgentConfigFmt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	interfacesOnly := []byte(`
+	devicesOnly := []byte(`
 {
-  "interfaces": [
+  "devices": [
     {
       "name": "wg_test",
       "peers": [
         {
-	  "url": "example1.com"
-	},
+            "url": "example1.com"
+        },
         {
-	  "url": "example2.com"
-	}
+            "url": "example2.com"
+        }
       ]
     }
   ]
@@ -54,18 +54,18 @@ func TestAgentConfigFmt(t *testing.T) {
 `)
 
 	conf = &agentConfig{}
-	err = json.Unmarshal(interfacesOnly, conf)
+	err = json.Unmarshal(devicesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, len(conf.Interfaces), 1)
-	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
-	peers := (conf.Interfaces)[0].Peers
+	assert.Equal(t, len(conf.Devices), 1)
+	assert.Equal(t, conf.Devices[0].Name, "wg_test")
+	peers := (conf.Devices)[0].Peers
 	assert.Equal(t, len(peers), 2)
 	assert.Equal(t, peers[0].URL, "example1.com")
 	assert.Equal(t, peers[1].URL, "example2.com")
-	err = verifyAgentInterfacesConfig(conf)
+	err = verifyAgentDevicesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,13 +77,13 @@ func TestAgentConfigFmt(t *testing.T) {
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
   },
-  "interfaces": [
+  "devices": [
     {
       "name": "wg_test",
       "peers": [
         {
-	  "url": "example1.com"
-	}
+            "url": "example1.com"
+        }
       ]
     }
   ]
@@ -98,16 +98,16 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
 	assert.Equal(t, conf.Oidc.AuthURL, "example.com/auth")
 	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
-	assert.Equal(t, len(conf.Interfaces), 1)
-	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
-	peers = conf.Interfaces[0].Peers
+	assert.Equal(t, len(conf.Devices), 1)
+	assert.Equal(t, conf.Devices[0].Name, "wg_test")
+	peers = conf.Devices[0].Peers
 	assert.Equal(t, len(peers), 1)
 	assert.Equal(t, peers[0].URL, "example1.com")
 	err = verifyAgentOidcConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = verifyAgentInterfacesConfig(conf)
+	err = verifyAgentDevicesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
