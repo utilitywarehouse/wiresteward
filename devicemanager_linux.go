@@ -8,17 +8,14 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-type netlinkHandle struct {
-	netlink.Handle
-}
-
-// NewNetLinkHandle will create a new NetLinkHandle
-func NewNetLinkHandle() *netlinkHandle {
-	return &netlinkHandle{netlink.Handle{}}
-}
-
-func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
-	link, err := h.LinkByName(deviceName)
+// updateDeviceConfig takes the old WirestewardPeerConfig (optionally) and the
+// desired, new config and performs the necessary operations to setup the IP
+// address and routing table routes. If an "old" config is provided, it will
+// attempt to clean up any system configuration before applying the new one.
+func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerConfig) error {
+	h := netlink.Handle{}
+	defer h.Delete()
+	link, err := h.LinkByName(dm.Name())
 	if err != nil {
 		return err
 	}
@@ -44,16 +41,20 @@ func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config 
 }
 
 // TODO: confirm that this is still needed for linux after the switch to tun.
-func (h *netlinkHandle) EnsureLinkUp(devName string) error {
-	link, err := h.LinkByName(devName)
+func (dm *DeviceManager) ensureLinkUp() error {
+	h := netlink.Handle{}
+	defer h.Delete()
+	link, err := h.LinkByName(dm.Name())
 	if err != nil {
 		return err
 	}
 	return h.LinkSetUp(link)
 }
 
-func (h *netlinkHandle) flushAddresses(devName string) error {
-	link, err := h.LinkByName(devName)
+func (dm *DeviceManager) flushAddresses() error {
+	h := netlink.Handle{}
+	defer h.Delete()
+	link, err := h.LinkByName(dm.Name())
 	if err != nil {
 		return err
 	}
