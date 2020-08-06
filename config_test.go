@@ -61,6 +61,7 @@ func TestAgentConfigFmt(t *testing.T) {
 
 	assert.Equal(t, len(conf.Devices), 1)
 	assert.Equal(t, conf.Devices[0].Name, "wg_test")
+	assert.Equal(t, conf.Devices[0].MTU, 0)
 	peers := (conf.Devices)[0].Peers
 	assert.Equal(t, len(peers), 2)
 	assert.Equal(t, peers[0].URL, "example1.com")
@@ -80,6 +81,7 @@ func TestAgentConfigFmt(t *testing.T) {
   "devices": [
     {
       "name": "wg_test",
+      "mtu": 1380,
       "peers": [
         {
             "url": "example1.com"
@@ -100,6 +102,7 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
 	assert.Equal(t, len(conf.Devices), 1)
 	assert.Equal(t, conf.Devices[0].Name, "wg_test")
+	assert.Equal(t, conf.Devices[0].MTU, 1380)
 	peers = conf.Devices[0].Peers
 	assert.Equal(t, len(peers), 1)
 	assert.Equal(t, peers[0].URL, "example1.com")

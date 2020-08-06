@@ -34,8 +34,8 @@ func newDeviceManager(wirestewardURLs []string) *DeviceManager {
 
 // Run creates the TunDevice with the provided device name, starts it by calling
 // its Run() method and proceeds to initialise it.
-func (dm *DeviceManager) Run(deviceName string) error {
-	device, err := startTunDevice(deviceName)
+func (dm *DeviceManager) Run(deviceName string, MTU int) error {
+	device, err := startTunDevice(deviceName, MTU)
 	if err != nil {
 		return fmt.Errorf("Error starting tun device `%s`: %w", deviceName, err)
 	}
