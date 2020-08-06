@@ -28,16 +28,17 @@ type agentPeerConfig struct {
 	URL string `json:"url"`
 }
 
-// agentInterfaceConfig defines an interface and associated wiresteward servers.
-type agentInterfaceConfig struct {
+// agentDeviceConfig defines a network device and associated wiresteward
+// servers.
+type agentDeviceConfig struct {
 	Name  string            `json:"name"`
 	Peers []agentPeerConfig `json:"peers"`
 }
 
 // AgentConfig describes the agent-side configuration of wiresteward.
 type agentConfig struct {
-	Oidc       agentOidcConfig        `json:"oidc"`
-	Interfaces []agentInterfaceConfig `json:"interfaces"`
+	Oidc    agentOidcConfig     `json:"oidc"`
+	Devices []agentDeviceConfig `json:"devices"`
 }
 
 func verifyAgentOidcConfig(conf *agentConfig) error {
@@ -53,12 +54,12 @@ func verifyAgentOidcConfig(conf *agentConfig) error {
 	return nil
 }
 
-func verifyAgentInterfacesConfig(conf *agentConfig) error {
-	for _, iface := range conf.Interfaces {
-		if iface.Name == "" {
-			return fmt.Errorf("Interface name not specified in config")
+func verifyAgentDevicesConfig(conf *agentConfig) error {
+	for _, dev := range conf.Devices {
+		if dev.Name == "" {
+			return fmt.Errorf("Device name not specified in config")
 		}
-		for _, peer := range iface.Peers {
+		for _, peer := range dev.Peers {
 			if peer.URL == "" {
 				return fmt.Errorf("Missing peer url from config")
 			}
@@ -79,7 +80,7 @@ func readAgentConfig(path string) (*agentConfig, error) {
 	if err = verifyAgentOidcConfig(conf); err != nil {
 		return nil, err
 	}
-	if err = verifyAgentInterfacesConfig(conf); err != nil {
+	if err = verifyAgentDevicesConfig(conf); err != nil {
 		return nil, err
 	}
 	return conf, nil

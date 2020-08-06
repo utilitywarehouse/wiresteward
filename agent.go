@@ -18,18 +18,18 @@ type Agent struct {
 }
 
 // NewAgent creates an Agent from an AgentConfig. It generates a DeviceManager
-// per interface specified in the configuration, sets up and starts the
-// assocated resources.
+// per device specified in the configuration, sets up and starts the associated
+// resources.
 func NewAgent(cfg *agentConfig) *Agent {
 	agent := &Agent{}
-	for _, iface := range cfg.Interfaces {
+	for _, dev := range cfg.Devices {
 		urls := []string{}
-		for _, peer := range iface.Peers {
+		for _, peer := range dev.Peers {
 			urls = append(urls, peer.URL)
 		}
 		dm := newDeviceManager(urls)
-		if err := dm.Run(iface.Name); err != nil {
-			log.Printf("Error setting up device `%s`: %v", iface.Name, err)
+		if err := dm.Run(dev.Name); err != nil {
+			log.Printf("Error setting up device `%s`: %v", dev.Name, err)
 			dm.Stop()
 			continue
 		}
