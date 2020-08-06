@@ -9,11 +9,21 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-type LeaseRequest struct {
+var (
+	errTokenMalformed = fmt.Errorf("Malformed token")
+	errTokenNoClaims  = fmt.Errorf("Cannot extract claims from token")
+	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
+)
+
+// leaseRequest defines the payload of a lease HTTP request submitted by an
+// agent.
+type leaseRequest struct {
 	PubKey string
 }
 
-type LeaseResponse struct {
+// leaseResponse define the payload of a lease HTTP response returned by a
+// server.
+type leaseResponse struct {
 	Status     string
 	IP         string
 	AllowedIPs []string
@@ -21,16 +31,11 @@ type LeaseResponse struct {
 	Endpoint   string
 }
 
+// HTTPLeaseHandler implements the HTTP server that manages peer address leases.
 type HTTPLeaseHandler struct {
 	leaseManager *FileLeaseManager
-	serverConfig *ServerConfig
+	serverConfig *serverConfig
 }
-
-var (
-	errTokenMalformed = fmt.Errorf("Malformed token")
-	errTokenNoClaims  = fmt.Errorf("Cannot extract claims from token")
-	errTokenNoEmail   = fmt.Errorf("Cannot extract email from token")
-)
 
 func extractUserEmailFromToken(tokenString string) (string, error) {
 	// No validation method is passed as we do not have a secret key to
@@ -67,7 +72,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
-		var p LeaseRequest
+		var p leaseRequest
 		if err := decoder.Decode(&p); err != nil {
 			log.Println("Cannot decode request body", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
@@ -82,7 +87,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 				http.Error(w, "cannot get public key", http.StatusInternalServerError)
 				return
 			}
-			response := &LeaseResponse{
+			response := &leaseResponse{
 				Status:     "success",
 				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
 				AllowedIPs: lh.serverConfig.AllowedIPs,

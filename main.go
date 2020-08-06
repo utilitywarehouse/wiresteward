@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,14 +10,10 @@ import (
 )
 
 const (
-	defaultLeaserSyncInterval = 1 * time.Minute
-	version                   = "v0.1.0-dev"
+	version = "v0.1.0-dev"
 )
 
 var (
-	userPeerSubnet     *net.IPNet
-	leaserSyncInterval time.Duration
-
 	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
 	flagServer  = flag.Bool("server", false, "Run application in \"server\" mode")
@@ -61,11 +56,7 @@ func server() {
 		log.Fatal(err)
 	}
 
-	if leaserSyncInterval == 0 {
-		leaserSyncInterval = defaultLeaserSyncInterval
-	}
-
-	lm, err := NewFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.LeaseTime, cfg.WireguardIPAddress)
+	lm, err := newFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.LeaseTime, cfg.WireguardIPAddress)
 	if err != nil {
 		log.Fatalf("Cannot start lease server: %v", err)
 	}
@@ -75,7 +66,7 @@ func server() {
 		serverConfig: cfg,
 	}
 	go lh.start()
-	ticker := time.NewTicker(leaserSyncInterval)
+	ticker := time.NewTicker(cfg.LeaserSyncInterval)
 	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)

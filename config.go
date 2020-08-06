@@ -10,50 +10,56 @@ import (
 )
 
 const (
-	defaultLeasesFilename = "/etc/wiresteward/leases"
-	defaultLeaseTime      = 12 * time.Hour
+	defaultLeaserSyncInterval = 1 * time.Minute
+	defaultLeasesFilename     = "/etc/wiresteward/leases"
+	defaultLeaseTime          = 12 * time.Hour
 )
 
-type AgentOidcConfig struct {
+// agentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
+type agentOidcConfig struct {
 	ClientID string `json:"clientID"`
-	AuthUrl  string `json:"authUrl"`
-	TokenUrl string `json:"tokenUrl"`
+	AuthURL  string `json:"authUrl"`
+	TokenURL string `json:"tokenUrl"`
 }
 
-type AgentPeerConfig struct {
-	Url string `json:"url"`
+// agentPeerConfig contains the agent-side configuration for a wiresteward
+// server.
+type agentPeerConfig struct {
+	URL string `json:"url"`
 }
 
-type AgentInterfaceConfig struct {
+// agentInterfaceConfig defines an interface and associated wiresteward servers.
+type agentInterfaceConfig struct {
 	Name  string            `json:"name"`
-	Peers []AgentPeerConfig `json:"peers"`
+	Peers []agentPeerConfig `json:"peers"`
 }
 
-type AgentConfig struct {
-	Oidc       AgentOidcConfig        `json:"oidc"`
-	Interfaces []AgentInterfaceConfig `json:"interfaces"`
+// AgentConfig describes the agent-side configuration of wiresteward.
+type agentConfig struct {
+	Oidc       agentOidcConfig        `json:"oidc"`
+	Interfaces []agentInterfaceConfig `json:"interfaces"`
 }
 
-func verifyAgentOidcConfig(conf *AgentConfig) error {
+func verifyAgentOidcConfig(conf *agentConfig) error {
 	if conf.Oidc.ClientID == "" {
 		return fmt.Errorf("oidc config missing `clientID`")
 	}
-	if conf.Oidc.AuthUrl == "" {
+	if conf.Oidc.AuthURL == "" {
 		return fmt.Errorf("oidc config missing `authUrl`")
 	}
-	if conf.Oidc.TokenUrl == "" {
+	if conf.Oidc.TokenURL == "" {
 		return fmt.Errorf("oidc config missing `tokenUrl`")
 	}
 	return nil
 }
 
-func verifyAgentInterfacesConfig(conf *AgentConfig) error {
+func verifyAgentInterfacesConfig(conf *agentConfig) error {
 	for _, iface := range conf.Interfaces {
 		if iface.Name == "" {
 			return fmt.Errorf("Interface name not specified in config")
 		}
 		for _, peer := range iface.Peers {
-			if peer.Url == "" {
+			if peer.URL == "" {
 				return fmt.Errorf("Missing peer url from config")
 			}
 		}
@@ -61,8 +67,8 @@ func verifyAgentInterfacesConfig(conf *AgentConfig) error {
 	return nil
 }
 
-func readAgentConfig(path string) (*AgentConfig, error) {
-	conf := &AgentConfig{}
+func readAgentConfig(path string) (*agentConfig, error) {
+	conf := &agentConfig{}
 	fileContent, err := ioutil.ReadFile(path)
 	if err != nil {
 		return conf, fmt.Errorf("error reading config file: %v", err)
@@ -79,26 +85,36 @@ func readAgentConfig(path string) (*AgentConfig, error) {
 	return conf, nil
 }
 
-type ServerConfig struct {
+// serverConfig describes the server-side configuration of wiresteward.
+type serverConfig struct {
 	Address            string
 	AllowedIPs         []string
 	Endpoint           string
+	LeaserSyncInterval time.Duration
 	LeasesFilename     string
 	LeaseTime          time.Duration
 	WireguardIPAddress net.IP
 	WireguardIPNetwork *net.IPNet
 }
 
-func (c *ServerConfig) UnmarshalJSON(data []byte) error {
+func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
-		Address        string   `json:"address"`
-		AllowedIPs     []string `json:"allowedIPs"`
-		Endpoint       string   `json:"endpoint"`
-		LeasesFilename string   `json:"leasesFilename"`
-		LeaseTime      string   `json:"leaseTime"`
+		Address            string   `json:"address"`
+		AllowedIPs         []string `json:"allowedIPs"`
+		Endpoint           string   `json:"endpoint"`
+		LeaserSyncInterval string   `json:"leaserSyncInterval"`
+		LeasesFilename     string   `json:"leasesFilename"`
+		LeaseTime          string   `json:"leaseTime"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return err
+	}
+	if cfg.LeaserSyncInterval != "" {
+		lsi, err := time.ParseDuration(cfg.LeaserSyncInterval)
+		if err != nil {
+			return err
+		}
+		c.LeaserSyncInterval = lsi
 	}
 	if cfg.LeaseTime != "" {
 		lt, err := time.ParseDuration(cfg.LeaseTime)
@@ -114,7 +130,7 @@ func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func verifyServerConfig(conf *ServerConfig) error {
+func verifyServerConfig(conf *serverConfig) error {
 	if conf.Address == "" {
 		return fmt.Errorf("config missing `address`")
 	}
@@ -130,6 +146,10 @@ func verifyServerConfig(conf *ServerConfig) error {
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
 	}
+	if conf.LeaserSyncInterval == 0 {
+		conf.LeaserSyncInterval = defaultLeaserSyncInterval
+		log.Printf("config missing `leaserSyncInterval`, using default: %s", defaultLeaserSyncInterval)
+	}
 	if conf.LeasesFilename == "" {
 		conf.LeasesFilename = defaultLeasesFilename
 		log.Printf("config missing `leasesFilename`, using default: %s", defaultLeasesFilename)
@@ -141,8 +161,8 @@ func verifyServerConfig(conf *ServerConfig) error {
 	return nil
 }
 
-func readServerConfig(path string) (*ServerConfig, error) {
-	conf := &ServerConfig{}
+func readServerConfig(path string) (*serverConfig, error) {
+	conf := &serverConfig{}
 	fileContent, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %v", err)

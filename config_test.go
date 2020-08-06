@@ -21,15 +21,15 @@ func TestAgentConfigFmt(t *testing.T) {
   }
 }
 `)
-	conf := &AgentConfig{}
+	conf := &agentConfig{}
 	err := json.Unmarshal(oidcOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
-	assert.Equal(t, conf.Oidc.AuthUrl, "example.com/auth")
-	assert.Equal(t, conf.Oidc.TokenUrl, "example.com/token")
+	assert.Equal(t, conf.Oidc.AuthURL, "example.com/auth")
+	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
 	err = verifyAgentOidcConfig(conf)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 
-	conf = &AgentConfig{}
+	conf = &agentConfig{}
 	err = json.Unmarshal(interfacesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -63,8 +63,8 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
 	peers := (conf.Interfaces)[0].Peers
 	assert.Equal(t, len(peers), 2)
-	assert.Equal(t, peers[0].Url, "example1.com")
-	assert.Equal(t, peers[1].Url, "example2.com")
+	assert.Equal(t, peers[0].URL, "example1.com")
+	assert.Equal(t, peers[1].URL, "example2.com")
 	err = verifyAgentInterfacesConfig(conf)
 	if err != nil {
 		t.Fatal(err)
@@ -90,19 +90,19 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 
-	conf = &AgentConfig{}
+	conf = &agentConfig{}
 	err = json.Unmarshal(full, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
-	assert.Equal(t, conf.Oidc.AuthUrl, "example.com/auth")
-	assert.Equal(t, conf.Oidc.TokenUrl, "example.com/token")
+	assert.Equal(t, conf.Oidc.AuthURL, "example.com/auth")
+	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
 	assert.Equal(t, len(conf.Interfaces), 1)
 	assert.Equal(t, conf.Interfaces[0].Name, "wg_test")
 	peers = conf.Interfaces[0].Peers
 	assert.Equal(t, len(peers), 1)
-	assert.Equal(t, peers[0].Url, "example1.com")
+	assert.Equal(t, peers[0].URL, "example1.com")
 	err = verifyAgentOidcConfig(conf)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestServerConfig(t *testing.T) {
 	ip, net, _ := net.ParseCIDR("10.0.0.1/24")
 	testCases := []struct {
 		input []byte
-		cfg   *ServerConfig
+		cfg   *serverConfig
 		err   bool
 	}{
 		{
@@ -126,10 +126,11 @@ func TestServerConfig(t *testing.T) {
 				"allowedIPs": ["1.2.3.4/8"],
 				"endpoint": "1.2.3.4"
 			}`),
-			&ServerConfig{
+			&serverConfig{
 				Address:            "10.0.0.1/24",
 				AllowedIPs:         []string{"1.2.3.4/8"},
 				Endpoint:           "1.2.3.4",
+				LeaserSyncInterval: defaultLeaserSyncInterval,
 				LeasesFilename:     defaultLeasesFilename,
 				LeaseTime:          defaultLeaseTime,
 				WireguardIPAddress: ip,
@@ -141,13 +142,15 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"address": "10.0.0.1/24",
 				"endpoint": "1.2.3.4",
+				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
 				"leaseTime": "2h"
 			}`),
-			&ServerConfig{
+			&serverConfig{
 				Address:            "10.0.0.1/24",
 				Endpoint:           "1.2.3.4",
 				LeasesFilename:     "foo",
+				LeaserSyncInterval: time.Duration(time.Hour * 3),
 				LeaseTime:          time.Duration(time.Hour * 2),
 				WireguardIPAddress: ip,
 				WireguardIPNetwork: net,
@@ -158,13 +161,13 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"endpoint": ""
 			}`),
-			&ServerConfig{},
+			&serverConfig{},
 			true,
 		},
 	}
 
 	for i, tc := range testCases {
-		cfg := &ServerConfig{}
+		cfg := &serverConfig{}
 		if err := json.Unmarshal(tc.input, cfg); err != nil && !tc.err {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
