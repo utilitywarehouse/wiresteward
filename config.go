@@ -55,6 +55,9 @@ func verifyAgentOidcConfig(conf *agentConfig) error {
 }
 
 func verifyAgentDevicesConfig(conf *agentConfig) error {
+	if len(conf.Devices) == 0 {
+		return fmt.Errorf("No devices defined in config")
+	}
 	for _, dev := range conf.Devices {
 		if dev.Name == "" {
 			return fmt.Errorf("Device name not specified in config")
