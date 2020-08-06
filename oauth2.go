@@ -92,6 +92,9 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
 	// Use the authorization code that is pushed to the redirect
 	// URL. Exchange will do the handshake to retrieve the
 	// initial access token.
+	if oa.codeVerifier == nil {
+		return nil, fmt.Errorf("unexpected callback received, please visit the root path instead")
+	}
 	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", oa.codeVerifier.String())
 	tok, err := oa.config.Exchange(oa.ctx, code, codeVerifierOpt)
 	if err != nil {
