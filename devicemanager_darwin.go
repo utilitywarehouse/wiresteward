@@ -14,14 +14,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type netlinkHandle struct{}
-
-// NewNetLinkHandle will create a new NetLinkHandle
-func NewNetLinkHandle() *netlinkHandle {
-	return &netlinkHandle{}
-}
-
-func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config *WirestewardPeerConfig) error {
+// updateDeviceConfig takes the old WirestewardPeerConfig (optionally) and the
+// desired, new config and performs the necessary operations to setup the IP
+// address and routing table routes. If an "old" config is provided, it will
+// attempt to clean up any system configuration before applying the new one.
+func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerConfig) error {
 	fdInet, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.AF_UNSPEC)
 	if err != nil {
 		return err
@@ -51,11 +48,11 @@ func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config 
 				log.Printf("Could not remove old route (%s): %s", r, err)
 			}
 		}
-		if err := deleteAddress(fdInet, deviceName, oldConfig.LocalAddress.IP); err != nil {
+		if err := deleteAddress(fdInet, dm.Name(), oldConfig.LocalAddress.IP); err != nil {
 			log.Printf("Could not remove old address: (%s): %s", oldConfig.LocalAddress, err)
 		}
 	}
-	if err := addAddress(fdInet, deviceName, config.LocalAddress.IP, config.LocalAddress.IP, config.LocalAddress.Mask); err != nil {
+	if err := addAddress(fdInet, dm.Name(), config.LocalAddress.IP, config.LocalAddress.IP, config.LocalAddress.Mask); err != nil {
 		return err
 	}
 	for _, r := range config.AllowedIPs {
@@ -67,7 +64,7 @@ func (h *netlinkHandle) UpdateDeviceConfig(deviceName string, oldConfig, config 
 }
 
 // This is a no-op for darwin, the device seems to be ready on creation.
-func (h *netlinkHandle) EnsureLinkUp(devName string) error {
+func (dm *DeviceManager) ensureLinkUp() error {
 	return nil
 }
 

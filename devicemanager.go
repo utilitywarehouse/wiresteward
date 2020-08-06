@@ -13,27 +13,23 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// DeviceManager embed a TunDevice and implements functionality related to
+// DeviceManager embeds a TunDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
 type DeviceManager struct {
 	*TunDevice
-	configMutex   sync.Mutex
-	netlinkHandle *netlinkHandle
+	configMutex sync.Mutex
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
 	config map[string]*WirestewardPeerConfig
 }
 
 func newDeviceManager(wirestewardURLs []string) *DeviceManager {
-	r := &DeviceManager{
-		netlinkHandle: NewNetLinkHandle(),
-		config:        make(map[string]*WirestewardPeerConfig, len(wirestewardURLs)),
-	}
+	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	for _, e := range wirestewardURLs {
-		r.config[e] = nil
+		config[e] = nil
 	}
-	return r
+	return &DeviceManager{config: config}
 }
 
 // Run creates the TunDevice with the provided device name, starts it by calling
@@ -45,7 +41,7 @@ func (dm *DeviceManager) Run(deviceName string) error {
 	}
 	dm.TunDevice = device
 	go dm.TunDevice.Run()
-	if err := dm.netlinkHandle.EnsureLinkUp(dm.Name()); err != nil {
+	if err := dm.ensureLinkUp(); err != nil {
 		return err
 	}
 	// Check if there is a private key or generate one
@@ -87,10 +83,10 @@ func (dm *DeviceManager) RenewLeases(token string) error {
 
 		dm.configMutex.Lock()
 		log.Printf("Configuring offered ip address %s on device %s", config.LocalAddress, dm.Name())
-		// TODO: Depending on the implementation of UpdateDeviceConfig, if the
+		// TODO: Depending on the implementation of updateDeviceConfig, if the
 		// update fails partially, we might end up with the wrong "old" config
 		// and fail to cleanup properly when we update the next time.
-		if err := dm.netlinkHandle.UpdateDeviceConfig(dm.Name(), oldConfig, config); err != nil {
+		if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
 			log.Printf("Could not update peer configuration for `%s`: %v", serverURL, err)
 		} else {
 			dm.config[serverURL] = config
