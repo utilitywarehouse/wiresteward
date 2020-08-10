@@ -51,6 +51,14 @@ func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/", a.mainHandler)
 
 	log.Println("Starting agent at localhost:7773")
+
+	token, err := a.oa.getTokenFromFile()
+	if err != nil || token.IDToken == "" || token.Expiry.Before(time.Now()) {
+		log.Println("cannot get a valid cached token, you need to authenticate")
+	} else {
+		a.renewAllLeases(token.IDToken)
+	}
+
 	// Start agent at a high obscure port. That port is hardcoded as oauth
 	// server needs to allow redirections to localhost:7773/oauth2/callback
 	// 7773 is chosen by looking wiresteward initials hex on ascii table

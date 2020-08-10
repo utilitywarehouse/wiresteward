@@ -74,18 +74,20 @@ func (oa *oauthTokenHandler) getTokenFromFile() (*idToken, error) {
 	}
 	defer f.Close()
 	tok := &idToken{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
+	if err := json.NewDecoder(f).Decode(tok); err != nil {
+		return nil, err
+	}
+	return tok, nil
 }
 
-func (oa *oauthTokenHandler) saveToken(token *idToken) {
-	log.Printf("Saving credential file to: %s\n", oa.tokFile)
+func (oa *oauthTokenHandler) saveToken(token *idToken) error {
+	log.Printf("Saving credential file to: %s", oa.tokFile)
 	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+		return fmt.Errorf("unable to cache oauth token: %w", err)
 	}
 	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+	return json.NewEncoder(f).Encode(token)
 }
 
 func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
@@ -111,7 +113,9 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
 		Expiry:  tok.Expiry,
 	}
 
-	oa.saveToken(idToken)
+	if err := oa.saveToken(idToken); err != nil {
+		log.Printf("failed to save token to file: %v", err)
+	}
 
 	return idToken, nil
 }
