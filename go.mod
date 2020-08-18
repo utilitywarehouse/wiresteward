@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.5.1
 	github.com/nirasan/go-oauth-pkce-code-verifier v0.0.0-20170819232839-0fbfe93532da
 	github.com/stretchr/testify v1.6.1
-	github.com/vishvananda/netlink v1.1.0
+	github.com/vishvananda/netlink v1.1.1-0.20200802231818-98629f7ffc4b
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381
