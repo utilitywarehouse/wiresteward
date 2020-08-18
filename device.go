@@ -1,17 +1,25 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
 	"os"
+	"strings"
 
+	"github.com/coreos/go-iptables/iptables"
+	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // TunDevice represents a tun network device on the system, setup for use with
-// userspace wireguard.
+// user space wireguard. This is utilised by the agent-side wiresteward, to
+// provide a cross-platform implementation basd on wireguard-go.
 type TunDevice struct {
 	device     *device.Device
 	deviceMTU  int
@@ -134,4 +142,113 @@ func (td *TunDevice) cleanup() {
 	td.logger.Debug.Println("UAPI socket stopped")
 	td.device.Close()
 	td.logger.Debug.Println("Device closed")
+}
+
+// WireguardDevice represents a wireguard network device on the system, setup
+// for use with kernel space wireguard. This is utilised by the server-side
+// wiresteward.
+type WireguardDevice struct {
+	deviceAddress *net.IPNet
+	deviceName    string
+	ipTablesRule  []string
+	keyFilename   string
+	link          netlink.Link
+}
+
+func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
+	link := &netlink.Wireguard{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: cfg.DeviceName,
+		},
+	}
+	if cfg.DeviceMTU != 0 {
+		link.LinkAttrs.MTU = cfg.DeviceMTU
+	}
+	return &WireguardDevice{
+		deviceAddress: &net.IPNet{
+			IP:   cfg.WireguardIPAddress,
+			Mask: cfg.WireguardIPNetwork.Mask,
+		},
+		deviceName: cfg.DeviceName,
+		ipTablesRule: []string{
+			"-s", cfg.WireguardIPNetwork.String(),
+			"-d", strings.Join(cfg.AllowedIPs, ","),
+			"-j", "MASQUERADE",
+		},
+		keyFilename: cfg.KeyFilename,
+		link:        link,
+	}
+}
+
+// Start will create and setup the wireguard device.
+func (wd *WireguardDevice) Start() error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	if err := ipt.AppendUnique("nat", "POSTROUTING", wd.ipTablesRule...); err != nil {
+		return err
+	}
+	log.Printf("Setup iptables")
+	h := netlink.Handle{}
+	defer h.Delete()
+	if err := h.LinkAdd(wd.link); err != nil {
+		return err
+	}
+	log.Printf("Created device %s", wd.deviceName)
+	if err := h.AddrAdd(wd.link, &netlink.Addr{IPNet: wd.deviceAddress}); err != nil {
+		return err
+	}
+	key, err := wd.privateKey()
+	if err != nil {
+		return err
+	}
+	if err := setPrivateKey(wd.deviceName, key); err != nil {
+		return err
+	}
+	if err := h.LinkSetUp(wd.link); err != nil {
+		return err
+	}
+	log.Printf("Setup device %s", wd.deviceName)
+	return nil
+}
+
+// Stop will cleanup and delete the wireguard device.
+func (wd *WireguardDevice) Stop() error {
+	h := netlink.Handle{}
+	defer h.Delete()
+	if err := h.LinkSetDown(wd.link); err != nil {
+		return err
+	}
+	if err := h.LinkDel(wd.link); err != nil {
+		return err
+	}
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	if err := ipt.Delete("nat", "POSTROUTING", wd.ipTablesRule...); err != nil {
+		return err
+	}
+	log.Printf("Cleanup iptables")
+	return nil
+}
+
+func (wd *WireguardDevice) privateKey() (string, error) {
+	kd, err := ioutil.ReadFile(wd.keyFilename)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Printf("No key found in %s, generating a new private key", wd.keyFilename)
+			key, err := wgtypes.GeneratePrivateKey()
+			if err != nil {
+				return "", err
+			}
+			if err := ioutil.WriteFile(wd.keyFilename, []byte(key.String()), 0600); err != nil {
+				return "", err
+			}
+			return key.String(), nil
+		}
+		return "", err
+	}
+	return string(kd), nil
 }

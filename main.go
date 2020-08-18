@@ -56,6 +56,16 @@ func server() {
 		log.Fatal(err)
 	}
 
+	wg := newWireguardDevice(cfg)
+	if err := wg.Start(); err != nil {
+		log.Fatalf("Cannot setup wireguard device '%s': %v", cfg.DeviceName, err)
+	}
+	defer func() {
+		if err := wg.Stop(); err != nil {
+			log.Printf("Cannot cleanup wireguard device '%s': %v", cfg.DeviceName, err)
+		}
+	}()
+
 	lm, err := newFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.LeaseTime, cfg.WireguardIPAddress)
 	if err != nil {
 		log.Fatalf("Cannot start lease server: %v", err)
