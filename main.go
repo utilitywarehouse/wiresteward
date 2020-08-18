@@ -79,6 +79,7 @@ func server() {
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)
 	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM)
 	signal.Notify(quit, os.Interrupt)
 	log.Print("Starting leaser loop")
 	for {
