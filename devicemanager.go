@@ -24,23 +24,23 @@ type DeviceManager struct {
 	config map[string]*WirestewardPeerConfig
 }
 
-func newDeviceManager(wirestewardURLs []string) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	for _, e := range wirestewardURLs {
 		config[e] = nil
 	}
-	return &DeviceManager{config: config}
+	return &DeviceManager{
+		TunDevice: newTunDevice(deviceName, mtu),
+		config:    config,
+	}
 }
 
-// Run creates the TunDevice with the provided device name, starts it by calling
-// its Run() method and proceeds to initialise it.
-func (dm *DeviceManager) Run(deviceName string, mtu int) error {
-	device, err := startTunDevice(deviceName, mtu)
-	if err != nil {
-		return fmt.Errorf("Error starting tun device `%s`: %w", deviceName, err)
+// Run starts the TunDevice by calling its Run() method and proceeds to
+// initialise it.
+func (dm *DeviceManager) Run() error {
+	if err := dm.TunDevice.Run(); err != nil {
+		return fmt.Errorf("Error starting tun device `%s`: %w", dm.Name(), err)
 	}
-	dm.TunDevice = device
-	go dm.TunDevice.Run()
 	if err := dm.ensureLinkUp(); err != nil {
 		return err
 	}
