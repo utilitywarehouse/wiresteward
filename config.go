@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	defaultKeyFilename        = "/etc/wiresteward/key"
 	defaultLeaserSyncInterval = 1 * time.Minute
 	defaultLeasesFilename     = "/etc/wiresteward/leases"
 	defaultLeaseTime          = 12 * time.Hour
@@ -94,7 +95,10 @@ func readAgentConfig(path string) (*agentConfig, error) {
 type serverConfig struct {
 	Address            string
 	AllowedIPs         []string
+	DeviceMTU          int
+	DeviceName         string
 	Endpoint           string
+	KeyFilename        string
 	LeaserSyncInterval time.Duration
 	LeasesFilename     string
 	LeaseTime          time.Duration
@@ -106,7 +110,10 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
 		Address            string   `json:"address"`
 		AllowedIPs         []string `json:"allowedIPs"`
+		DeviceMTU          int      `json:"deviceMTU"`
+		DeviceName         string   `json:"deviceName"`
 		Endpoint           string   `json:"endpoint"`
+		KeyFilename        string   `json:"keyFilename"`
 		LeaserSyncInterval string   `json:"leaserSyncInterval"`
 		LeasesFilename     string   `json:"leasesFilename"`
 		LeaseTime          string   `json:"leaseTime"`
@@ -130,7 +137,10 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	}
 	c.Address = cfg.Address
 	c.AllowedIPs = cfg.AllowedIPs
+	c.DeviceMTU = cfg.DeviceMTU
+	c.DeviceName = cfg.DeviceName
 	c.Endpoint = cfg.Endpoint
+	c.KeyFilename = cfg.KeyFilename
 	c.LeasesFilename = cfg.LeasesFilename
 	return nil
 }
@@ -148,8 +158,16 @@ func verifyServerConfig(conf *serverConfig) error {
 	if len(conf.AllowedIPs) == 0 {
 		log.Printf("config missing `allowedIPs`, this server is not exposing any networks")
 	}
+	if conf.DeviceName == "" {
+		conf.DeviceName = defaultWireguardDeviceName
+		log.Printf("config missing `deviceName`, using default: %s", defaultWireguardDeviceName)
+	}
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
+	}
+	if conf.KeyFilename == "" {
+		conf.KeyFilename = defaultKeyFilename
+		log.Printf("config missing `keyFilename`, using default: %s", defaultKeyFilename)
 	}
 	if conf.LeaserSyncInterval == 0 {
 		conf.LeaserSyncInterval = defaultLeaserSyncInterval

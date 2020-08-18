@@ -132,7 +132,9 @@ func TestServerConfig(t *testing.T) {
 			&serverConfig{
 				Address:            "10.0.0.1/24",
 				AllowedIPs:         []string{"1.2.3.4/8"},
+				DeviceName:         "wg0",
 				Endpoint:           "1.2.3.4",
+				KeyFilename:        defaultKeyFilename,
 				LeaserSyncInterval: defaultLeaserSyncInterval,
 				LeasesFilename:     defaultLeasesFilename,
 				LeaseTime:          defaultLeaseTime,
@@ -145,13 +147,19 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"address": "10.0.0.1/24",
 				"endpoint": "1.2.3.4",
+				"deviceMTU": 1300,
+				"deviceName": "wg1",
+				"keyFilename": "bar",
 				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
 				"leaseTime": "2h"
 			}`),
 			&serverConfig{
 				Address:            "10.0.0.1/24",
+				DeviceMTU:          1300,
+				DeviceName:         "wg1",
 				Endpoint:           "1.2.3.4",
+				KeyFilename:        "bar",
 				LeasesFilename:     "foo",
 				LeaserSyncInterval: time.Duration(time.Hour * 3),
 				LeaseTime:          time.Duration(time.Hour * 2),
