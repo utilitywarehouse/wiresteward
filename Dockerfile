@@ -10,6 +10,6 @@ RUN \
   && upx /wiresteward
 
 FROM alpine:3.12
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates iptables
 COPY --from=build /wiresteward /wiresteward
 ENTRYPOINT [ "/wiresteward" ]
