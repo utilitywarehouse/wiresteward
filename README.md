@@ -19,6 +19,7 @@ Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 # wiresteward
 
 [![Docker Repository on Quay](https://quay.io/repository/utilitywarehouse/wiresteward/status "Docker Repository on Quay")](https://quay.io/repository/utilitywarehouse/wiresteward)
+[![Build Status](https://travis-ci.org/utilitywarehouse/wiresteward.svg?branch=master)](https://travis-ci.org/utilitywarehouse/wiresteward)
 
 wiresteward is a peer manager for wireguard instances. It is comprised by a
 server and an agent functionality.
