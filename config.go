@@ -6,10 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
 const (
+	defaultKeyFilename        = "/etc/wiresteward/key"
 	defaultLeaserSyncInterval = 1 * time.Minute
 	defaultLeasesFilename     = "/etc/wiresteward/leases"
 	defaultLeaseTime          = 12 * time.Hour
@@ -92,21 +95,28 @@ func readAgentConfig(path string) (*agentConfig, error) {
 
 // serverConfig describes the server-side configuration of wiresteward.
 type serverConfig struct {
-	Address            string
-	AllowedIPs         []string
-	Endpoint           string
-	LeaserSyncInterval time.Duration
-	LeasesFilename     string
-	LeaseTime          time.Duration
-	WireguardIPAddress net.IP
-	WireguardIPNetwork *net.IPNet
+	Address             string
+	AllowedIPs          []string
+	DeviceMTU           int
+	DeviceName          string
+	Endpoint            string
+	KeyFilename         string
+	LeaserSyncInterval  time.Duration
+	LeasesFilename      string
+	LeaseTime           time.Duration
+	WireguardIPAddress  net.IP
+	WireguardIPNetwork  *net.IPNet
+	WireguardListenPort int
 }
 
 func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
 		Address            string   `json:"address"`
 		AllowedIPs         []string `json:"allowedIPs"`
+		DeviceMTU          int      `json:"deviceMTU"`
+		DeviceName         string   `json:"deviceName"`
 		Endpoint           string   `json:"endpoint"`
+		KeyFilename        string   `json:"keyFilename"`
 		LeaserSyncInterval string   `json:"leaserSyncInterval"`
 		LeasesFilename     string   `json:"leasesFilename"`
 		LeaseTime          string   `json:"leaseTime"`
@@ -130,7 +140,10 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	}
 	c.Address = cfg.Address
 	c.AllowedIPs = cfg.AllowedIPs
+	c.DeviceMTU = cfg.DeviceMTU
+	c.DeviceName = cfg.DeviceName
 	c.Endpoint = cfg.Endpoint
+	c.KeyFilename = cfg.KeyFilename
 	c.LeasesFilename = cfg.LeasesFilename
 	return nil
 }
@@ -148,8 +161,25 @@ func verifyServerConfig(conf *serverConfig) error {
 	if len(conf.AllowedIPs) == 0 {
 		log.Printf("config missing `allowedIPs`, this server is not exposing any networks")
 	}
+	if conf.DeviceName == "" {
+		conf.DeviceName = defaultWireguardDeviceName
+		log.Printf("config missing `deviceName`, using default: %s", defaultWireguardDeviceName)
+	}
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
+	}
+	ep := strings.Split(conf.Endpoint, ":")
+	if len(ep) != 2 {
+		return fmt.Errorf("invalid `endpoint` value, it must be of the format `<host>:<port>`, got: %s", conf.Endpoint)
+	}
+	port, err := strconv.Atoi(ep[1])
+	if err != nil {
+		return fmt.Errorf("could not parse listen port value: %w", err)
+	}
+	conf.WireguardListenPort = port
+	if conf.KeyFilename == "" {
+		conf.KeyFilename = defaultKeyFilename
+		log.Printf("config missing `keyFilename`, using default: %s", defaultKeyFilename)
 	}
 	if conf.LeaserSyncInterval == 0 {
 		conf.LeaserSyncInterval = defaultLeaserSyncInterval
