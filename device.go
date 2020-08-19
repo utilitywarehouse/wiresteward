@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
@@ -149,7 +150,7 @@ func (td *TunDevice) cleanup() {
 // for use with kernel space wireguard. This is utilised by the server-side
 // wiresteward.
 type WireguardDevice struct {
-	deviceAddress *net.IPNet
+	deviceAddress netlink.Addr
 	deviceName    string
 	iptablesRule  []string
 	keyFilename   string
@@ -167,9 +168,11 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 		link.LinkAttrs.MTU = cfg.DeviceMTU
 	}
 	return &WireguardDevice{
-		deviceAddress: &net.IPNet{
-			IP:   cfg.WireguardIPAddress,
-			Mask: cfg.WireguardIPNetwork.Mask,
+		deviceAddress: netlink.Addr{
+			IPNet: &net.IPNet{
+				IP:   cfg.WireguardIPAddress,
+				Mask: cfg.WireguardIPNetwork.Mask,
+			},
 		},
 		deviceName: cfg.DeviceName,
 		iptablesRule: []string{
@@ -199,10 +202,13 @@ func (wd *WireguardDevice) Start() error {
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
-	if err := h.AddrAdd(wd.link, &netlink.Addr{IPNet: wd.deviceAddress}); err != nil {
+	if err := wd.configureWireguard(); err != nil {
 		return err
 	}
-	if err := wd.configureWireguard(); err != nil {
+	if err := wd.waitLinkIsUp(h); err != nil {
+		return err
+	}
+	if err := h.AddrAdd(wd.link, &wd.deviceAddress); err != nil {
 		return err
 	}
 	if err := h.LinkSetUp(wd.link); err != nil {
@@ -272,4 +278,19 @@ func (wd *WireguardDevice) configureWireguard() error {
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
 	})
+}
+
+func (wd *WireguardDevice) waitLinkIsUp(h netlink.Handle) error {
+	for {
+		link, err := h.LinkByName(wd.deviceName)
+		if err != nil {
+			return err
+		}
+		log.Printf("waiting for device %s to come up, current flags: %s", wd.deviceName, link.Attrs().Flags)
+		if link.Attrs().Flags&net.FlagUp != 0 {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return nil
 }
