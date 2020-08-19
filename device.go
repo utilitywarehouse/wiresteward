@@ -151,7 +151,7 @@ func (td *TunDevice) cleanup() {
 type WireguardDevice struct {
 	deviceAddress *net.IPNet
 	deviceName    string
-	ipTablesRule  []string
+	iptablesRule  []string
 	keyFilename   string
 	link          netlink.Link
 	listenPort    int
@@ -172,7 +172,7 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 			Mask: cfg.WireguardIPNetwork.Mask,
 		},
 		deviceName: cfg.DeviceName,
-		ipTablesRule: []string{
+		iptablesRule: []string{
 			"-s", cfg.WireguardIPNetwork.String(),
 			"-d", strings.Join(cfg.AllowedIPs, ","),
 			"-j", "MASQUERADE",
@@ -189,16 +189,16 @@ func (wd *WireguardDevice) Start() error {
 	if err != nil {
 		return err
 	}
-	if err := ipt.AppendUnique("nat", "POSTROUTING", wd.ipTablesRule...); err != nil {
+	log.Printf("Adding iptables rule %v", wd.iptablesRule)
+	if err := ipt.AppendUnique("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
-	log.Printf("Setup iptables")
 	h := netlink.Handle{}
 	defer h.Delete()
+	log.Printf("Creating device %s with address %s", wd.deviceName, wd.deviceAddress)
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
-	log.Printf("Created device %s", wd.deviceName)
 	if err := h.AddrAdd(wd.link, &netlink.Addr{IPNet: wd.deviceAddress}); err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (wd *WireguardDevice) Start() error {
 	if err := h.LinkSetUp(wd.link); err != nil {
 		return err
 	}
-	log.Printf("Setup device %s", wd.deviceName)
+	log.Printf("Initialised device %s", wd.deviceName)
 	return nil
 }
 
@@ -226,10 +226,11 @@ func (wd *WireguardDevice) Stop() error {
 	if err != nil {
 		return err
 	}
-	if err := ipt.Delete("nat", "POSTROUTING", wd.ipTablesRule...); err != nil {
+	log.Printf("Removing iptables rule %v", wd.iptablesRule)
+	if err := ipt.Delete("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
-	log.Printf("Cleanup iptables")
+	log.Printf("Cleaned up device %s", wd.deviceName)
 	return nil
 }
 
@@ -266,6 +267,7 @@ func (wd *WireguardDevice) configureWireguard() error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Configuring wireguard on port %v with public key %s", wd.listenPort, key.PublicKey())
 	return wg.ConfigureDevice(wd.deviceName, wgtypes.Config{
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
