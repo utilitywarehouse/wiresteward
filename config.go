@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -93,17 +95,18 @@ func readAgentConfig(path string) (*agentConfig, error) {
 
 // serverConfig describes the server-side configuration of wiresteward.
 type serverConfig struct {
-	Address            string
-	AllowedIPs         []string
-	DeviceMTU          int
-	DeviceName         string
-	Endpoint           string
-	KeyFilename        string
-	LeaserSyncInterval time.Duration
-	LeasesFilename     string
-	LeaseTime          time.Duration
-	WireguardIPAddress net.IP
-	WireguardIPNetwork *net.IPNet
+	Address             string
+	AllowedIPs          []string
+	DeviceMTU           int
+	DeviceName          string
+	Endpoint            string
+	KeyFilename         string
+	LeaserSyncInterval  time.Duration
+	LeasesFilename      string
+	LeaseTime           time.Duration
+	WireguardIPAddress  net.IP
+	WireguardIPNetwork  *net.IPNet
+	WireguardListenPort int
 }
 
 func (c *serverConfig) UnmarshalJSON(data []byte) error {
@@ -165,6 +168,15 @@ func verifyServerConfig(conf *serverConfig) error {
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
 	}
+	ep := strings.Split(conf.Endpoint, ":")
+	if len(ep) != 2 {
+		return fmt.Errorf("invalid `endpoint` value, it must be of the format `<host>:<port>`, got: %s", conf.Endpoint)
+	}
+	port, err := strconv.Atoi(ep[1])
+	if err != nil {
+		return fmt.Errorf("could not parse listen port value: %w", err)
+	}
+	conf.WireguardListenPort = port
 	if conf.KeyFilename == "" {
 		conf.KeyFilename = defaultKeyFilename
 		log.Printf("config missing `keyFilename`, using default: %s", defaultKeyFilename)

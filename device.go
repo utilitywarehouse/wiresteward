@@ -14,6 +14,7 @@ import (
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
+	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -153,6 +154,7 @@ type WireguardDevice struct {
 	ipTablesRule  []string
 	keyFilename   string
 	link          netlink.Link
+	listenPort    int
 }
 
 func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
@@ -177,6 +179,7 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 		},
 		keyFilename: cfg.KeyFilename,
 		link:        link,
+		listenPort:  cfg.WireguardListenPort,
 	}
 }
 
@@ -199,11 +202,7 @@ func (wd *WireguardDevice) Start() error {
 	if err := h.AddrAdd(wd.link, &netlink.Addr{IPNet: wd.deviceAddress}); err != nil {
 		return err
 	}
-	key, err := wd.privateKey()
-	if err != nil {
-		return err
-	}
-	if err := setPrivateKey(wd.deviceName, key); err != nil {
+	if err := wd.configureWireguard(); err != nil {
 		return err
 	}
 	if err := h.LinkSetUp(wd.link); err != nil {
@@ -234,21 +233,41 @@ func (wd *WireguardDevice) Stop() error {
 	return nil
 }
 
-func (wd *WireguardDevice) privateKey() (string, error) {
+func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
 	kd, err := ioutil.ReadFile(wd.keyFilename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Printf("No key found in %s, generating a new private key", wd.keyFilename)
 			key, err := wgtypes.GeneratePrivateKey()
 			if err != nil {
-				return "", err
+				return wgtypes.Key{}, err
 			}
 			if err := ioutil.WriteFile(wd.keyFilename, []byte(key.String()), 0600); err != nil {
-				return "", err
+				return wgtypes.Key{}, err
 			}
-			return key.String(), nil
+			return key, nil
 		}
-		return "", err
+		return wgtypes.Key{}, err
 	}
-	return string(kd), nil
+	return wgtypes.ParseKey(string(kd))
+}
+
+func (wd *WireguardDevice) configureWireguard() error {
+	wg, err := wgctrl.New()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := wg.Close(); err != nil {
+			log.Printf("Failed to close wireguard client: %v", err)
+		}
+	}()
+	key, err := wd.privateKey()
+	if err != nil {
+		return err
+	}
+	return wg.ConfigureDevice(wd.deviceName, wgtypes.Config{
+		PrivateKey: &key,
+		ListenPort: &wd.listenPort,
+	})
 }
