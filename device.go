@@ -202,16 +202,13 @@ func (wd *WireguardDevice) Start() error {
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
+	if err := wd.ensureLinkIsUp(h); err != nil {
+		return err
+	}
 	if err := wd.configureWireguard(); err != nil {
 		return err
 	}
-	if err := wd.waitLinkIsUp(h); err != nil {
-		return err
-	}
 	if err := h.AddrAdd(wd.link, &wd.deviceAddress); err != nil {
-		return err
-	}
-	if err := h.LinkSetUp(wd.link); err != nil {
 		return err
 	}
 	log.Printf("Initialised device %s", wd.deviceName)
@@ -280,7 +277,13 @@ func (wd *WireguardDevice) configureWireguard() error {
 	})
 }
 
-func (wd *WireguardDevice) waitLinkIsUp(h netlink.Handle) error {
+// In Flatcar linux, the link automatically transitions to the UP state. In
+// Debian, the link will stay in the DOWN state until LinkSetUp is called.
+// Additionally, if LinkSetUp is called in Flatcar, the link appears to properly
+// get the UP flag set but subsequent AddrAdd() calls might fail, indicating
+// it did not properly set up. This method, will wait for the link to come up
+// automatically and will explicitly bring it up after timeout.
+func (wd *WireguardDevice) ensureLinkIsUp(h netlink.Handle) error {
 	tries := 1
 	for {
 		link, err := h.LinkByName(wd.deviceName)
@@ -289,10 +292,12 @@ func (wd *WireguardDevice) waitLinkIsUp(h netlink.Handle) error {
 		}
 		log.Printf("waiting for device %s to come up, current flags: %s", wd.deviceName, link.Attrs().Flags)
 		if link.Attrs().Flags&net.FlagUp != 0 {
+			log.Printf("device %s came up automatically", wd.deviceName)
 			return nil
 		}
-		if tries > 9 {
-			return fmt.Errorf("timeout waiting for device %s to come up", wd.deviceName)
+		if tries > 4 {
+			log.Printf("timeout waiting for device %s to come up automatically", wd.deviceName)
+			return h.LinkSetUp(wd.link)
 		}
 		tries++
 		time.Sleep(time.Second)
