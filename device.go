@@ -162,7 +162,8 @@ type WireguardDevice struct {
 func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 	link := &netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: cfg.DeviceName,
+			Name:   cfg.DeviceName,
+			TxQLen: 1000,
 		},
 	}
 	return &WireguardDevice{
