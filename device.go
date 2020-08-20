@@ -12,6 +12,7 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
@@ -151,6 +152,7 @@ func (td *TunDevice) cleanup() {
 // wiresteward.
 type WireguardDevice struct {
 	deviceAddress netlink.Addr
+	deviceMTU     int
 	deviceName    string
 	iptablesRule  []string
 	keyFilename   string
@@ -164,9 +166,6 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 			Name: cfg.DeviceName,
 		},
 	}
-	if cfg.DeviceMTU != 0 {
-		link.LinkAttrs.MTU = cfg.DeviceMTU
-	}
 	return &WireguardDevice{
 		deviceAddress: netlink.Addr{
 			IPNet: &net.IPNet{
@@ -175,6 +174,7 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 			},
 		},
 		deviceName: cfg.DeviceName,
+		deviceMTU:  cfg.DeviceMTU,
 		iptablesRule: []string{
 			"-s", cfg.WireguardIPNetwork.String(),
 			"-d", strings.Join(cfg.AllowedIPs, ","),
@@ -209,6 +209,19 @@ func (wd *WireguardDevice) Start() error {
 		return err
 	}
 	if err := h.AddrAdd(wd.link, &wd.deviceAddress); err != nil {
+		return err
+	}
+	mtu := wd.deviceMTU
+	if mtu <= 0 {
+		defaultMTU, err := wd.defaultMTU(h)
+		if err != nil {
+			log.Printf("Could not detect default MTU, defaulting to 1500: %v", err)
+			defaultMTU = 1500
+		}
+		mtu = defaultMTU - 80
+	}
+	log.Printf("Setting MTU to %d on device %s", mtu, wd.deviceName)
+	if err := h.LinkSetMTU(wd.link, mtu); err != nil {
 		return err
 	}
 	log.Printf("Initialised device %s", wd.deviceName)
@@ -275,6 +288,27 @@ func (wd *WireguardDevice) configureWireguard() error {
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
 	})
+}
+
+// defaultMTU returns the MTU of the default route or the respective device.
+func (wd *WireguardDevice) defaultMTU(h netlink.Handle) (int, error) {
+	routes, err := h.RouteList(nil, unix.AF_INET)
+	if err != nil {
+		return -1, err
+	}
+	for _, r := range routes {
+		if r.Dst == nil {
+			if r.MTU > 0 {
+				return r.MTU, nil
+			}
+			link, err := h.LinkByIndex(r.LinkIndex)
+			if err != nil {
+				return -1, err
+			}
+			return link.Attrs().MTU, nil
+		}
+	}
+	return -1, fmt.Errorf("could not detect default route")
 }
 
 // In Flatcar linux, the link automatically transitions to the UP state. In
