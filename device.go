@@ -12,6 +12,7 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
@@ -151,7 +152,7 @@ func (td *TunDevice) cleanup() {
 // wiresteward.
 type WireguardDevice struct {
 	deviceAddress netlink.Addr
-	deviceName    string
+	deviceMTU     int
 	iptablesRule  []string
 	keyFilename   string
 	link          netlink.Link
@@ -164,9 +165,6 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 			Name: cfg.DeviceName,
 		},
 	}
-	if cfg.DeviceMTU != 0 {
-		link.LinkAttrs.MTU = cfg.DeviceMTU
-	}
 	return &WireguardDevice{
 		deviceAddress: netlink.Addr{
 			IPNet: &net.IPNet{
@@ -174,7 +172,7 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 				Mask: cfg.WireguardIPNetwork.Mask,
 			},
 		},
-		deviceName: cfg.DeviceName,
+		deviceMTU: cfg.DeviceMTU,
 		iptablesRule: []string{
 			"-s", cfg.WireguardIPNetwork.String(),
 			"-d", strings.Join(cfg.AllowedIPs, ","),
@@ -198,7 +196,7 @@ func (wd *WireguardDevice) Start() error {
 	}
 	h := netlink.Handle{}
 	defer h.Delete()
-	log.Printf("Creating device %s with address %s", wd.deviceName, wd.deviceAddress)
+	log.Printf("Creating device %s with address %s", wd.link.Attrs().Name, wd.deviceAddress)
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
@@ -211,7 +209,20 @@ func (wd *WireguardDevice) Start() error {
 	if err := h.AddrAdd(wd.link, &wd.deviceAddress); err != nil {
 		return err
 	}
-	log.Printf("Initialised device %s", wd.deviceName)
+	mtu := wd.deviceMTU
+	if mtu <= 0 {
+		defaultMTU, err := wd.defaultMTU(h)
+		if err != nil {
+			log.Printf("Could not detect default MTU, defaulting to 1500: %v", err)
+			defaultMTU = 1500
+		}
+		mtu = defaultMTU - 80
+	}
+	log.Printf("Setting MTU to %d on device %s", mtu, wd.link.Attrs().Name)
+	if err := h.LinkSetMTU(wd.link, mtu); err != nil {
+		return err
+	}
+	log.Printf("Initialised device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -233,7 +244,7 @@ func (wd *WireguardDevice) Stop() error {
 	if err := ipt.Delete("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
-	log.Printf("Cleaned up device %s", wd.deviceName)
+	log.Printf("Cleaned up device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -271,10 +282,31 @@ func (wd *WireguardDevice) configureWireguard() error {
 		return err
 	}
 	log.Printf("Configuring wireguard on port %v with public key %s", wd.listenPort, key.PublicKey())
-	return wg.ConfigureDevice(wd.deviceName, wgtypes.Config{
+	return wg.ConfigureDevice(wd.link.Attrs().Name, wgtypes.Config{
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
 	})
+}
+
+// defaultMTU returns the MTU of the default route or the respective device.
+func (wd *WireguardDevice) defaultMTU(h netlink.Handle) (int, error) {
+	routes, err := h.RouteList(nil, unix.AF_INET)
+	if err != nil {
+		return -1, err
+	}
+	for _, r := range routes {
+		if r.Dst == nil {
+			if r.MTU > 0 {
+				return r.MTU, nil
+			}
+			link, err := h.LinkByIndex(r.LinkIndex)
+			if err != nil {
+				return -1, err
+			}
+			return link.Attrs().MTU, nil
+		}
+	}
+	return -1, fmt.Errorf("could not detect default route")
 }
 
 // In Flatcar linux, the link automatically transitions to the UP state. In
@@ -286,17 +318,17 @@ func (wd *WireguardDevice) configureWireguard() error {
 func (wd *WireguardDevice) ensureLinkIsUp(h netlink.Handle) error {
 	tries := 1
 	for {
-		link, err := h.LinkByName(wd.deviceName)
+		link, err := h.LinkByName(wd.link.Attrs().Name)
 		if err != nil {
 			return err
 		}
-		log.Printf("waiting for device %s to come up, current flags: %s", wd.deviceName, link.Attrs().Flags)
+		log.Printf("waiting for device %s to come up, current flags: %s", wd.link.Attrs().Name, link.Attrs().Flags)
 		if link.Attrs().Flags&net.FlagUp != 0 {
-			log.Printf("device %s came up automatically", wd.deviceName)
+			log.Printf("device %s came up automatically", wd.link.Attrs().Name)
 			return nil
 		}
 		if tries > 4 {
-			log.Printf("timeout waiting for device %s to come up automatically", wd.deviceName)
+			log.Printf("timeout waiting for device %s to come up automatically", wd.link.Attrs().Name)
 			return h.LinkSetUp(wd.link)
 		}
 		tries++
