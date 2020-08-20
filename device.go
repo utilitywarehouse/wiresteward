@@ -153,7 +153,6 @@ func (td *TunDevice) cleanup() {
 type WireguardDevice struct {
 	deviceAddress netlink.Addr
 	deviceMTU     int
-	deviceName    string
 	iptablesRule  []string
 	keyFilename   string
 	link          netlink.Link
@@ -173,8 +172,7 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 				Mask: cfg.WireguardIPNetwork.Mask,
 			},
 		},
-		deviceName: cfg.DeviceName,
-		deviceMTU:  cfg.DeviceMTU,
+		deviceMTU: cfg.DeviceMTU,
 		iptablesRule: []string{
 			"-s", cfg.WireguardIPNetwork.String(),
 			"-d", strings.Join(cfg.AllowedIPs, ","),
@@ -198,7 +196,7 @@ func (wd *WireguardDevice) Start() error {
 	}
 	h := netlink.Handle{}
 	defer h.Delete()
-	log.Printf("Creating device %s with address %s", wd.deviceName, wd.deviceAddress)
+	log.Printf("Creating device %s with address %s", wd.link.Attrs().Name, wd.deviceAddress)
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
@@ -220,11 +218,11 @@ func (wd *WireguardDevice) Start() error {
 		}
 		mtu = defaultMTU - 80
 	}
-	log.Printf("Setting MTU to %d on device %s", mtu, wd.deviceName)
+	log.Printf("Setting MTU to %d on device %s", mtu, wd.link.Attrs().Name)
 	if err := h.LinkSetMTU(wd.link, mtu); err != nil {
 		return err
 	}
-	log.Printf("Initialised device %s", wd.deviceName)
+	log.Printf("Initialised device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -246,7 +244,7 @@ func (wd *WireguardDevice) Stop() error {
 	if err := ipt.Delete("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
-	log.Printf("Cleaned up device %s", wd.deviceName)
+	log.Printf("Cleaned up device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -284,7 +282,7 @@ func (wd *WireguardDevice) configureWireguard() error {
 		return err
 	}
 	log.Printf("Configuring wireguard on port %v with public key %s", wd.listenPort, key.PublicKey())
-	return wg.ConfigureDevice(wd.deviceName, wgtypes.Config{
+	return wg.ConfigureDevice(wd.link.Attrs().Name, wgtypes.Config{
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
 	})
@@ -320,17 +318,17 @@ func (wd *WireguardDevice) defaultMTU(h netlink.Handle) (int, error) {
 func (wd *WireguardDevice) ensureLinkIsUp(h netlink.Handle) error {
 	tries := 1
 	for {
-		link, err := h.LinkByName(wd.deviceName)
+		link, err := h.LinkByName(wd.link.Attrs().Name)
 		if err != nil {
 			return err
 		}
-		log.Printf("waiting for device %s to come up, current flags: %s", wd.deviceName, link.Attrs().Flags)
+		log.Printf("waiting for device %s to come up, current flags: %s", wd.link.Attrs().Name, link.Attrs().Flags)
 		if link.Attrs().Flags&net.FlagUp != 0 {
-			log.Printf("device %s came up automatically", wd.deviceName)
+			log.Printf("device %s came up automatically", wd.link.Attrs().Name)
 			return nil
 		}
 		if tries > 4 {
-			log.Printf("timeout waiting for device %s to come up automatically", wd.deviceName)
+			log.Printf("timeout waiting for device %s to come up automatically", wd.link.Attrs().Name)
 			return h.LinkSetUp(wd.link)
 		}
 		tries++
