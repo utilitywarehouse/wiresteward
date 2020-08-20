@@ -281,6 +281,7 @@ func (wd *WireguardDevice) configureWireguard() error {
 }
 
 func (wd *WireguardDevice) waitLinkIsUp(h netlink.Handle) error {
+	tries := 1
 	for {
 		link, err := h.LinkByName(wd.deviceName)
 		if err != nil {
@@ -290,7 +291,10 @@ func (wd *WireguardDevice) waitLinkIsUp(h netlink.Handle) error {
 		if link.Attrs().Flags&net.FlagUp != 0 {
 			return nil
 		}
+		if tries > 9 {
+			return fmt.Errorf("timeout waiting for device %s to come up", wd.deviceName)
+		}
+		tries++
 		time.Sleep(time.Second)
 	}
-	return nil
 }
