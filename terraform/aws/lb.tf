@@ -18,8 +18,7 @@ resource "aws_security_group" "wiresteward-lb" {
   }
 
   tags = {
-    Name        = "${local.name}-lb"
-    Environment = var.environment
+    Name = "${local.name}-lb"
   }
 }
 
@@ -30,8 +29,7 @@ resource "aws_lb" "wiresteward" {
   security_groups    = [aws_security_group.wiresteward-lb.id]
 
   tags = {
-    Name        = local.name
-    Environment = var.environment
+    Name = local.name
   }
 }
 
@@ -80,8 +78,7 @@ resource "aws_lb_target_group" "wiresteward_4180" {
   }
 
   tags = {
-    Name        = local.name
-    Environment = var.environment
+    Name = local.name
   }
 }
 

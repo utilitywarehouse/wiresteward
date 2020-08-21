@@ -51,8 +51,7 @@ resource "aws_security_group" "wiresteward" {
   }
 
   tags = {
-    Name        = local.name
-    Environment = var.environment
+    Name = local.name
   }
 }
 
@@ -61,8 +60,7 @@ resource "aws_eip" "peer" {
   vpc   = true
 
   tags = {
-    Name        = local.name
-    Environment = var.environment
+    Name = local.name
   }
 
   lifecycle {
@@ -110,8 +108,7 @@ resource "aws_instance" "peer" {
   }
 
   tags = {
-    Name        = local.name
-    Environment = var.environment
+    Name = local.name
   }
 }
 

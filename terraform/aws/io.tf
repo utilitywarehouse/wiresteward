@@ -2,19 +2,12 @@ variable "role_name" {
   default = "wiresteward"
 }
 
-variable "environment" {}
-
 variable "dns_zone_name" {}
 
 variable "dns_zone_id" {}
 
 variable "vpc_id" {
   description = "The id of the AWS VPC in which to deploy the wiresteward instance."
-}
-
-variable "availability_zones" {
-  type        = list(string)
-  description = "AWS VPC AZs in which the wiresteward instance EBS volumes will be created"
 }
 
 variable "subnet_ids" {
