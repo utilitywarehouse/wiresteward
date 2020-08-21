@@ -1,0 +1,15 @@
+http_address = "0.0.0.0:4180"
+provider = "oidc"
+oidc_issuer_url = "${oauth2_proxy_issuer_url}"
+skip_jwt_bearer_tokens=true
+request_logging=true
+auth_logging=true
+standard_logging=true
+upstreams = ["http://127.0.0.1:8080"]
+email_domains = ["uw.co.uk"]
+client_id = "${oauth2_proxy_client_id}"
+client_secret = " "
+pass_access_token = true
+cookie_secret = "${oauth2_proxy_cookie_secret}"
+cookie_secure=true
+skip_provider_button = true
