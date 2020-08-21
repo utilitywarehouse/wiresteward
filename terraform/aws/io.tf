@@ -2,11 +2,18 @@ variable "role_name" {
   default = "wiresteward"
 }
 
-variable "dns_zone_name" {}
+variable "dns_zone_name" {
+  type        = string
+  description = "The Route53 hosted zone name in which records will be created"
+}
 
-variable "dns_zone_id" {}
+variable "dns_zone_id" {
+  type        = string
+  description = "The Route53 hosted zone ID in which records will be created"
+}
 
 variable "vpc_id" {
+  type        = string
   description = "The id of the AWS VPC in which to deploy the wiresteward instance."
 }
 
