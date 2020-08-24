@@ -10,21 +10,32 @@ They are based on [Flatcar Container Linux](https://www.flatcar-linux.org/).
 For example, to deploy on aws:
 
 ```
-module "wiresteward" {
-  source = "github.com/utilitywarehouse/wiresteward//terraform/aws"
+locals {
+  hostname_base = "wiresteward.example.com"
+}
 
-  role_name                  = "wiresteward"
-  vpc_id                     = "vpc-xxxxxxxxxxxxxxxxx"
-  dns_zone_id                = "/hostedzone/XXXXXXXXXXXXX"
-  dns_zone_name              = "example.com."
-  subnet_ids                 = ["subnet-xxxxxxxx", "subnet-xxxxxxxx", "subnet-xxxxxxxx"]
+module "wiresteward_ignition" {
+  source = "github.com/utilitywarehouse/wiresteward//terraform/ignition?ref=master"
+
   oauth2_proxy_client_id     = "xxxxxxxxxxxxxxxxxxxx"
   oauth2_proxy_cookie_secret = "AAAAAAAAAAAAAAAAAAAAAA=="
   oauth2_proxy_issuer_url    = "https://login.example.com"
   ssh_key_agent_uri          = "https://s3-eu-west-1.amazonaws.com/ssh-keys/authmap"
   ssh_key_agent_groups       = ["people@example.com"]
   wireguard_cidrs            = ["10.10.0.1/24", "10.10.0.2/24"]
+  wireguard_endpoint_base    = local.hostname_base
   wireguard_exposed_subnets  = ["10.20.0.0/16"]
+}
+
+module "wiresteward" {
+  source = "github.com/utilitywarehouse/wiresteward//terraform/aws?ref=master"
+
+  dns_zone_id          = "/hostedzone/XXXXXXXXXXXXX"
+  ignition             = module.wiresteward_ignition.ignition
+  wireguard_endpoints  = module.wiresteward_ignition.endpoints
+  wiresteward_endpoint = local.hostname_base
+  subnet_ids           = ["subnet-xxxxxxxx", "subnet-xxxxxxxx", "subnet-xxxxxxxx"]
+  vpc_id               = "vpc-xxxxxxxxxxxxxxxxx"
 }
 ```
 
