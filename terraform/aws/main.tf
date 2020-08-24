@@ -74,20 +74,6 @@ resource "aws_eip_association" "peer" {
   allocation_id = aws_eip.peer[count.index].id
 }
 
-module "wiresteward_ignition" {
-  source = "../ignition"
-
-  oauth2_proxy_client_id     = var.oauth2_proxy_client_id
-  oauth2_proxy_cookie_secret = var.oauth2_proxy_cookie_secret
-  oauth2_proxy_issuer_url    = var.oauth2_proxy_issuer_url
-  ssh_key_agent_uri          = var.ssh_key_agent_uri
-  ssh_key_agent_groups       = var.ssh_key_agent_groups
-  wireguard_cidrs            = var.wireguard_cidrs
-  wireguard_endpoints        = aws_route53_record.peer.*.name
-  wireguard_exposed_subnets  = var.wireguard_exposed_subnets
-}
-
-
 resource "aws_instance" "peer" {
   count                  = local.instance_count
   ami                    = data.aws_ami.flatcar_beta.id
@@ -96,7 +82,7 @@ resource "aws_instance" "peer" {
   subnet_id              = var.subnet_ids[count.index]
   source_dest_check      = false
 
-  user_data = module.wiresteward_ignition.ignition[count.index]
+  user_data = var.ignition[count.index]
 
   root_block_device {
     volume_type = "gp2"
@@ -115,7 +101,7 @@ resource "aws_instance" "peer" {
 resource "aws_route53_record" "peer" {
   count   = local.instance_count
   zone_id = var.dns_zone_id
-  name    = "${count.index}.${var.role_name}.${var.dns_zone_name}"
+  name    = var.wireguard_endpoints[count.index]
   type    = "A"
   ttl     = "60"
   records = [aws_eip.peer[count.index].public_ip]

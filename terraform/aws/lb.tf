@@ -34,7 +34,7 @@ resource "aws_lb" "wiresteward" {
 }
 
 resource "aws_acm_certificate" "cert" {
-  domain_name       = "${var.role_name}.${var.dns_zone_name}"
+  domain_name       = var.wiresteward_endpoint
   validation_method = "DNS"
 }
 
@@ -90,7 +90,7 @@ resource "aws_lb_target_group_attachment" "peer" {
 
 resource "aws_route53_record" "wiresteward" {
   zone_id = var.dns_zone_id
-  name    = "${var.role_name}.${var.dns_zone_name}"
+  name    = var.wiresteward_endpoint
   type    = "CNAME"
   ttl     = "600"
   records = [aws_lb.wiresteward.dns_name]
