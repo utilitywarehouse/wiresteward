@@ -35,8 +35,10 @@ variable "wiresteward_endpoint" {
 }
 
 locals {
-  instance_count = length(var.ignition)
-  name           = "${var.role_name}"
+  instance_count       = length(var.ignition)
+  name                 = "${var.role_name}"
+  wiresteward_endpoint = trim(var.wiresteward_endpoint, ".")
+  wireguard_endpoint   = [for e in var.wireguard_endpoints : trim(e, ".")]
 }
 
 output "public_ipv4_addresses" {

@@ -47,7 +47,7 @@ resource "google_compute_instance_group" "wiresteward" {
 
 resource "google_dns_record_set" "wiresteward" {
   count = local.instance_count
-  name  = var.wireguard_endpoints[count.index]
+  name  = "${local.wireguard_endpoint[count.index]}."
   type  = "A"
   ttl   = 30 # TODO increase the value once happy with setup
 

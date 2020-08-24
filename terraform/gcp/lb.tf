@@ -3,7 +3,7 @@ resource "google_compute_managed_ssl_certificate" "wiresteward" {
   name     = "${local.name}-cert"
 
   managed {
-    domains = [var.wiresteward_endpoint]
+    domains = [local.wiresteward_endpoint]
   }
 }
 
@@ -18,7 +18,7 @@ resource "google_compute_url_map" "wiresteward" {
   default_service = google_compute_backend_service.wiresteward.id
 
   host_rule {
-    hosts        = [var.wiresteward_endpoint]
+    hosts        = [local.wiresteward_endpoint]
     path_matcher = "allpaths"
   }
 
@@ -66,7 +66,7 @@ resource "google_compute_global_forwarding_rule" "wiresteward" {
 }
 
 resource "google_dns_record_set" "wiresteward_lb" {
-  name         = var.wiresteward_endpoint
+  name         = "${local.wiresteward_endpoint}."
   type         = "A"
   ttl          = 30
   managed_zone = var.dns_zone
