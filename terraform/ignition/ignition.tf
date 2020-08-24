@@ -59,6 +59,7 @@ data "ignition_file" "oauth2_proxy_config" {
 
   content {
     content = templatefile("${path.module}/resources/oauth2-proxy-config.cfg.tmpl", {
+      oauth2_email_domain        = var.oauth2_email_domain
       oauth2_proxy_client_id     = var.oauth2_proxy_client_id
       oauth2_proxy_cookie_secret = var.oauth2_proxy_cookie_secret
       oauth2_proxy_issuer_url    = var.oauth2_proxy_issuer_url

@@ -1,3 +1,8 @@
+variable "oauth2_email_domain" {
+  type        = string
+  description = "The email domain for oauth2-proxy"
+}
+
 variable "oauth2_proxy_client_id" {
   type        = string
   description = "The client id of the oauth application used by oauth2-proxy"
