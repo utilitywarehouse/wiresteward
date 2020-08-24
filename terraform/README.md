@@ -17,6 +17,7 @@ locals {
 module "wiresteward_ignition" {
   source = "github.com/utilitywarehouse/wiresteward//terraform/ignition?ref=master"
 
+  oauth2_email_domain        = "example.com"
   oauth2_proxy_client_id     = "xxxxxxxxxxxxxxxxxxxx"
   oauth2_proxy_cookie_secret = "AAAAAAAAAAAAAAAAAAAAAA=="
   oauth2_proxy_issuer_url    = "https://login.example.com"
