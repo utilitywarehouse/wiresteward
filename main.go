@@ -71,9 +71,11 @@ func server() {
 		log.Fatalf("Cannot start lease server: %v", err)
 	}
 
+	tv := newTokenValidator(cfg.OauthClientId, cfg.OauthIntrospectUrl)
 	lh := HTTPLeaseHandler{
-		leaseManager: lm,
-		serverConfig: cfg,
+		leaseManager:   lm,
+		serverConfig:   cfg,
+		tokenValidator: tv,
 	}
 	go lh.start()
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)

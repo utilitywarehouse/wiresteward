@@ -1,27 +1,11 @@
-variable "oauth2_email_domain" {
+variable "oauth2_introspect_url" {
   type        = string
-  description = "The email domain for oauth2-proxy"
+  description = "Introspection url to validate access tokens"
 }
 
-variable "oauth2_proxy_client_id" {
+variable "oauth2_client_id" {
   type        = string
-  description = "The client id of the oauth application used by oauth2-proxy"
-}
-
-variable "oauth2_proxy_cookie_secret" {
-  type        = string
-  description = "A random value used for secure cookies"
-}
-
-variable "oauth2_proxy_issuer_url" {
-  type        = string
-  description = "The issuer URL for the oauth application"
-}
-
-variable "oauth2_proxy_version" {
-  type        = string
-  description = "Version of the oauth2-proxy image (see https://quay.io/oauth2-proxy/oauth2-proxy)"
-  default     = "v6.0.0"
+  description = "Oauth client id. Used for token validation"
 }
 
 variable "ssh_key_agent_uri" {
