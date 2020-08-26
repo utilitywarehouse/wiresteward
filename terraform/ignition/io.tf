@@ -1,3 +1,9 @@
+variable "additional_systemd_units" {
+  type        = list(string)
+  description = "Additional systemd units to include in the ignition config"
+  default     = []
+}
+
 variable "oauth2_introspect_url" {
   type        = string
   description = "Introspection url to validate access tokens"
@@ -6,22 +12,6 @@ variable "oauth2_introspect_url" {
 variable "oauth2_client_id" {
   type        = string
   description = "Oauth client id. Used for token validation"
-}
-
-variable "ssh_key_agent_uri" {
-  type        = string
-  description = "URI from where to get the ssh-key-agent authmap"
-}
-
-variable "ssh_key_agent_version" {
-  type        = string
-  description = "The version of ssh-key-agent to deploy (see https://github.com/utilitywarehouse/ssh-key-agent/)"
-  default     = "1.0.4"
-}
-
-variable "ssh_key_agent_groups" {
-  type        = list(string)
-  description = "A list of google groups that ssh-key-agent will pull SSH keys from"
 }
 
 variable "wireguard_cidrs" {

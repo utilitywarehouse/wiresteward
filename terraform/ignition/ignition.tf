@@ -1,31 +1,3 @@
-module "ssh_key_agent" {
-  source = "github.com/utilitywarehouse/tf_ssh_key_agent?ref=2.0.0"
-
-  groups                = var.ssh_key_agent_groups
-  ssh_key_agent_version = var.ssh_key_agent_version
-  uri                   = var.ssh_key_agent_uri
-}
-
-data "ignition_systemd_unit" "sshd_service" {
-  name    = "sshd.service"
-  enabled = "true"
-}
-
-data "ignition_systemd_unit" "sshd_socket" {
-  name = "sshd.socket"
-  mask = "true"
-}
-
-data "ignition_file" "sshd_config" {
-  filesystem = "root"
-  path       = "/etc/ssh/sshd_config"
-  mode       = 384
-
-  content {
-    content = file("${path.module}/resources/sshd_config")
-  }
-}
-
 # wiresteward
 data "ignition_file" "wiresteward_config" {
   count      = local.instance_count
@@ -57,14 +29,10 @@ data "ignition_config" "wiresteward" {
   count = local.instance_count
 
   files = [
-    data.ignition_file.sshd_config.id,
     data.ignition_file.wiresteward_config[count.index].id,
   ]
 
-  systemd = [
-    data.ignition_systemd_unit.sshd_service.id,
-    data.ignition_systemd_unit.sshd_socket.id,
+  systemd = concat([
     data.ignition_systemd_unit.wiresteward_service.id,
-    module.ssh_key_agent.id,
-  ]
+  ], var.additional_systemd_units)
 }
