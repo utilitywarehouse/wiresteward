@@ -49,7 +49,6 @@ func extractBearerTokenFromHeader(req *http.Request, header string) (string, err
 func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		// look for token under X-Forwarded-Access-Token header
 		token, err := extractBearerTokenFromHeader(r, "Authorization")
 		if err != nil {
 			log.Println("Cannot parse authorization token", err)
