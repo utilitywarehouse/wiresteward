@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"testing"
 
@@ -34,22 +35,25 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	}
 	testPubKey1 := "k1a1fEw+lqB/JR1pKjI597R54xzfP9Kxv4M7hufyNAY="
 	testPubKey2 := "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo="
-	testEmail := "test@example.com"
+	testUsername := "test@example.com"
 
-	_, err := lm.createOrUpdatePeer(testEmail, testPubKey1)
+	_, err := lm.createOrUpdatePeer(testUsername, testPubKey1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
-	assert.Equal(t, testPubKey1, lm.wgRecords[testEmail].PubKey)
-	// Test that same email with different public key will replace the
+	assert.Equal(t, testPubKey1, lm.wgRecords[testUsername].PubKey)
+	// Test that same username with different public key will replace the
 	// existing record, instead of adding a new one
-	_, err = lm.createOrUpdatePeer(testEmail, testPubKey2)
+	_, err = lm.createOrUpdatePeer(testUsername, testPubKey2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
-	assert.Equal(t, testPubKey2, lm.wgRecords[testEmail].PubKey)
+	assert.Equal(t, testPubKey2, lm.wgRecords[testUsername].PubKey)
+	// Test that empty username will error
+	_, err = lm.createOrUpdatePeer("", testPubKey2)
+	assert.Equal(t, err, fmt.Errorf("Cannot add peer for empty username"))
 }
 
 func TestIncIPAddress(t *testing.T) {

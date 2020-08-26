@@ -58,18 +58,18 @@ resource "aws_lb_listener" "wiresteward_443" {
   certificate_arn   = aws_acm_certificate_validation.cert.certificate_arn
 
   default_action {
-    target_group_arn = aws_lb_target_group.wiresteward_4180.arn
+    target_group_arn = aws_lb_target_group.wiresteward_8080.arn
     type             = "forward"
   }
 }
 
-resource "aws_lb_target_group" "wiresteward_4180" {
+resource "aws_lb_target_group" "wiresteward_8080" {
   vpc_id   = var.vpc_id
-  port     = 4180
+  port     = 8080
   protocol = "HTTP"
 
   health_check {
-    matcher = "302"
+    matcher = "404"
   }
 
   # https://github.com/terraform-providers/terraform-provider-aws/issues/636#issuecomment-397459646
@@ -84,7 +84,7 @@ resource "aws_lb_target_group" "wiresteward_4180" {
 
 resource "aws_lb_target_group_attachment" "peer" {
   count            = local.instance_count
-  target_group_arn = aws_lb_target_group.wiresteward_4180.arn
+  target_group_arn = aws_lb_target_group.wiresteward_8080.arn
   target_id        = aws_instance.peer[count.index].id
 }
 

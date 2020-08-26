@@ -127,7 +127,9 @@ func TestServerConfig(t *testing.T) {
 			[]byte(`{
 				"address": "10.0.0.1/24",
 				"allowedIPs": ["1.2.3.4/8"],
-				"endpoint": "1.2.3.4:1234"
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectUrl": "example.com",
+				"oauthClientId": "client_id"
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
@@ -141,6 +143,9 @@ func TestServerConfig(t *testing.T) {
 				WireguardIPAddress:  ip,
 				WireguardIPNetwork:  net,
 				WireguardListenPort: 1234,
+				OauthIntrospectUrl:  "example.com",
+				OauthClientId:       "client_id",
+				ServerListenAddress: "0.0.0.0:8080",
 			},
 			false,
 		},
@@ -153,7 +158,9 @@ func TestServerConfig(t *testing.T) {
 				"keyFilename": "bar",
 				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
-				"leaseTime": "2h"
+				"leaseTime": "2h",
+				"oauthIntrospectUrl": "example.com",
+				"oauthClientId": "client_id"
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
@@ -167,6 +174,9 @@ func TestServerConfig(t *testing.T) {
 				WireguardIPAddress:  ip,
 				WireguardIPNetwork:  net,
 				WireguardListenPort: 12345,
+				OauthIntrospectUrl:  "example.com",
+				OauthClientId:       "client_id",
+				ServerListenAddress: "0.0.0.0:8080",
 			},
 			false,
 		},

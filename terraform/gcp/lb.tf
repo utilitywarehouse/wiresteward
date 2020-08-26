@@ -35,7 +35,7 @@ resource "google_compute_url_map" "wiresteward" {
 
 resource "google_compute_backend_service" "wiresteward" {
   name        = local.name
-  port_name   = "oauth2-http"
+  port_name   = "wiresteward-http"
   protocol    = "HTTP"
   timeout_sec = 10
 
@@ -55,7 +55,7 @@ resource "google_compute_health_check" "wiresteward-tcp" {
   check_interval_sec = 1
 
   tcp_health_check {
-    port = 4180
+    port = 8080
   }
 }
 

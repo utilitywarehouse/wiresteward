@@ -38,8 +38,8 @@ resource "google_compute_instance_group" "wiresteward" {
   ]
 
   named_port {
-    name = "oauth2-http"
-    port = "4180"
+    name = "wiresteward-http"
+    port = "8080"
   }
 
   zone = data.google_compute_zones.available.names[count.index]
@@ -79,7 +79,7 @@ resource "google_compute_firewall" "wiresteward-healthcheck" {
 
   allow {
     protocol = "tcp"
-    ports    = ["4180"]
+    ports    = ["8080"]
   }
 
   // https://cloud.google.com/load-balancing/docs/health-checks#fw-netlb

@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
-	"time"
+	"strings"
 
 	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
 	"golang.org/x/oauth2"
@@ -19,12 +22,6 @@ type oauthTokenHandler struct {
 	tokFile      string             // File path to cache the token
 	t            chan *oauth2.Token // to feed the token from the redirect uri
 	codeVerifier *cv.CodeVerifier
-}
-
-// idToken represents an oauth id token.
-type idToken struct {
-	IDToken string    `json:"id_token"`
-	Expiry  time.Time `json:"expiry,omitempty"`
 }
 
 func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
@@ -67,20 +64,20 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
 	return url, nil
 }
 
-func (oa *oauthTokenHandler) getTokenFromFile() (*idToken, error) {
+func (oa *oauthTokenHandler) getTokenFromFile() (*oauth2.Token, error) {
 	f, err := os.Open(oa.tokFile)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	tok := &idToken{}
+	tok := &oauth2.Token{}
 	if err := json.NewDecoder(f).Decode(tok); err != nil {
 		return nil, err
 	}
 	return tok, nil
 }
 
-func (oa *oauthTokenHandler) saveToken(token *idToken) error {
+func (oa *oauthTokenHandler) saveToken(token *oauth2.Token) error {
 	log.Printf("Saving credential file to: %s", oa.tokFile)
 	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -90,7 +87,7 @@ func (oa *oauthTokenHandler) saveToken(token *idToken) error {
 	return json.NewEncoder(f).Encode(token)
 }
 
-func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
+func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	// Use the authorization code that is pushed to the redirect
 	// URL. Exchange will do the handshake to retrieve the
 	// initial access token.
@@ -103,19 +100,76 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*idToken, error) {
 		log.Fatal(err)
 	}
 
-	rawIDToken, ok := tok.Extra("id_token").(string)
-	if !ok {
-		return nil, fmt.Errorf("Cannot get id_token data from token")
-	}
-
-	idToken := &idToken{
-		IDToken: rawIDToken,
-		Expiry:  tok.Expiry,
-	}
-
-	if err := oa.saveToken(idToken); err != nil {
+	if err := oa.saveToken(tok); err != nil {
 		log.Printf("failed to save token to file: %v", err)
 	}
 
-	return idToken, nil
+	return tok, nil
+}
+
+type tokenValidator struct {
+	httpClient         *http.Client
+	oauthClientId      string
+	oauthIntrospectUrl string
+}
+
+type introspectionResponse struct {
+	Active   bool   `json:"active"`
+	UserName string `json:"username"`
+}
+
+func newTokenValidator(clientId, introspectUrl string) *tokenValidator {
+	return &tokenValidator{
+		httpClient:         &http.Client{},
+		oauthClientId:      clientId,
+		oauthIntrospectUrl: introspectUrl,
+	}
+}
+
+func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]byte, error) {
+	data := url.Values{}
+	data.Set("token", token)
+	data.Set("token_type_hint", tokenTypeHint)
+	data.Set("client_id", tv.oauthClientId)
+	req, err := http.NewRequest(
+		"POST",
+		tv.oauthIntrospectUrl,
+		strings.NewReader(data.Encode()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating introspection request: %v", err)
+
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := tv.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Response status: %s", resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w,", err)
+	}
+	return body, nil
+}
+
+// validate: validates the token via quering the introspection endpoint. Looks
+// for `active` (required) and `username` (optional) field as per:
+// https://tools.ietf.org/html/rfc7662#section-2.2
+// returns: username(string), valid(bool), error
+func (tv *tokenValidator) validate(token, tokenTypeHint string) (string, bool, error) {
+	body, err := tv.requestIntospection(token, tokenTypeHint)
+	if err != nil {
+		return "", false, err
+	}
+
+	response := &introspectionResponse{}
+	if err := json.Unmarshal(body, response); err != nil {
+		return "", false, err
+	}
+	return response.UserName, response.Active, nil
 }

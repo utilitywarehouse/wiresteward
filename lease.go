@@ -75,7 +75,7 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
 		}
 
-		email := tokens[0]
+		username := tokens[0]
 		pubKey := tokens[1]
 		ipaddr := net.ParseIP(tokens[2])
 		// TODO: support v6?
@@ -87,7 +87,7 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
 		}
 		if expires.After(time.Now()) {
-			records[email] = &WgRecord{
+			records[username] = &WgRecord{
 				PubKey:  pubKey,
 				IP:      ipaddr,
 				expires: expires,
@@ -97,13 +97,13 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 	return records, nil
 }
 
-func (lm *FileLeaseManager) saveWgRecord(email string, record *WgRecord) error {
+func (lm *FileLeaseManager) saveWgRecord(username string, record *WgRecord) error {
 	f, err := os.OpenFile(lm.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(email + " " + record.PubKey + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
+	_, err = f.WriteString(username + " " + record.PubKey + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
 	if err != nil {
 		return err
 	}
@@ -173,28 +173,31 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	return nil
 }
 
-func (lm *FileLeaseManager) createOrUpdatePeer(email, pubKey string) (*WgRecord, error) {
+func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string) (*WgRecord, error) {
 	ipnet, err := lm.findNextAvailableIPAddress()
 	if err != nil {
 		return nil, err
 	}
-	lm.wgRecords[email] = &WgRecord{
+	if username == "" {
+		return nil, fmt.Errorf("Cannot add peer for empty username")
+	}
+	lm.wgRecords[username] = &WgRecord{
 		PubKey:  pubKey,
 		IP:      ipnet.IP,
 		expires: time.Now().Add(lm.leaseTime),
 	}
-	return lm.wgRecords[email], nil
+	return lm.wgRecords[username], nil
 }
 
-func (lm *FileLeaseManager) addNewPeer(email, pubKey string) (*WgRecord, error) {
-	record, err := lm.createOrUpdatePeer(email, pubKey)
+func (lm *FileLeaseManager) addNewPeer(username, pubKey string) (*WgRecord, error) {
+	record, err := lm.createOrUpdatePeer(username, pubKey)
 	if err != nil {
 		return nil, err
 	}
 	if err := updateWgPeers(lm); err != nil {
 		return nil, err
 	}
-	if err := lm.saveWgRecord(email, record); err != nil {
+	if err := lm.saveWgRecord(username, record); err != nil {
 		return nil, err
 	}
 	return record, nil

@@ -35,10 +35,10 @@ resource "aws_security_group" "wiresteward" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # oauth2-proxy
+  # wiresteward http server
   ingress {
-    from_port       = 4180
-    to_port         = 4180
+    from_port       = 8080
+    to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.wiresteward-lb.id]
   }

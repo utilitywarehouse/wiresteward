@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	defaultKeyFilename        = "/etc/wiresteward/key"
-	defaultLeaserSyncInterval = 1 * time.Minute
-	defaultLeasesFilename     = "/etc/wiresteward/leases"
-	defaultLeaseTime          = 12 * time.Hour
+	defaultKeyFilename         = "/etc/wiresteward/key"
+	defaultLeaserSyncInterval  = 1 * time.Minute
+	defaultLeasesFilename      = "/etc/wiresteward/leases"
+	defaultLeaseTime           = 12 * time.Hour
+	defaultServerListenAddress = "0.0.0.0:8080"
 )
 
 // agentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
@@ -107,19 +108,25 @@ type serverConfig struct {
 	WireguardIPAddress  net.IP
 	WireguardIPNetwork  *net.IPNet
 	WireguardListenPort int
+	OauthIntrospectUrl  string
+	OauthClientId       string
+	ServerListenAddress string
 }
 
 func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
-		Address            string   `json:"address"`
-		AllowedIPs         []string `json:"allowedIPs"`
-		DeviceMTU          int      `json:"deviceMTU"`
-		DeviceName         string   `json:"deviceName"`
-		Endpoint           string   `json:"endpoint"`
-		KeyFilename        string   `json:"keyFilename"`
-		LeaserSyncInterval string   `json:"leaserSyncInterval"`
-		LeasesFilename     string   `json:"leasesFilename"`
-		LeaseTime          string   `json:"leaseTime"`
+		Address             string   `json:"address"`
+		AllowedIPs          []string `json:"allowedIPs"`
+		DeviceMTU           int      `json:"deviceMTU"`
+		DeviceName          string   `json:"deviceName"`
+		Endpoint            string   `json:"endpoint"`
+		KeyFilename         string   `json:"keyFilename"`
+		LeaserSyncInterval  string   `json:"leaserSyncInterval"`
+		LeasesFilename      string   `json:"leasesFilename"`
+		LeaseTime           string   `json:"leaseTime"`
+		OauthIntrospectUrl  string   `json:"oauthIntrospectUrl"`
+		OauthClientId       string   `json:"oauthClientId"`
+		ServerListenAddress string   `json:"serverListenAddress"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return err
@@ -145,6 +152,9 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	c.Endpoint = cfg.Endpoint
 	c.KeyFilename = cfg.KeyFilename
 	c.LeasesFilename = cfg.LeasesFilename
+	c.OauthIntrospectUrl = cfg.OauthIntrospectUrl
+	c.OauthClientId = cfg.OauthClientId
+	c.ServerListenAddress = cfg.ServerListenAddress
 	return nil
 }
 
@@ -192,6 +202,16 @@ func verifyServerConfig(conf *serverConfig) error {
 	if conf.LeaseTime == 0 {
 		conf.LeaseTime = defaultLeaseTime
 		log.Printf("config missing `leaseTime`, using default: %s", defaultLeaseTime)
+	}
+	if conf.OauthIntrospectUrl == "" {
+		return fmt.Errorf("config missing `oauthIntrospectUrl`")
+	}
+	if conf.OauthClientId == "" {
+		return fmt.Errorf("config missing `oauthClientId`")
+	}
+	if conf.ServerListenAddress == "" {
+		conf.ServerListenAddress = defaultServerListenAddress
+		log.Printf("config missing `serverListenAddress`, using default: %s", defaultServerListenAddress)
 	}
 	return nil
 }

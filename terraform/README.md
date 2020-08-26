@@ -17,10 +17,8 @@ locals {
 module "wiresteward_ignition" {
   source = "github.com/utilitywarehouse/wiresteward//terraform/ignition?ref=master"
 
-  oauth2_email_domain        = "example.com"
-  oauth2_proxy_client_id     = "xxxxxxxxxxxxxxxxxxxx"
-  oauth2_proxy_cookie_secret = "AAAAAAAAAAAAAAAAAAAAAA=="
-  oauth2_proxy_issuer_url    = "https://login.example.com"
+  oauth2_client_id           = "xxxxxxxxxxxxxxxxxxxxx"
+  oauth2_introspect_url      = "https://login.uw.systems/oauth2/default/v1/introspect"
   ssh_key_agent_uri          = "https://s3-eu-west-1.amazonaws.com/ssh-keys/authmap"
   ssh_key_agent_groups       = ["people@example.com"]
   wireguard_cidrs            = ["10.10.0.1/24", "10.10.0.2/24"]

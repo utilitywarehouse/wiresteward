@@ -52,10 +52,10 @@ func (a *Agent) ListenAndServe() {
 	log.Println("Starting agent at localhost:7773")
 
 	token, err := a.oa.getTokenFromFile()
-	if err != nil || token.IDToken == "" || token.Expiry.Before(time.Now()) {
+	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
 		log.Println("cannot get a valid cached token, you need to authenticate")
 	} else {
-		a.renewAllLeases(token.IDToken)
+		a.renewAllLeases(token.AccessToken)
 	}
 
 	// Start agent at a high obscure port. That port is hardcoded as oauth
@@ -94,7 +94,7 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	a.renewAllLeases(token.IDToken)
+	a.renewAllLeases(token.AccessToken)
 	fmt.Fprintf(w, "Auth is now complete and agent is running! You can close this window")
 }
 
@@ -105,7 +105,7 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := a.oa.getTokenFromFile()
-	if err != nil || token.IDToken == "" || token.Expiry.Before(time.Now()) {
+	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
 		log.Println("cannot get a valid cached token, need a new one")
 		// Get a url for the token challenge and redirect there
 		url, err := a.oa.prepareTokenWebChalenge()
@@ -120,7 +120,7 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, 302)
 		return
 	}
-	a.renewAllLeases(token.IDToken)
+	a.renewAllLeases(token.AccessToken)
 	fmt.Fprintf(w, "Agent refreshed and running! You can close this window now")
 }
 
