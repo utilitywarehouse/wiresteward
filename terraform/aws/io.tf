@@ -40,11 +40,11 @@ locals {
 }
 
 output "public_ipv4_addresses" {
-  value = [aws_eip.peer.*.public_ip]
+  value = aws_eip.peer.*.public_ip
 }
 
 output "private_ipv4_addresses" {
-  value = [aws_eip.peer.*.private_ip]
+  value = aws_eip.peer.*.private_ip
 }
 
 output "security_group_id" {
