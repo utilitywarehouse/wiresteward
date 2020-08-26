@@ -1,11 +1,3 @@
-module "ssh_key_agent" {
-  source = "github.com/utilitywarehouse/tf_ssh_key_agent?ref=2.0.0"
-
-  groups                = var.ssh_key_agent_groups
-  ssh_key_agent_version = var.ssh_key_agent_version
-  uri                   = var.ssh_key_agent_uri
-}
-
 data "ignition_systemd_unit" "sshd_service" {
   name    = "sshd.service"
   enabled = "true"
@@ -61,10 +53,9 @@ data "ignition_config" "wiresteward" {
     data.ignition_file.wiresteward_config[count.index].id,
   ]
 
-  systemd = [
+  systemd = concat([
     data.ignition_systemd_unit.sshd_service.id,
     data.ignition_systemd_unit.sshd_socket.id,
     data.ignition_systemd_unit.wiresteward_service.id,
-    module.ssh_key_agent.id,
-  ]
+  ], var.additional_systemd_units)
 }
