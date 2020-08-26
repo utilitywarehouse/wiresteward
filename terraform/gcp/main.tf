@@ -95,9 +95,9 @@ resource "google_compute_firewall" "wiresteward-ssh" {
 
   allow {
     protocol = "tcp"
-    ports    = ["50620"]
+    ports    = ["22"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = [local.name]
+  source_tags = [local.name]
+  target_tags = [local.name]
 }

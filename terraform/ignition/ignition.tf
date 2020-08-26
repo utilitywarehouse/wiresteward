@@ -1,23 +1,3 @@
-data "ignition_systemd_unit" "sshd_service" {
-  name    = "sshd.service"
-  enabled = "true"
-}
-
-data "ignition_systemd_unit" "sshd_socket" {
-  name = "sshd.socket"
-  mask = "true"
-}
-
-data "ignition_file" "sshd_config" {
-  filesystem = "root"
-  path       = "/etc/ssh/sshd_config"
-  mode       = 384
-
-  content {
-    content = file("${path.module}/resources/sshd_config")
-  }
-}
-
 # wiresteward
 data "ignition_file" "wiresteward_config" {
   count      = local.instance_count
@@ -49,13 +29,10 @@ data "ignition_config" "wiresteward" {
   count = local.instance_count
 
   files = [
-    data.ignition_file.sshd_config.id,
     data.ignition_file.wiresteward_config[count.index].id,
   ]
 
   systemd = concat([
-    data.ignition_systemd_unit.sshd_service.id,
-    data.ignition_systemd_unit.sshd_socket.id,
     data.ignition_systemd_unit.wiresteward_service.id,
   ], var.additional_systemd_units)
 }
