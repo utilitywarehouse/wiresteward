@@ -109,8 +109,8 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 
 type tokenValidator struct {
 	httpClient         *http.Client
-	oauthClientId      string
-	oauthIntrospectUrl string
+	oauthClientID      string
+	oauthIntrospectURL string
 }
 
 type introspectionResponse struct {
@@ -119,11 +119,11 @@ type introspectionResponse struct {
 	UserName string `json:"username"`
 }
 
-func newTokenValidator(clientId, introspectUrl string) *tokenValidator {
+func newTokenValidator(clientID, introspectURL string) *tokenValidator {
 	return &tokenValidator{
 		httpClient:         &http.Client{},
-		oauthClientId:      clientId,
-		oauthIntrospectUrl: introspectUrl,
+		oauthClientID:      clientID,
+		oauthIntrospectURL: introspectURL,
 	}
 }
 
@@ -131,10 +131,10 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 	data := url.Values{}
 	data.Set("token", token)
 	data.Set("token_type_hint", tokenTypeHint)
-	data.Set("client_id", tv.oauthClientId)
+	data.Set("client_id", tv.oauthClientID)
 	req, err := http.NewRequest(
 		"POST",
-		tv.oauthIntrospectUrl,
+		tv.oauthIntrospectURL,
 		strings.NewReader(data.Encode()),
 	)
 	if err != nil {
