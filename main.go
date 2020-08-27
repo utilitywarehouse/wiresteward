@@ -78,7 +78,7 @@ func server() {
 		}
 	}()
 
-	lm, err := newFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.WireguardIPAddress)
+	lm, err := newFileLeaseManager(cfg)
 	if err != nil {
 		logger.Error.Fatalf("Cannot start lease server: %v", err)
 	}

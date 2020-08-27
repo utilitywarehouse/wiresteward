@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -30,19 +29,20 @@ func (wgr WgRecord) String() string {
 // FileLeaseManager implements functionality for managing address leases for
 // peers, using a file as a state backend.
 type FileLeaseManager struct {
-	wgRecordsMutex sync.Mutex
-	wgRecords      map[string]WgRecord
-	filename       string
 	cidr           *net.IPNet
+	deviceName     string
+	filename       string
 	ip             net.IP
+	wgRecords      map[string]WgRecord
+	wgRecordsMutex sync.Mutex
 }
 
-func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeaseManager, error) {
-	if filename == "" {
+func newFileLeaseManager(cfg *serverConfig) (*FileLeaseManager, error) {
+	if cfg.LeasesFilename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
-	logger.Info.Printf("leases filename: %s\n", filename)
-	leaseDir := filepath.Dir(filename)
+	logger.Info.Printf("leases filename: %s\n", cfg.LeasesFilename)
+	leaseDir := filepath.Dir(cfg.LeasesFilename)
 	err := os.MkdirAll(leaseDir, 0755)
 	if err != nil {
 		logger.Error.Printf("Unable to create directory=%s", leaseDir)
@@ -50,16 +50,17 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 	}
 
 	lm := &FileLeaseManager{
-		filename: filename,
-		ip:       ip,
-		cidr:     cidr,
+		cidr:       cfg.WireguardIPNetwork,
+		deviceName: cfg.DeviceName,
+		filename:   cfg.LeasesFilename,
+		ip:         cfg.WireguardIPAddress,
 	}
 
 	if err := lm.loadWgRecords(); err != nil {
 		return nil, err
 	}
 
-	if err := updateWgPeers(lm); err != nil {
+	if err := lm.updateWgPeers(); err != nil {
 		return nil, err
 	}
 
@@ -157,7 +158,7 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 		}
 	}
 	if changed {
-		if err := updateWgPeers(lm); err != nil {
+		if err := lm.updateWgPeers(); err != nil {
 			return err
 		}
 		if err := lm.saveWgRecords(); err != nil {
@@ -167,18 +168,12 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 	return nil
 }
 
-func makePeerConfig(record WgRecord) (*wgtypes.PeerConfig, error) {
-	var ips []string
-	ips = append(ips, fmt.Sprintf("%s/32", record.IP.String()))
-	return newPeerConfig(record.PubKey, "", "", ips)
-}
-
 func (lm *FileLeaseManager) getPeersConfig() ([]wgtypes.PeerConfig, error) {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
 	ret := []wgtypes.PeerConfig{}
 	for _, r := range lm.wgRecords {
-		peerConfig, err := makePeerConfig(r)
+		peerConfig, err := newPeerConfig(r.PubKey, "", "", []string{fmt.Sprintf("%s/32", r.IP.String())})
 		if err != nil {
 			return ret, fmt.Errorf("error calculating peer config %v", err)
 		}
@@ -187,12 +182,12 @@ func (lm *FileLeaseManager) getPeersConfig() ([]wgtypes.PeerConfig, error) {
 	return ret, nil
 }
 
-func updateWgPeers(lm *FileLeaseManager) error {
+func (lm *FileLeaseManager) updateWgPeers() error {
 	peers, err := lm.getPeersConfig()
 	if err != nil {
 		return err
 	}
-	if err := setPeers("", peers); err != nil {
+	if err := setPeers(lm.deviceName, peers); err != nil {
 		return err
 	}
 	return nil
@@ -221,7 +216,7 @@ func (lm *FileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time
 	if err != nil {
 		return WgRecord{}, err
 	}
-	if err := updateWgPeers(lm); err != nil {
+	if err := lm.updateWgPeers(); err != nil {
 		return WgRecord{}, err
 	}
 	if err := lm.saveWgRecords(); err != nil {
