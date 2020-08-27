@@ -115,6 +115,7 @@ type tokenValidator struct {
 
 type introspectionResponse struct {
 	Active   bool   `json:"active"`
+	Exp      int64  `json:"exp"`
 	UserName string `json:"username"`
 }
 
@@ -161,15 +162,15 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 // for `active` (required) and `username` (optional) field as per:
 // https://tools.ietf.org/html/rfc7662#section-2.2
 // returns: username(string), valid(bool), error
-func (tv *tokenValidator) validate(token, tokenTypeHint string) (string, bool, error) {
+func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
 	body, err := tv.requestIntospection(token, tokenTypeHint)
 	if err != nil {
-		return "", false, err
+		return nil, err
 	}
 
 	response := &introspectionResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return "", false, err
+		return nil, err
 	}
-	return response.UserName, response.Active, nil
+	return response, nil
 }

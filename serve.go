@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -59,7 +60,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			)
 			return
 		}
-		username, valid, err := lh.tokenValidator.validate(token, "access_token")
+		tokenInfo, err := lh.tokenValidator.validate(token, "access_token")
 		if err != nil {
 			log.Println("Cannot check token validity", err)
 			http.Error(
@@ -69,7 +70,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			)
 			return
 		}
-		if !valid {
+		if !tokenInfo.Active {
 			http.Error(
 				w,
 				"invalid token",
@@ -84,7 +85,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
 		}
-		wg, err := lh.leaseManager.addNewPeer(username, p.PubKey)
+		wg, err := lh.leaseManager.addNewPeer(tokenInfo.UserName, p.PubKey, time.Unix(tokenInfo.Exp, 0))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {

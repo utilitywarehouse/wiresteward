@@ -7,12 +7,11 @@ data "ignition_file" "wiresteward_config" {
 
   content {
     content = templatefile("${path.module}/resources/wiresteward-config.json.tmpl", {
-      wireguard_cidr                 = var.wireguard_cidrs[count.index]
-      wireguard_endpoint             = local.wireguard_endpoints[count.index]
-      wireguard_exposed_subnets      = var.wireguard_exposed_subnets
-      wiresteward_address_lease_time = var.wiresteward_address_lease_time
-      oauth2_introspect_url          = var.oauth2_introspect_url
-      oauth2_client_id               = var.oauth2_client_id
+      wireguard_cidr            = var.wireguard_cidrs[count.index]
+      wireguard_endpoint        = local.wireguard_endpoints[count.index]
+      wireguard_exposed_subnets = var.wireguard_exposed_subnets
+      oauth2_introspect_url     = var.oauth2_introspect_url
+      oauth2_client_id          = var.oauth2_client_id
     })
   }
 }

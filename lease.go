@@ -28,11 +28,10 @@ type FileLeaseManager struct {
 	wgRecords map[string]*WgRecord
 	filename  string
 	cidr      *net.IPNet
-	leaseTime time.Duration
 	ip        net.IP
 }
 
-func newFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Duration, ip net.IP) (*FileLeaseManager, error) {
+func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeaseManager, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
@@ -50,7 +49,6 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, leaseTime time.Durati
 		filename:  filename,
 		ip:        ip,
 		cidr:      cidr,
-		leaseTime: leaseTime,
 	}
 
 	if err := updateWgPeers(lm); err != nil {
@@ -173,7 +171,7 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	return nil
 }
 
-func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string) (*WgRecord, error) {
+func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (*WgRecord, error) {
 	ipnet, err := lm.findNextAvailableIPAddress()
 	if err != nil {
 		return nil, err
@@ -184,13 +182,13 @@ func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string) (*WgReco
 	lm.wgRecords[username] = &WgRecord{
 		PubKey:  pubKey,
 		IP:      ipnet.IP,
-		expires: time.Now().Add(lm.leaseTime),
+		expires: expiry,
 	}
 	return lm.wgRecords[username], nil
 }
 
-func (lm *FileLeaseManager) addNewPeer(username, pubKey string) (*WgRecord, error) {
-	record, err := lm.createOrUpdatePeer(username, pubKey)
+func (lm *FileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time) (*WgRecord, error) {
+	record, err := lm.createOrUpdatePeer(username, pubKey, expiry)
 	if err != nil {
 		return nil, err
 	}

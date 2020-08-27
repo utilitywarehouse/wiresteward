@@ -2,7 +2,6 @@
   "address": "${wireguard_cidr}",
   "allowedIPs": ${jsonencode(wireguard_exposed_subnets)},
   "endpoint": "${wireguard_endpoint}:51820",
-  "leaseTime": "${wiresteward_address_lease_time}",
   "oauthIntrospectUrl": "${oauth2_introspect_url}",
   "oauthClientId": "${oauth2_client_id}"
 }

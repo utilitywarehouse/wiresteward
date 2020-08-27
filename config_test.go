@@ -139,7 +139,6 @@ func TestServerConfig(t *testing.T) {
 				KeyFilename:         defaultKeyFilename,
 				LeaserSyncInterval:  defaultLeaserSyncInterval,
 				LeasesFilename:      defaultLeasesFilename,
-				LeaseTime:           defaultLeaseTime,
 				WireguardIPAddress:  ip,
 				WireguardIPNetwork:  net,
 				WireguardListenPort: 1234,
@@ -158,7 +157,6 @@ func TestServerConfig(t *testing.T) {
 				"keyFilename": "bar",
 				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
-				"leaseTime": "2h",
 				"oauthIntrospectUrl": "example.com",
 				"oauthClientId": "client_id"
 			}`),
@@ -170,7 +168,6 @@ func TestServerConfig(t *testing.T) {
 				KeyFilename:         "bar",
 				LeasesFilename:      "foo",
 				LeaserSyncInterval:  time.Duration(time.Hour * 3),
-				LeaseTime:           time.Duration(time.Hour * 2),
 				WireguardIPAddress:  ip,
 				WireguardIPNetwork:  net,
 				WireguardListenPort: 12345,
