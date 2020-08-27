@@ -106,8 +106,8 @@ type serverConfig struct {
 	WireguardIPAddress  net.IP
 	WireguardIPNetwork  *net.IPNet
 	WireguardListenPort int
-	OauthIntrospectUrl  string
-	OauthClientId       string
+	OauthIntrospectURL  string
+	OauthClientID       string
 	ServerListenAddress string
 }
 
@@ -121,8 +121,8 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 		KeyFilename         string   `json:"keyFilename"`
 		LeaserSyncInterval  string   `json:"leaserSyncInterval"`
 		LeasesFilename      string   `json:"leasesFilename"`
-		OauthIntrospectUrl  string   `json:"oauthIntrospectUrl"`
-		OauthClientId       string   `json:"oauthClientId"`
+		OauthIntrospectURL  string   `json:"oauthIntrospectURL"`
+		OauthClientID       string   `json:"oauthClientID"`
 		ServerListenAddress string   `json:"serverListenAddress"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
@@ -142,8 +142,8 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	c.Endpoint = cfg.Endpoint
 	c.KeyFilename = cfg.KeyFilename
 	c.LeasesFilename = cfg.LeasesFilename
-	c.OauthIntrospectUrl = cfg.OauthIntrospectUrl
-	c.OauthClientId = cfg.OauthClientId
+	c.OauthIntrospectURL = cfg.OauthIntrospectURL
+	c.OauthClientID = cfg.OauthClientID
 	c.ServerListenAddress = cfg.ServerListenAddress
 	return nil
 }
@@ -189,11 +189,11 @@ func verifyServerConfig(conf *serverConfig) error {
 		conf.LeasesFilename = defaultLeasesFilename
 		log.Printf("config missing `leasesFilename`, using default: %s", defaultLeasesFilename)
 	}
-	if conf.OauthIntrospectUrl == "" {
-		return fmt.Errorf("config missing `oauthIntrospectUrl`")
+	if conf.OauthIntrospectURL == "" {
+		return fmt.Errorf("config missing `oauthIntrospectURL`")
 	}
-	if conf.OauthClientId == "" {
-		return fmt.Errorf("config missing `oauthClientId`")
+	if conf.OauthClientID == "" {
+		return fmt.Errorf("config missing `oauthClientID`")
 	}
 	if conf.ServerListenAddress == "" {
 		conf.ServerListenAddress = defaultServerListenAddress
