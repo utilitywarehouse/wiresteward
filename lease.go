@@ -43,13 +43,19 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		log.Printf("Error: unable to create directory=%s", leaseDir)
 		return nil, err
 	}
+
+	wgRecords := make(map[string]*WgRecord)
 	r, err := os.Open(filename)
-	defer r.Close()
-	wgRecords, err := loadWgRecords(r)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		defer r.Close()
+		wgRecords, err = loadWgRecords(r)
+		if err != nil {
+			return nil, err
+		}
+		log.Println("records loaded")
+	} else {
+		log.Printf("unable to open leases file: %e", err)
 	}
-	log.Println("records loaded")
 
 	lm := &FileLeaseManager{
 		wgRecords: wgRecords,
