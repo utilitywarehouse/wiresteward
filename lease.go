@@ -37,6 +37,12 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
 	log.Printf("leases filename: %s\n", filename)
+	leaseDir := filepath.Dir(filename)
+	err := os.MkdirAll(leaseDir, 0755)
+	if err != nil {
+		log.Printf("Error: unable to create directory=%s", leaseDir)
+		return nil, err
+	}
 	r, err := os.Open(filename)
 	defer r.Close()
 	wgRecords, err := loadWgRecords(r)
@@ -97,12 +103,6 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 }
 
 func (lm *FileLeaseManager) saveWgRecord(username string, record *WgRecord) error {
-	leaseDir := filepath.Dir(lm.filename)
-	err := os.MkdirAll(leaseDir, 0755)
-	if err != nil {
-		log.Printf("Error: unable to create directory=%s", leaseDir)
-		return err
-	}
 	f, err := os.OpenFile(lm.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
