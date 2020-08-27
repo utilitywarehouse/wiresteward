@@ -29,12 +29,6 @@ variable "wireguard_exposed_subnets" {
   description = "The subnets that are exposed to wireguard peers in CIDR notation"
 }
 
-variable "wiresteward_address_lease_time" {
-  type        = string
-  description = "Lifetime of wiresteward address leases"
-  default     = "12h"
-}
-
 variable "wiresteward_version" {
   type        = string
   description = "The version of wiresteward to deploy (see https://github.com/utilitywarehouse/wiresteward/)"

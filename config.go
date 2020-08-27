@@ -15,7 +15,6 @@ const (
 	defaultKeyFilename         = "/etc/wiresteward/key"
 	defaultLeaserSyncInterval  = 1 * time.Minute
 	defaultLeasesFilename      = "/etc/wiresteward/leases"
-	defaultLeaseTime           = 12 * time.Hour
 	defaultServerListenAddress = "0.0.0.0:8080"
 )
 
@@ -104,7 +103,6 @@ type serverConfig struct {
 	KeyFilename         string
 	LeaserSyncInterval  time.Duration
 	LeasesFilename      string
-	LeaseTime           time.Duration
 	WireguardIPAddress  net.IP
 	WireguardIPNetwork  *net.IPNet
 	WireguardListenPort int
@@ -123,7 +121,6 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 		KeyFilename         string   `json:"keyFilename"`
 		LeaserSyncInterval  string   `json:"leaserSyncInterval"`
 		LeasesFilename      string   `json:"leasesFilename"`
-		LeaseTime           string   `json:"leaseTime"`
 		OauthIntrospectUrl  string   `json:"oauthIntrospectUrl"`
 		OauthClientId       string   `json:"oauthClientId"`
 		ServerListenAddress string   `json:"serverListenAddress"`
@@ -137,13 +134,6 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		c.LeaserSyncInterval = lsi
-	}
-	if cfg.LeaseTime != "" {
-		lt, err := time.ParseDuration(cfg.LeaseTime)
-		if err != nil {
-			return err
-		}
-		c.LeaseTime = lt
 	}
 	c.Address = cfg.Address
 	c.AllowedIPs = cfg.AllowedIPs
@@ -198,10 +188,6 @@ func verifyServerConfig(conf *serverConfig) error {
 	if conf.LeasesFilename == "" {
 		conf.LeasesFilename = defaultLeasesFilename
 		log.Printf("config missing `leasesFilename`, using default: %s", defaultLeasesFilename)
-	}
-	if conf.LeaseTime == 0 {
-		conf.LeaseTime = defaultLeaseTime
-		log.Printf("config missing `leaseTime`, using default: %s", defaultLeaseTime)
 	}
 	if conf.OauthIntrospectUrl == "" {
 		return fmt.Errorf("config missing `oauthIntrospectUrl`")
