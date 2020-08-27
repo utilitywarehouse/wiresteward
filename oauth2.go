@@ -158,10 +158,8 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 	return body, nil
 }
 
-// validate: validates the token via quering the introspection endpoint. Looks
-// for `active` (required) and `username` (optional) field as per:
+// validate takes a token and queries the introspection endpoint with it.
 // https://tools.ietf.org/html/rfc7662#section-2.2
-// returns: username(string), valid(bool), error
 func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
 	body, err := tv.requestIntospection(token, tokenTypeHint)
 	if err != nil {

@@ -1,7 +1,7 @@
-[
-  {
-    "Address": "10.0.0.1/24",
-    "Endpoint": "1.2.3.4:51820",
-    "AllowedIPs": ["10.11.12.0/24"]
-  }
-]
+{
+  "address": "10.0.0.1/24",
+  "allowedIPs": ["10.11.12.0/24"],
+  "endpoint": "1.2.3.4:51820",
+  "oauthIntrospectUrl": "https://login.example.com/oauth2/v1/introspect",
+  "oauthClientId": "xxxxxxxxxxxxxxxxx"
+}
