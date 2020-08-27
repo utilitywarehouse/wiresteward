@@ -71,11 +71,11 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if !tokenInfo.Active {
-			http.Error(
-				w,
-				"invalid token",
-				http.StatusForbidden,
-			)
+			http.Error(w, "invalid token", http.StatusForbidden)
+			return
+		}
+		if tokenInfo.Exp <= 0 {
+			http.Error(w, "token does not expire, cannot accept this", http.StatusBadRequest)
 			return
 		}
 		decoder := json.NewDecoder(r.Body)
