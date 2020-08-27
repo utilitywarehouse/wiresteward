@@ -30,7 +30,7 @@ func TestFileLeaseManager_FindNextAvailableIpAddress(t *testing.T) {
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
 	lm := &FileLeaseManager{
-		wgRecords: map[string]*WgRecord{},
+		wgRecords: map[string]WgRecord{},
 		cidr:      network,
 		ip:        ip,
 	}
