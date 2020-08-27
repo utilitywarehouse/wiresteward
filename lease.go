@@ -49,24 +49,14 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		return nil, err
 	}
 
-	wgRecords := make(map[string]WgRecord)
-	r, err := os.Open(filename)
-	if err == nil {
-		defer r.Close()
-		wgRecords, err = loadWgRecords(r)
-		if err != nil {
-			return nil, err
-		}
-		logger.Info.Println("records loaded")
-	} else {
-		logger.Error.Printf("unable to open leases file: %v", err)
+	lm := &FileLeaseManager{
+		filename: filename,
+		ip:       ip,
+		cidr:     cidr,
 	}
 
-	lm := &FileLeaseManager{
-		wgRecords: wgRecords,
-		filename:  filename,
-		ip:        ip,
-		cidr:      cidr,
+	if err := lm.loadWgRecords(); err != nil {
+		return nil, err
 	}
 
 	if err := updateWgPeers(lm); err != nil {
@@ -77,10 +67,20 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 	return lm, nil
 }
 
-func loadWgRecords(r io.Reader) (map[string]WgRecord, error) {
-	sc := bufio.NewScanner(r)
-	records := make(map[string]WgRecord)
+func (lm *FileLeaseManager) loadWgRecords() error {
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
 
+	lm.wgRecords = make(map[string]WgRecord)
+
+	r, err := os.Open(lm.filename)
+	if err != nil {
+		logger.Error.Printf("unable to open leases file: %v", err)
+		return nil
+	}
+	defer r.Close()
+
+	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		line := sc.Text()
 		if len(line) == 0 {
@@ -88,7 +88,7 @@ func loadWgRecords(r io.Reader) (map[string]WgRecord, error) {
 		}
 		tokens := strings.Fields(line)
 		if len(tokens) != 4 {
-			return nil, fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
+			return fmt.Errorf("malformed line, want 3 fields, got %d: %s", len(tokens), line)
 		}
 
 		username := tokens[0]
@@ -96,21 +96,23 @@ func loadWgRecords(r io.Reader) (map[string]WgRecord, error) {
 		ipaddr := net.ParseIP(tokens[2])
 		// TODO: support v6?
 		if ipaddr.To4() == nil {
-			return nil, fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
+			return fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
 		}
 		expires, err := time.Parse(time.RFC3339, tokens[3])
 		if err != nil {
-			return nil, fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
+			return fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
 		}
 		if expires.After(time.Now()) {
-			records[username] = WgRecord{
+			lm.wgRecords[username] = WgRecord{
 				PubKey:  pubKey,
 				IP:      ipaddr,
 				expires: expires,
 			}
 		}
 	}
-	return records, nil
+
+	logger.Info.Println("records loaded")
+	return nil
 }
 
 func (lm *FileLeaseManager) saveWgRecords() error {
