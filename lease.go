@@ -54,7 +54,7 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		}
 		log.Println("records loaded")
 	} else {
-		log.Printf("unable to open leases file: %e", err)
+		log.Printf("unable to open leases file: %v", err)
 	}
 
 	lm := &FileLeaseManager{
