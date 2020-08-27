@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -36,13 +37,25 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
 	log.Printf("leases filename: %s\n", filename)
-	r, err := os.Open(filename)
-	defer r.Close()
-	wgRecords, err := loadWgRecords(r)
+	leaseDir := filepath.Dir(filename)
+	err := os.MkdirAll(leaseDir, 0755)
 	if err != nil {
+		log.Printf("Error: unable to create directory=%s", leaseDir)
 		return nil, err
 	}
-	log.Println("records loaded")
+
+	wgRecords := make(map[string]*WgRecord)
+	r, err := os.Open(filename)
+	if err == nil {
+		defer r.Close()
+		wgRecords, err = loadWgRecords(r)
+		if err != nil {
+			return nil, err
+		}
+		log.Println("records loaded")
+	} else {
+		log.Printf("unable to open leases file: %v", err)
+	}
 
 	lm := &FileLeaseManager{
 		wgRecords: wgRecords,

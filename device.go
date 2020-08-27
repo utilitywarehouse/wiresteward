@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -254,6 +255,12 @@ func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Printf("No key found in %s, generating a new private key", wd.keyFilename)
+			keyDir := filepath.Dir(wd.keyFilename)
+			err := os.MkdirAll(keyDir, 0755)
+			if err != nil {
+				log.Printf("Error: unable to create directory=%s", keyDir)
+				return wgtypes.Key{}, err
+			}
 			key, err := wgtypes.GeneratePrivateKey()
 			if err != nil {
 				return wgtypes.Key{}, err

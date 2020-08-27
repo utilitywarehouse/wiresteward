@@ -5,9 +5,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/user"
-	"path"
+	"path/filepath"
 	"time"
+)
+
+const (
+	defaultTokenFileLoc = "/var/lib/wiresteward/token"
 )
 
 // Agent is the wirestward client instance that manages a set of network devices
@@ -34,11 +37,16 @@ func NewAgent(cfg *agentConfig) *Agent {
 		}
 		agent.deviceManagers = append(agent.deviceManagers, dm)
 	}
+	tokenDir := filepath.Dir(defaultTokenFileLoc)
+	err := os.MkdirAll(tokenDir, 0755)
+	if err != nil {
+		log.Printf("Error: unable to create directory=%s", tokenDir)
+	}
 	agent.oa = newOAuthTokenHandler(
 		cfg.Oidc.AuthURL,
 		cfg.Oidc.TokenURL,
 		cfg.Oidc.ClientID,
-		getDefaultAgentTokenFilePath(),
+		defaultTokenFileLoc,
 	)
 	return agent
 }
@@ -122,34 +130,4 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	a.renewAllLeases(token.AccessToken)
 	fmt.Fprintf(w, "Agent refreshed and running! You can close this window now")
-}
-
-// return home location or die
-func deriveHome() string {
-	u, err := user.Current()
-	if err == nil && u.HomeDir != "" {
-		return u.HomeDir
-	}
-	// try HOME env var
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-
-	log.Fatal("Could not call os/user.Current() or find $HOME. Please recompile with CGO enabled or set $HOME")
-	// not reached
-	return ""
-}
-
-func getDefaultTokenDir() string {
-	path := path.Join(deriveHome(), ".wiresteward/")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0700); err != nil {
-			log.Fatalf("Could not create dir %s: %v", path, err)
-		}
-	}
-	return path
-}
-
-func getDefaultAgentTokenFilePath() string {
-	return path.Join(getDefaultTokenDir(), "token")
 }

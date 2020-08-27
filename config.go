@@ -14,7 +14,7 @@ import (
 const (
 	defaultKeyFilename         = "/etc/wiresteward/key"
 	defaultLeaserSyncInterval  = 1 * time.Minute
-	defaultLeasesFilename      = "/etc/wiresteward/leases"
+	defaultLeasesFilename      = "/var/lib/wiresteward/leases"
 	defaultServerListenAddress = "0.0.0.0:8080"
 )
 
