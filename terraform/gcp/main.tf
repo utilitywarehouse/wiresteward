@@ -1,8 +1,19 @@
 data "google_compute_zones" "available" {}
 
+resource "random_string" "instance_name_suffix" {
+  count   = local.instance_count
+  length  = 4
+  special = false
+  upper   = false
+
+  keepers = {
+    userdata = var.ignition[count.index]
+  }
+}
+
 resource "google_compute_instance" "wiresteward" {
   count                     = local.instance_count
-  name                      = "${local.name}-${count.index}"
+  name                      = "${local.name}-${count.index}-${random_string.instance_name_suffix.*.result[count.index]}"
   machine_type              = "e2-micro"
   can_ip_forward            = true
   zone                      = data.google_compute_zones.available.names[count.index]
@@ -34,7 +45,7 @@ resource "google_compute_instance_group" "wiresteward" {
   name  = "${local.name}-${count.index}"
 
   instances = [
-    google_compute_instance.wiresteward.*.id[count.index],
+    google_compute_instance.wiresteward.*.self_link[count.index],
   ]
 
   named_port {
