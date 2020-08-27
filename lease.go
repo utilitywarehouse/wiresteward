@@ -122,7 +122,7 @@ func (lm *FileLeaseManager) saveWgRecords() error {
 	}
 	defer f.Close()
 	for username, record := range lm.wgRecords {
-		if _, err := fmt.Fprintf(f, "%s %s", username, record); err != nil {
+		if _, err := fmt.Fprintf(f, "%s %s\n", username, record); err != nil {
 			return err
 		}
 	}
@@ -190,7 +190,6 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	if err != nil {
 		return err
 	}
-	logger.Debug.Printf("peers: %v\n", peers)
 	if err := setPeers("", peers); err != nil {
 		return err
 	}
