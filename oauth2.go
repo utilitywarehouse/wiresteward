@@ -97,7 +97,7 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", oa.codeVerifier.String())
 	tok, err := oa.config.Exchange(oa.ctx, code, codeVerifierOpt)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	if err := oa.saveToken(tok); err != nil {
