@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -96,6 +97,12 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 }
 
 func (lm *FileLeaseManager) saveWgRecord(username string, record *WgRecord) error {
+	leaseDir := filepath.Dir(lm.filename)
+	err := os.MkdirAll(leaseDir, 0755)
+	if err != nil {
+		log.Printf("Error: unable to create directory=%s", leaseDir)
+		return err
+	}
 	f, err := os.OpenFile(lm.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err

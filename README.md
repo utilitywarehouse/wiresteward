@@ -83,7 +83,6 @@ After=network-online.target
 Requires=network-online.target
 [Service]
 Restart=on-failure
-ExecStartPre=-/bin/mkdir -p /etc/wiresteward/
 ExecStart=/usr/local/bin/wiresteward -agent
 [Install]
 WantedBy=multi-user.target
