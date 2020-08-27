@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -22,13 +23,18 @@ type WgRecord struct {
 	expires time.Time
 }
 
+func (wgr *WgRecord) String() string {
+	return wgr.PubKey + " " + wgr.IP.String() + " " + wgr.expires.Format(time.RFC3339)
+}
+
 // FileLeaseManager implements functionality for managing address leases for
 // peers, using a file as a state backend.
 type FileLeaseManager struct {
-	wgRecords map[string]*WgRecord
-	filename  string
-	cidr      *net.IPNet
-	ip        net.IP
+	wgRecordsMutex sync.Mutex
+	wgRecords      map[string]*WgRecord
+	filename       string
+	cidr           *net.IPNet
+	ip             net.IP
 }
 
 func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeaseManager, error) {
@@ -107,24 +113,25 @@ func loadWgRecords(r io.Reader) (map[string]*WgRecord, error) {
 	return records, nil
 }
 
-func (lm *FileLeaseManager) saveWgRecord(username string, record *WgRecord) error {
-	f, err := os.OpenFile(lm.filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (lm *FileLeaseManager) saveWgRecords() error {
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
+	f, err := os.OpenFile(lm.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.WriteString(username + " " + record.PubKey + " " + record.IP.String() + " " + record.expires.Format(time.RFC3339) + "\n")
-	if err != nil {
-		return err
-	}
-	err = f.Sync()
-	if err != nil {
-		return err
+	for username, record := range lm.wgRecords {
+		if _, err := fmt.Fprintf(f, "%s %s", username, record); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (lm *FileLeaseManager) findNextAvailableIPAddress() (*net.IPNet, error) {
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
 	allocatedIPs := []net.IP{lm.ip}
 	for _, r := range lm.wgRecords {
 		allocatedIPs = append(allocatedIPs, r.IP)
@@ -138,6 +145,8 @@ func (lm *FileLeaseManager) findNextAvailableIPAddress() (*net.IPNet, error) {
 }
 
 func (lm *FileLeaseManager) syncWgRecords() error {
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
 	changed := false
 	for k, r := range lm.wgRecords {
 		if r.expires.Before(time.Now()) {
@@ -147,6 +156,9 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 	}
 	if changed {
 		if err := updateWgPeers(lm); err != nil {
+			return err
+		}
+		if err := lm.saveWgRecords(); err != nil {
 			return err
 		}
 	}
@@ -160,6 +172,8 @@ func makePeerConfig(record *WgRecord) (*wgtypes.PeerConfig, error) {
 }
 
 func (lm *FileLeaseManager) getPeersConfig() ([]wgtypes.PeerConfig, error) {
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
 	ret := []wgtypes.PeerConfig{}
 	for _, r := range lm.wgRecords {
 		peerConfig, err := makePeerConfig(r)
@@ -191,6 +205,8 @@ func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry t
 	if username == "" {
 		return nil, fmt.Errorf("Cannot add peer for empty username")
 	}
+	lm.wgRecordsMutex.Lock()
+	defer lm.wgRecordsMutex.Unlock()
 	lm.wgRecords[username] = &WgRecord{
 		PubKey:  pubKey,
 		IP:      ipnet.IP,
@@ -207,7 +223,7 @@ func (lm *FileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time
 	if err := updateWgPeers(lm); err != nil {
 		return nil, err
 	}
-	if err := lm.saveWgRecord(username, record); err != nil {
+	if err := lm.saveWgRecords(); err != nil {
 		return nil, err
 	}
 	return record, nil
