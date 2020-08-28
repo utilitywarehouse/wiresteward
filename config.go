@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -159,11 +158,14 @@ func verifyServerConfig(conf *serverConfig) error {
 	conf.WireguardIPAddress = ip
 	conf.WireguardIPNetwork = network
 	if len(conf.AllowedIPs) == 0 {
-		log.Printf("config missing `allowedIPs`, this server is not exposing any networks")
+		logger.Info.Printf("config missing `allowedIPs`, this server is not exposing any networks")
 	}
 	if conf.DeviceName == "" {
 		conf.DeviceName = defaultWireguardDeviceName
-		log.Printf("config missing `deviceName`, using default: %s", defaultWireguardDeviceName)
+		logger.Info.Printf(
+			"config missing `deviceName`, using default: %s",
+			defaultWireguardDeviceName,
+		)
 	}
 	if conf.Endpoint == "" {
 		return fmt.Errorf("config missing `endpoint`")
@@ -179,15 +181,24 @@ func verifyServerConfig(conf *serverConfig) error {
 	conf.WireguardListenPort = port
 	if conf.KeyFilename == "" {
 		conf.KeyFilename = defaultKeyFilename
-		log.Printf("config missing `keyFilename`, using default: %s", defaultKeyFilename)
+		logger.Info.Printf(
+			"config missing `keyFilename`, using default: %s",
+			defaultKeyFilename,
+		)
 	}
 	if conf.LeaserSyncInterval == 0 {
 		conf.LeaserSyncInterval = defaultLeaserSyncInterval
-		log.Printf("config missing `leaserSyncInterval`, using default: %s", defaultLeaserSyncInterval)
+		logger.Info.Printf(
+			"config missing `leaserSyncInterval`, using default: %s",
+			defaultLeaserSyncInterval,
+		)
 	}
 	if conf.LeasesFilename == "" {
 		conf.LeasesFilename = defaultLeasesFilename
-		log.Printf("config missing `leasesFilename`, using default: %s", defaultLeasesFilename)
+		logger.Info.Printf(
+			"config missing `leasesFilename`, using default: %s",
+			defaultLeasesFilename,
+		)
 	}
 	if conf.OauthIntrospectURL == "" {
 		return fmt.Errorf("config missing `oauthIntrospectURL`")
@@ -197,7 +208,10 @@ func verifyServerConfig(conf *serverConfig) error {
 	}
 	if conf.ServerListenAddress == "" {
 		conf.ServerListenAddress = defaultServerListenAddress
-		log.Printf("config missing `serverListenAddress`, using default: %s", defaultServerListenAddress)
+		logger.Info.Printf(
+			"config missing `serverListenAddress`, using default: %s",
+			defaultServerListenAddress,
+		)
 	}
 	return nil
 }

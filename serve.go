@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -52,7 +51,8 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 	case "POST":
 		token, err := extractBearerTokenFromHeader(r, "Authorization")
 		if err != nil {
-			log.Println("Cannot parse authorization token", err)
+			logger.Error.Println(
+				"Cannot parse authorization token", err)
 			http.Error(
 				w,
 				fmt.Sprintf("error parsing auth token: %v", err),
@@ -62,7 +62,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		}
 		tokenInfo, err := lh.tokenValidator.validate(token, "access_token")
 		if err != nil {
-			log.Println("Cannot check token validity", err)
+			logger.Error.Println("Cannot check token validity", err)
 			http.Error(
 				w,
 				fmt.Sprintf("error checking token validity: %v", err),
@@ -81,7 +81,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		decoder := json.NewDecoder(r.Body)
 		var p leaseRequest
 		if err := decoder.Decode(&p); err != nil {
-			log.Println("Cannot decode request body", err)
+			logger.Error.Println("Cannot decode request body", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
 		}
@@ -113,8 +113,8 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 func (lh *HTTPLeaseHandler) start() {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
-	log.Printf("Starting server for lease requests\n")
+	logger.Info.Printf("Starting server for lease requests\n")
 	if err := http.ListenAndServe(lh.serverConfig.ServerListenAddress, nil); err != nil {
-		log.Fatal(err)
+		logger.Error.Fatal(err)
 	}
 }

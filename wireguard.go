@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net"
 	"time"
 
@@ -52,7 +51,8 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			log.Printf("Failed to close wireguard client: %v", err)
+			logger.Error.Printf(
+				"Failed to close wireguard client: %v", err)
 		}
 	}()
 	if deviceName == "" {
@@ -85,7 +85,8 @@ func setPrivateKey(deviceName string, privKey string) error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			log.Printf("Failed to close wireguard client: %v", err)
+			logger.Error.Printf(
+				"Failed to close wireguard client: %v", err)
 		}
 	}()
 	if deviceName == "" {
@@ -106,7 +107,8 @@ func getKeys(deviceName string) (string, string, error) {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			log.Printf("Failed to close wireguard client: %v", err)
+			logger.Error.Printf(
+				"Failed to close wireguard client: %v", err)
 		}
 	}()
 

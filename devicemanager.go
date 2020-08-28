@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -52,7 +51,10 @@ func (dm *DeviceManager) Run() error {
 	// the base64 value of an empty key will come as
 	// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 	if privKey == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" {
-		log.Printf("No keys found for device `%s`, generating a new pair", dm.Name())
+		logger.Info.Printf(
+			"No keys found for device `%s`, generating a new pair",
+			dm.Name(),
+		)
 		newKey, err := wgtypes.GeneratePrivateKey()
 		if err != nil {
 			return err
@@ -76,18 +78,30 @@ func (dm *DeviceManager) RenewLeases(token string) error {
 	for serverURL, oldConfig := range dm.config {
 		config, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
 		if err != nil {
-			log.Printf("Could not get wiresteward peer config from `%s`: %v", serverURL, err)
+			logger.Error.Printf(
+				"Could not get wiresteward peer config from `%s`: %v",
+				serverURL,
+				err,
+			)
 			continue
 		}
 		peers = append(peers, *config.PeerConfig)
 
 		dm.configMutex.Lock()
-		log.Printf("Configuring offered ip address %s on device %s", config.LocalAddress, dm.Name())
+		logger.Info.Printf(
+			"Configuring offered ip address %s on device %s",
+			config.LocalAddress,
+			dm.Name(),
+		)
 		// TODO: Depending on the implementation of updateDeviceConfig, if the
 		// update fails partially, we might end up with the wrong "old" config
 		// and fail to cleanup properly when we update the next time.
 		if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
-			log.Printf("Could not update peer configuration for `%s`: %v", serverURL, err)
+			logger.Error.Printf(
+				"Could not update peer configuration for `%s`: %v",
+				serverURL,
+				err,
+			)
 		} else {
 			dm.config[serverURL] = config
 		}
