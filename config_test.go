@@ -12,7 +12,7 @@ import (
 
 func TestAgentConfigFmt(t *testing.T) {
 	setLogLevel("error")
-	logger = initLogger("wiresteward-test")
+	logger = newLogger("wiresteward-test")
 	oidcOnly := []byte(`
 {
   "oidc": {
@@ -119,7 +119,7 @@ func TestAgentConfigFmt(t *testing.T) {
 
 func TestServerConfig(t *testing.T) {
 	setLogLevel("error")
-	logger = initLogger("wiresteward-test")
+	logger = newLogger("wiresteward-test")
 	ip, net, _ := net.ParseCIDR("10.0.0.1/24")
 	testCases := []struct {
 		input []byte

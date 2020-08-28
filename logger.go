@@ -26,7 +26,7 @@ func setLogLevel(level string) {
 }
 
 // Returns a new logger using the global level variable
-func initLogger(name string) *device.Logger {
+func newLogger(name string) *device.Logger {
 	return device.NewLogger(
 		logLevel,
 		fmt.Sprintf("%s: ", name),

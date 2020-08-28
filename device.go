@@ -43,7 +43,7 @@ func newTunDevice(name string, mtu int) *TunDevice {
 		deviceMTU:  mtu,
 		deviceName: name,
 		errs:       make(chan error),
-		logger:     initLogger(fmt.Sprintf("wireguard-go/%s", name)),
+		logger:     newLogger(fmt.Sprintf("wireguard-go/%s", name)),
 	}
 }
 

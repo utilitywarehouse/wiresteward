@@ -28,7 +28,7 @@ func main() {
 		return
 	}
 	setLogLevel(*flagLogLevel)
-	logger = initLogger("wiresteward")
+	logger = newLogger("wiresteward")
 
 	if *flagVersion {
 		logger.Info.Println(version)
