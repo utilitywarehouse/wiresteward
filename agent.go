@@ -46,9 +46,9 @@ func NewAgent(cfg *agentConfig) *Agent {
 		logger.Error.Printf("Unable to create directory=%s", tokenDir)
 	}
 	agent.oa = newOAuthTokenHandler(
-		cfg.Oidc.AuthURL,
-		cfg.Oidc.TokenURL,
-		cfg.Oidc.ClientID,
+		cfg.OAuth.AuthURL,
+		cfg.OAuth.TokenURL,
+		cfg.OAuth.ClientID,
 		defaultTokenFileLoc,
 	)
 	return agent

@@ -17,8 +17,8 @@ const (
 	defaultServerListenAddress = "0.0.0.0:8080"
 )
 
-// agentOidcConfig encapsulates agent-side OIDC configuration for wiresteward.
-type agentOidcConfig struct {
+// agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
+type agentOAuthConfig struct {
 	ClientID string `json:"clientID"`
 	AuthURL  string `json:"authUrl"`
 	TokenURL string `json:"tokenUrl"`
@@ -40,19 +40,19 @@ type agentDeviceConfig struct {
 
 // AgentConfig describes the agent-side configuration of wiresteward.
 type agentConfig struct {
-	Oidc    agentOidcConfig     `json:"oidc"`
+	OAuth   agentOAuthConfig    `json:"oauth"`
 	Devices []agentDeviceConfig `json:"devices"`
 }
 
-func verifyAgentOidcConfig(conf *agentConfig) error {
-	if conf.Oidc.ClientID == "" {
-		return fmt.Errorf("oidc config missing `clientID`")
+func verifyAgentOAuthConfig(conf *agentConfig) error {
+	if conf.OAuth.ClientID == "" {
+		return fmt.Errorf("oauth config missing `clientID`")
 	}
-	if conf.Oidc.AuthURL == "" {
-		return fmt.Errorf("oidc config missing `authUrl`")
+	if conf.OAuth.AuthURL == "" {
+		return fmt.Errorf("oauth config missing `authUrl`")
 	}
-	if conf.Oidc.TokenURL == "" {
-		return fmt.Errorf("oidc config missing `tokenUrl`")
+	if conf.OAuth.TokenURL == "" {
+		return fmt.Errorf("oauth config missing `tokenUrl`")
 	}
 	return nil
 }
@@ -83,7 +83,7 @@ func readAgentConfig(path string) (*agentConfig, error) {
 	if err = json.Unmarshal(fileContent, conf); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
-	if err = verifyAgentOidcConfig(conf); err != nil {
+	if err = verifyAgentOAuthConfig(conf); err != nil {
 		return nil, err
 	}
 	if err = verifyAgentDevicesConfig(conf); err != nil {

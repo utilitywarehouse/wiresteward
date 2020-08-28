@@ -113,7 +113,7 @@ see below)
 
 Agent can takes a config file as an argument or look for it under the default
 location `/etc/wiresteward/config.json`, chosen to suit the systemd service.
-The config contains details about the oidc server and the local devices that
+The config contains details about the oauth server and the local devices that
 we need the agent to manage.
 
 An example, where the config format can be found is here:
@@ -133,7 +133,7 @@ A config file to talk to the dev-aws wiresteward servers:
 
 ```
 {
-  "oidc": {
+  "oauth": {
     "clientID": "0oa5lj5deYlDCe8Es416",
     "authUrl": "https://login.uw.systems/oauth2/v1/authorize",
     "tokenUrl": "https://login.uw.systems/oauth2/v1/token"
