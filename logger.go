@@ -22,6 +22,11 @@ func setLogLevel(level string) {
 		logLevel = device.LogLevelInfo
 	case "error":
 		logLevel = device.LogLevelError
+	default:
+		fmt.Printf(
+			"Invalid log level: %s, can be debug|info|error. Defaulting to info",
+			level,
+		)
 	}
 }
 
