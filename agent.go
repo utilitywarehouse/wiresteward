@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +31,11 @@ func NewAgent(cfg *agentConfig) *Agent {
 		}
 		dm := newDeviceManager(dev.Name, dev.MTU, urls)
 		if err := dm.Run(); err != nil {
-			log.Printf("Error starting device `%s`: %v", dm.Name(), err)
+			logger.Error.Printf(
+				"Error starting device `%s`: %v",
+				dm.Name(),
+				err,
+			)
 			continue
 		}
 		agent.deviceManagers = append(agent.deviceManagers, dm)
@@ -40,7 +43,8 @@ func NewAgent(cfg *agentConfig) *Agent {
 	tokenDir := filepath.Dir(defaultTokenFileLoc)
 	err := os.MkdirAll(tokenDir, 0755)
 	if err != nil {
-		log.Printf("Error: unable to create directory=%s", tokenDir)
+		logger.Error.Printf(
+			"Error: unable to create directory=%s", tokenDir)
 	}
 	agent.oa = newOAuthTokenHandler(
 		cfg.Oidc.AuthURL,
@@ -57,11 +61,11 @@ func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/", a.mainHandler)
 
-	log.Println("Starting agent at localhost:7773")
+	logger.Info.Println("Starting agent at localhost:7773")
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		log.Println("cannot get a valid cached token, you need to authenticate")
+		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
 	} else {
 		a.renewAllLeases(token.AccessToken)
 	}
@@ -71,7 +75,7 @@ func (a *Agent) ListenAndServe() {
 	// 7773 is chosen by looking wiresteward initials hex on ascii table
 	// (w = 0x77 and s = 0x73)
 	if err := http.ListenAndServe("127.0.0.1:7773", nil); err != nil {
-		log.Fatal(err)
+		logger.Error.Fatal(err)
 	}
 }
 
@@ -84,10 +88,14 @@ func (a *Agent) Stop() {
 }
 
 func (a *Agent) renewAllLeases(token string) {
-	log.Println("Running renew leases loop..")
+	logger.Info.Println("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
 		if err := dm.RenewLeases(token); err != nil {
-			log.Printf("Failed to renew leases for device `%s`: %v", dm.Name(), err)
+			logger.Error.Printf(
+				"Failed to renew leases for device `%s`: %v",
+				dm.Name(),
+				err,
+			)
 		}
 	}
 }
@@ -114,7 +122,8 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		log.Println("cannot get a valid cached token, need a new one")
+		logger.Error.Println(
+			"cannot get a valid cached token, need a new one")
 		// Get a url for the token challenge and redirect there
 		url, err := a.oa.prepareTokenWebChalenge()
 		if err != nil {

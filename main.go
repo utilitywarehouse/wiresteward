@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,10 +13,11 @@ const (
 )
 
 var (
-	flagAgent   = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig  = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagServer  = flag.Bool("server", false, "Run application in \"server\" mode")
-	flagVersion = flag.Bool("version", false, "Prints out application version")
+	flagAgent    = flag.Bool("agent", false, "Run application in \"agent\" mode")
+	flagConfig   = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagLogLevel = flag.String("log-level", "info", "Log Level (debug|info|error)")
+	flagServer   = flag.Bool("server", false, "Run application in \"server\" mode")
+	flagVersion  = flag.Bool("version", false, "Prints out application version")
 )
 
 func main() {
@@ -27,14 +27,18 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+	setLogLevel(*flagLogLevel)
+	logger = initLogger("wiresteward")
 
 	if *flagVersion {
-		log.Println(version)
+		logger.Info.Println(version)
 		return
 	}
 
 	if *flagAgent && *flagServer {
-		log.Fatalln("Must only set -agent or -server, not both")
+		logger.Error.Fatalln(
+			"Must only set -agent or -server, not both",
+		)
 	}
 
 	if *flagAgent {
@@ -53,22 +57,30 @@ func main() {
 func server() {
 	cfg, err := readServerConfig(*flagConfig)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error.Fatalf("Cannot read server config: %v", err)
 	}
 
 	wg := newWireguardDevice(cfg)
 	if err := wg.Start(); err != nil {
-		log.Fatalf("Cannot setup wireguard device '%s': %v", cfg.DeviceName, err)
+		logger.Error.Fatalf(
+			"Cannot setup wireguard device '%s': %v",
+			cfg.DeviceName,
+			err,
+		)
 	}
 	defer func() {
 		if err := wg.Stop(); err != nil {
-			log.Printf("Cannot cleanup wireguard device '%s': %v", cfg.DeviceName, err)
+			logger.Error.Printf(
+				"Cannot cleanup wireguard device '%s': %v",
+				cfg.DeviceName,
+				err,
+			)
 		}
 	}()
 
 	lm, err := newFileLeaseManager(cfg.LeasesFilename, cfg.WireguardIPNetwork, cfg.WireguardIPAddress)
 	if err != nil {
-		log.Fatalf("Cannot start lease server: %v", err)
+		logger.Error.Fatalf("Cannot start lease server: %v", err)
 	}
 
 	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
@@ -83,15 +95,15 @@ func server() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM)
 	signal.Notify(quit, os.Interrupt)
-	log.Print("Starting leaser loop")
+	logger.Info.Print("Starting leaser loop")
 	for {
 		select {
 		case <-ticker.C:
 			if err := lm.syncWgRecords(); err != nil {
-				log.Print(err)
+				logger.Error.Print(err)
 			}
 		case <-quit:
-			log.Print("Quitting")
+			logger.Info.Print("Quitting")
 			return
 		}
 	}
@@ -100,7 +112,7 @@ func server() {
 func agent() {
 	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error.Fatalf("Cannot read agent config: %v", err)
 	}
 
 	agent := NewAgent(agentConf)

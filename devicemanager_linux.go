@@ -3,8 +3,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/vishvananda/netlink"
 )
 
@@ -22,11 +20,19 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	if oldConfig != nil {
 		for _, r := range oldConfig.AllowedIPs {
 			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
-				log.Printf("Could not remove old route (%s): %s", r, err)
+				logger.Error.Printf(
+					"Could not remove old route (%s): %s",
+					r,
+					err,
+				)
 			}
 		}
 		if err := h.AddrDel(link, &netlink.Addr{IPNet: oldConfig.LocalAddress}); err != nil {
-			log.Printf("Could not remove old address (%s): %s", oldConfig.LocalAddress, err)
+			logger.Error.Printf(
+				"Could not remove old address (%s): %s",
+				oldConfig.LocalAddress,
+				err,
+			)
 		}
 	}
 	if err := h.AddrAdd(link, &netlink.Addr{IPNet: config.LocalAddress}); err != nil {
@@ -34,7 +40,8 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	for _, r := range config.AllowedIPs {
 		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
-			log.Printf("Could not add new route (%s): %s", r, err)
+			logger.Error.Printf(
+				"Could not add new route (%s): %s", r, err)
 		}
 	}
 	return nil

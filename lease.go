@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -36,11 +35,11 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 	if filename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
-	log.Printf("leases filename: %s\n", filename)
+	logger.Info.Printf("leases filename: %s\n", filename)
 	leaseDir := filepath.Dir(filename)
 	err := os.MkdirAll(leaseDir, 0755)
 	if err != nil {
-		log.Printf("Error: unable to create directory=%s", leaseDir)
+		logger.Error.Printf("Unable to create directory=%s", leaseDir)
 		return nil, err
 	}
 
@@ -52,9 +51,9 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		if err != nil {
 			return nil, err
 		}
-		log.Println("records loaded")
+		logger.Info.Println("records loaded")
 	} else {
-		log.Printf("unable to open leases file: %v", err)
+		logger.Error.Printf("unable to open leases file: %v", err)
 	}
 
 	lm := &FileLeaseManager{
@@ -68,7 +67,7 @@ func newFileLeaseManager(filename string, cidr *net.IPNet, ip net.IP) (*FileLeas
 		return nil, err
 	}
 
-	log.Println("Init complete")
+	logger.Info.Println("Init complete")
 	return lm, nil
 }
 
@@ -177,7 +176,7 @@ func updateWgPeers(lm *FileLeaseManager) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("peers: %v\n", peers)
+	logger.Debug.Printf("peers: %v\n", peers)
 	if err := setPeers("", peers); err != nil {
 		return err
 	}

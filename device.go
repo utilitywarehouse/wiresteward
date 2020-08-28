@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -40,15 +39,11 @@ func newTunDevice(name string, mtu int) *TunDevice {
 	if mtu == 0 {
 		mtu = device.DefaultMTU
 	}
-	logger := device.NewLogger(
-		device.LogLevelInfo,
-		fmt.Sprintf("(%s) ", name),
-	)
 	return &TunDevice{
 		deviceMTU:  mtu,
 		deviceName: name,
 		errs:       make(chan error),
-		logger:     logger,
+		logger:     initLogger(fmt.Sprintf("wireguard-go/%s", name)),
 	}
 }
 
@@ -192,13 +187,17 @@ func (wd *WireguardDevice) Start() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Adding iptables rule %v", wd.iptablesRule)
+	logger.Info.Printf("Adding iptables rule %v", wd.iptablesRule)
 	if err := ipt.AppendUnique("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
 	h := netlink.Handle{}
 	defer h.Delete()
-	log.Printf("Creating device %s with address %s", wd.link.Attrs().Name, wd.deviceAddress)
+	logger.Info.Printf(
+		"Creating device %s with address %s",
+		wd.link.Attrs().Name,
+		wd.deviceAddress,
+	)
 	if err := h.LinkAdd(wd.link); err != nil {
 		return err
 	}
@@ -215,16 +214,20 @@ func (wd *WireguardDevice) Start() error {
 	if mtu <= 0 {
 		defaultMTU, err := wd.defaultMTU(h)
 		if err != nil {
-			log.Printf("Could not detect default MTU, defaulting to 1500: %v", err)
+			logger.Error.Printf(
+				"Could not detect default MTU, defaulting to 1500: %v",
+				err,
+			)
 			defaultMTU = 1500
 		}
 		mtu = defaultMTU - 80
 	}
-	log.Printf("Setting MTU to %d on device %s", mtu, wd.link.Attrs().Name)
+	logger.Info.Printf(
+		"Setting MTU to %d on device %s", mtu, wd.link.Attrs().Name)
 	if err := h.LinkSetMTU(wd.link, mtu); err != nil {
 		return err
 	}
-	log.Printf("Initialised device %s", wd.link.Attrs().Name)
+	logger.Info.Printf("Initialised device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -242,11 +245,11 @@ func (wd *WireguardDevice) Stop() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Removing iptables rule %v", wd.iptablesRule)
+	logger.Info.Printf("Removing iptables rule %v", wd.iptablesRule)
 	if err := ipt.Delete("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
 		return err
 	}
-	log.Printf("Cleaned up device %s", wd.link.Attrs().Name)
+	logger.Info.Printf("Cleaned up device %s", wd.link.Attrs().Name)
 	return nil
 }
 
@@ -254,11 +257,17 @@ func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
 	kd, err := ioutil.ReadFile(wd.keyFilename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Printf("No key found in %s, generating a new private key", wd.keyFilename)
+			logger.Info.Printf(
+				"No key found in %s, generating a new private key",
+				wd.keyFilename,
+			)
 			keyDir := filepath.Dir(wd.keyFilename)
 			err := os.MkdirAll(keyDir, 0755)
 			if err != nil {
-				log.Printf("Error: unable to create directory=%s", keyDir)
+				logger.Error.Printf(
+					"Unable to create directory=%s",
+					keyDir,
+				)
 				return wgtypes.Key{}, err
 			}
 			key, err := wgtypes.GeneratePrivateKey()
@@ -282,14 +291,21 @@ func (wd *WireguardDevice) configureWireguard() error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			log.Printf("Failed to close wireguard client: %v", err)
+			logger.Error.Printf(
+				"Failed to close wireguard client: %v",
+				err,
+			)
 		}
 	}()
 	key, err := wd.privateKey()
 	if err != nil {
 		return err
 	}
-	log.Printf("Configuring wireguard on port %v with public key %s", wd.listenPort, key.PublicKey())
+	logger.Info.Printf(
+		"Configuring wireguard on port %v with public key %s",
+		wd.listenPort,
+		key.PublicKey(),
+	)
 	return wg.ConfigureDevice(wd.link.Attrs().Name, wgtypes.Config{
 		PrivateKey: &key,
 		ListenPort: &wd.listenPort,
@@ -330,13 +346,23 @@ func (wd *WireguardDevice) ensureLinkIsUp(h netlink.Handle) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("waiting for device %s to come up, current flags: %s", wd.link.Attrs().Name, link.Attrs().Flags)
+		logger.Info.Printf(
+			"waiting for device %s to come up, current flags: %s",
+			wd.link.Attrs().Name,
+			link.Attrs().Flags,
+		)
 		if link.Attrs().Flags&net.FlagUp != 0 {
-			log.Printf("device %s came up automatically", wd.link.Attrs().Name)
+			logger.Info.Printf(
+				"device %s came up automatically",
+				wd.link.Attrs().Name,
+			)
 			return nil
 		}
 		if tries > 4 {
-			log.Printf("timeout waiting for device %s to come up automatically", wd.link.Attrs().Name)
+			logger.Info.Printf(
+				"timeout waiting for device %s to come up automatically",
+				wd.link.Attrs().Name,
+			)
 			return h.LinkSetUp(wd.link)
 		}
 		tries++
