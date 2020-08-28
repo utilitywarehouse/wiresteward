@@ -11,26 +11,27 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFileLeaseManager_FindNextAvailableIpAddress(t *testing.T) {
+func TestFileLeaseManager_CreateOrUpdatePeer(t *testing.T) {
 	// Test that lm.ip is skipped
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
 	lm := &FileLeaseManager{
-		cidr: network,
-		ip:   ip,
+		cidr:      network,
+		ip:        ip,
+		wgRecords: map[string]WgRecord{},
 	}
-	aip, err := lm.findNextAvailableIPAddress()
+	record, err := lm.createOrUpdatePeer("foo", "bar", time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !aip.IP.Equal(net.ParseIP("10.90.0.2")) {
-		t.Fatalf("Unexpected ip returned %v", aip.IP)
+	if !record.IP.Equal(net.ParseIP("10.90.0.2")) {
+		t.Fatalf("Unexpected ip returned %v", record.IP)
 	}
 }
 
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
 	lm := &FileLeaseManager{
-		wgRecords: map[string]*WgRecord{},
+		wgRecords: map[string]WgRecord{},
 		cidr:      network,
 		ip:        ip,
 	}

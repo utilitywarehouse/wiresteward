@@ -88,22 +88,26 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		wg, err := lh.leaseManager.addNewPeer(tokenInfo.UserName, p.PubKey, time.Unix(tokenInfo.Exp, 0))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			pubKey, _, err := getKeys("")
-			if err != nil {
-				http.Error(w, "cannot get public key", http.StatusInternalServerError)
-				return
-			}
-			response := &leaseResponse{
-				Status:     "success",
-				IP:         fmt.Sprintf("%s/32", wg.IP.String()),
-				AllowedIPs: lh.serverConfig.AllowedIPs,
-				PubKey:     pubKey,
-				Endpoint:   lh.serverConfig.Endpoint,
-			}
-			r, _ := json.Marshal(response)
-			fmt.Fprintf(w, string(r))
+			return
 		}
+		pubKey, _, err := getKeys("")
+		if err != nil {
+			http.Error(w, "cannot get public key", http.StatusInternalServerError)
+			return
+		}
+		response := &leaseResponse{
+			Status:     "success",
+			IP:         fmt.Sprintf("%s/32", wg.IP.String()),
+			AllowedIPs: lh.serverConfig.AllowedIPs,
+			PubKey:     pubKey,
+			Endpoint:   lh.serverConfig.Endpoint,
+		}
+		r, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, "cannot encode response", http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, string(r))
 
 	default:
 		fmt.Fprintf(w, "only POST method is supported.")
