@@ -43,8 +43,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 	tokenDir := filepath.Dir(defaultTokenFileLoc)
 	err := os.MkdirAll(tokenDir, 0755)
 	if err != nil {
-		logger.Error.Printf(
-			"Error: unable to create directory=%s", tokenDir)
+		logger.Error.Printf("Unable to create directory=%s", tokenDir)
 	}
 	agent.oa = newOAuthTokenHandler(
 		cfg.Oidc.AuthURL,
