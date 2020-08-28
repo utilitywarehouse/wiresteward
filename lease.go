@@ -132,21 +132,6 @@ func (lm *FileLeaseManager) saveWgRecords() error {
 	return nil
 }
 
-func (lm *FileLeaseManager) findNextAvailableIPAddress() (*net.IPNet, error) {
-	lm.wgRecordsMutex.Lock()
-	defer lm.wgRecordsMutex.Unlock()
-	allocatedIPs := []net.IP{lm.ip}
-	for _, r := range lm.wgRecords {
-		allocatedIPs = append(allocatedIPs, r.IP)
-	}
-	// Add the gateway IP to the list of already allocated IPs
-	availableIPs, err := getAvailableIPAddresses(lm.cidr, allocatedIPs)
-	if err != nil {
-		return nil, err
-	}
-	return &net.IPNet{IP: availableIPs[0], Mask: net.CIDRMask(32, 32)}, nil
-}
-
 func (lm *FileLeaseManager) syncWgRecords() error {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
@@ -194,20 +179,30 @@ func (lm *FileLeaseManager) updateWgPeers() error {
 }
 
 func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WgRecord, error) {
-	ipnet, err := lm.findNextAvailableIPAddress()
-	if err != nil {
-		return WgRecord{}, err
-	}
 	if username == "" {
 		return WgRecord{}, fmt.Errorf("Cannot add peer for empty username")
 	}
+	if pubKey == "" {
+		return WgRecord{}, fmt.Errorf("Cannot add peer for empty public key")
+	}
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
-	lm.wgRecords[username] = WgRecord{
+	// Find all already allocated IP addresses
+	allocatedIPs := []net.IP{lm.ip}
+	for _, r := range lm.wgRecords {
+		allocatedIPs = append(allocatedIPs, r.IP)
+	}
+	// Add the gateway IP to the list of already allocated IPs
+	availableIPs, err := getAvailableIPAddresses(lm.cidr, allocatedIPs)
+	if err != nil {
+		return WgRecord{}, err
+	}
+	record := WgRecord{
 		PubKey:  pubKey,
-		IP:      ipnet.IP,
+		IP:      availableIPs[0],
 		expires: expiry,
 	}
+	lm.wgRecords[username] = record
 	return lm.wgRecords[username], nil
 }
 
