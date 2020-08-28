@@ -46,7 +46,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 		// routes via interfaces.
 		for _, r := range oldConfig.AllowedIPs {
 			if err := delRoute(fdRoute, oldConfig.LocalAddress.IP, r.IP, r.Mask); err != nil {
-				logger.ErrorPrintf(
+				logger.Error.Printf(
 					"Could not remove old route (%s): %s",
 					r,
 					err,
