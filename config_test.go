@@ -13,9 +13,9 @@ import (
 func TestAgentConfigFmt(t *testing.T) {
 	setLogLevel("error")
 	logger = newLogger("wiresteward-test")
-	oidcOnly := []byte(`
+	oauthOnly := []byte(`
 {
-  "oidc": {
+  "oauth": {
     "clientID": "xxxxx",
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
@@ -23,15 +23,15 @@ func TestAgentConfigFmt(t *testing.T) {
 }
 `)
 	conf := &agentConfig{}
-	err := json.Unmarshal(oidcOnly, conf)
+	err := json.Unmarshal(oauthOnly, conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
-	assert.Equal(t, conf.Oidc.AuthURL, "example.com/auth")
-	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
-	err = verifyAgentOidcConfig(conf)
+	assert.Equal(t, conf.OAuth.ClientID, "xxxxx")
+	assert.Equal(t, conf.OAuth.AuthURL, "example.com/auth")
+	assert.Equal(t, conf.OAuth.TokenURL, "example.com/token")
+	err = verifyAgentOAuthConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestAgentConfigFmt(t *testing.T) {
 
 	full := []byte(`
 {
-  "oidc": {
+  "oauth": {
     "clientID": "xxxxx",
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
@@ -98,16 +98,16 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, conf.Oidc.ClientID, "xxxxx")
-	assert.Equal(t, conf.Oidc.AuthURL, "example.com/auth")
-	assert.Equal(t, conf.Oidc.TokenURL, "example.com/token")
+	assert.Equal(t, conf.OAuth.ClientID, "xxxxx")
+	assert.Equal(t, conf.OAuth.AuthURL, "example.com/auth")
+	assert.Equal(t, conf.OAuth.TokenURL, "example.com/token")
 	assert.Equal(t, len(conf.Devices), 1)
 	assert.Equal(t, conf.Devices[0].Name, "wg_test")
 	assert.Equal(t, conf.Devices[0].MTU, 1380)
 	peers = conf.Devices[0].Peers
 	assert.Equal(t, len(peers), 1)
 	assert.Equal(t, peers[0].URL, "example1.com")
-	err = verifyAgentOidcConfig(conf)
+	err = verifyAgentOAuthConfig(conf)
 	if err != nil {
 		t.Fatal(err)
 	}

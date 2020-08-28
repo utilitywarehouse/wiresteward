@@ -1,5 +1,5 @@
 {
-  "oidc": {
+  "oauth": {
     "clientID": "xxxxx",
     "authUrl": "example.com/auth",
     "tokenUrl": "example.com/token"
