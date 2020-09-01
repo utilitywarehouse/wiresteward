@@ -153,29 +153,19 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 	return nil
 }
 
-func (lm *FileLeaseManager) getPeersConfig() ([]wgtypes.PeerConfig, error) {
+func (lm *FileLeaseManager) updateWgPeers() error {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
-	ret := []wgtypes.PeerConfig{}
+	peers := []wgtypes.PeerConfig{}
 	for _, r := range lm.wgRecords {
 		peerConfig, err := newPeerConfig(r.PubKey, "", "", []string{fmt.Sprintf("%s/32", r.IP.String())})
 		if err != nil {
-			return ret, fmt.Errorf("error calculating peer config %v", err)
+			logger.Error.Printf("error calculating peer config %v", err)
+			continue
 		}
-		ret = append(ret, *peerConfig)
+		peers = append(peers, *peerConfig)
 	}
-	return ret, nil
-}
-
-func (lm *FileLeaseManager) updateWgPeers() error {
-	peers, err := lm.getPeersConfig()
-	if err != nil {
-		return err
-	}
-	if err := setPeers(lm.deviceName, peers); err != nil {
-		return err
-	}
-	return nil
+	return setPeers(lm.deviceName, peers)
 }
 
 func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WgRecord, error) {
