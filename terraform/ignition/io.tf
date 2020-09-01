@@ -1,3 +1,9 @@
+variable "additional_ignition_files" {
+  type        = list(string)
+  description = "Additional ignition files to include in the ignition config"
+  default     = []
+}
+
 variable "additional_systemd_units" {
   type        = list(string)
   description = "Additional systemd units to include in the ignition config"
