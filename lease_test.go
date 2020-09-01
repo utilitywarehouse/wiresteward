@@ -11,23 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFileLeaseManager_CreateOrUpdatePeer(t *testing.T) {
-	// Test that lm.ip is skipped
-	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
-	lm := &FileLeaseManager{
-		cidr:      network,
-		ip:        ip,
-		wgRecords: map[string]WgRecord{},
-	}
-	record, err := lm.createOrUpdatePeer("foo", "bar", time.Unix(0, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !record.IP.Equal(net.ParseIP("10.90.0.2")) {
-		t.Fatalf("Unexpected ip returned %v", record.IP)
-	}
-}
-
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
 	lm := &FileLeaseManager{
@@ -38,24 +21,28 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	testPubKey1 := "k1a1fEw+lqB/JR1pKjI597R54xzfP9Kxv4M7hufyNAY="
 	testPubKey2 := "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo="
 	testUsername := "test@example.com"
-	expiry := time.Unix(0, 0)
+	testExpiry := time.Unix(0, 0)
 
-	_, err := lm.createOrUpdatePeer(testUsername, testPubKey1, expiry)
+	// Test that lm.ip is skipped
+	record, err := lm.createOrUpdatePeer(testUsername, testPubKey1, testExpiry)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if record.IP.Equal(lm.ip) {
+		t.Fatalf("Unexpected ip returned %v", record.IP)
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey1, lm.wgRecords[testUsername].PubKey)
 	// Test that same username with different public key will replace the
 	// existing record, instead of adding a new one
-	_, err = lm.createOrUpdatePeer(testUsername, testPubKey2, expiry)
+	_, err = lm.createOrUpdatePeer(testUsername, testPubKey2, testExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey2, lm.wgRecords[testUsername].PubKey)
 	// Test that empty username will error
-	_, err = lm.createOrUpdatePeer("", testPubKey2, expiry)
+	_, err = lm.createOrUpdatePeer("", testPubKey2, testExpiry)
 	assert.Equal(t, err, fmt.Errorf("Cannot add peer for empty username"))
 }
 
