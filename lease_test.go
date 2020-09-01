@@ -34,13 +34,16 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey1, lm.wgRecords[testUsername].PubKey)
 	// Test that same username with different public key will replace the
-	// existing record, instead of adding a new one
-	_, err = lm.createOrUpdatePeer(testUsername, testPubKey2, testExpiry)
+	// existing record, instead of adding a new one and return the same address
+	record2, err := lm.createOrUpdatePeer(testUsername, testPubKey2, testExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey2, lm.wgRecords[testUsername].PubKey)
+	if !record.IP.Equal(record2.IP) {
+		t.Fatalf("Expected the same ip address for the same user, got %v", record2.IP)
+	}
 	// Test that empty username will error
 	_, err = lm.createOrUpdatePeer("", testPubKey2, testExpiry)
 	assert.Equal(t, err, fmt.Errorf("Cannot add peer for empty username"))

@@ -187,6 +187,12 @@ func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry t
 	}
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
+	if record, ok := lm.wgRecords[username]; ok {
+		record.PubKey = pubKey
+		record.expires = expiry
+		lm.wgRecords[username] = record
+		return lm.wgRecords[username], nil
+	}
 	// Find all already allocated IP addresses
 	allocatedIPs := []net.IP{lm.ip}
 	for _, r := range lm.wgRecords {
@@ -197,12 +203,11 @@ func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry t
 	if err != nil {
 		return WgRecord{}, err
 	}
-	record := WgRecord{
+	lm.wgRecords[username] = WgRecord{
 		PubKey:  pubKey,
 		IP:      availableIPs[0],
 		expires: expiry,
 	}
-	lm.wgRecords[username] = record
 	return lm.wgRecords[username], nil
 }
 
