@@ -134,7 +134,6 @@ func (lm *FileLeaseManager) saveWgRecords() error {
 
 func (lm *FileLeaseManager) syncWgRecords() error {
 	lm.wgRecordsMutex.Lock()
-	defer lm.wgRecordsMutex.Unlock()
 	changed := false
 	for k, r := range lm.wgRecords {
 		if r.expires.Before(time.Now()) {
@@ -142,6 +141,7 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 			changed = true
 		}
 	}
+	lm.wgRecordsMutex.Unlock()
 	if changed {
 		if err := lm.updateWgPeers(); err != nil {
 			return err
