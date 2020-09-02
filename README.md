@@ -1,101 +1,113 @@
-**This is an experimental project and still at the very early stages.**
-
-Table of Contents
-=================
-
-   * [Table of Contents](#table-of-contents)
-   * [wiresteward](#wiresteward)
-      * [Usage](#usage)
-      * [Agent](#agent)
-         * [Install](#install)
-         * [Try](#try)
-         * [Running as systemd service](#running-as-systemd-service)
-         * [Running as launchd service (OSX)](#running-as-launchd-service-osx)
-         * [Run](#run)
-         * [Config](#config)
-         * [Dev aws config - Example](#dev-aws-config---example)
-
-Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
-
-# wiresteward
-
 [![Docker Repository on Quay](https://quay.io/repository/utilitywarehouse/wiresteward/status "Docker Repository on Quay")](https://quay.io/repository/utilitywarehouse/wiresteward)
 [![Build Status](https://travis-ci.org/utilitywarehouse/wiresteward.svg?branch=master)](https://travis-ci.org/utilitywarehouse/wiresteward)
 
-wiresteward is a peer manager for wireguard instances. It is comprised by a
-server and an agent functionality.
+# wiresteward
 
-The agents post their public keys to the server and receive back configuration
-to configure the wireguard devices on their host machine. The server updates its
-peers list per agent request to add the advertised public key.
+Wiresteward is a wireguard peer manager with oauth2 authentication. It is
+comprised of two components: server and agent.
 
-The server needs to run behind an oauth2 proxy, so that it is not "open" to the
-public
+The design is for wiresteward server to run on a remote machine in a private
+network, to which users will connect with wireguard in order to access the
+private network.
 
-## Usage
+The agent runs on the user's machine and is responsible for authenticating with
+the server and retrieving wireguard configuration.
 
-`wiresteward -server -config=path-to-config.json`
-`wiresteward -agent -config=path-to-config.json`
+Both components will configure their local wireguard devices and route tables as
+needed to enable access to a private network.
 
-See [server.json.example](server.json.example) and
-[agent.json.example](agent.json.example) for example configuration.
+# Table of Contents
 
+<!-- vim-markdown-toc GFM -->
 
-## Agent
+* [Installation](#installation)
+* [Usage](#usage)
+* [Agent](#agent)
+    * [Configuration](#configuration)
+        * [MTU](#mtu)
+    * [Running as systemd service (Linux)](#running-as-systemd-service-linux)
+    * [Running as launchd service (OSX)](#running-as-launchd-service-osx)
+    * [Authentication](#authentication)
+* [Server](#server)
+    * [Configuration](#configuration-1)
+    * [Running](#running)
 
-### Install
+<!-- vim-markdown-toc -->
 
-Agent binaries can be found under wiresteward releases:
+## Installation
+
+Binaries found under wiresteward releases include the agent and server modes:
 https://github.com/utilitywarehouse/wiresteward/releases
 
 To install on linux:
 
 ```
-wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc0/wiresteward_0.1.0-rc0_linux_amd64
+wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.1.0-rc3/wiresteward_0.1.0-rc3_linux_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
-### Try
-The wiresteward agent is responsible for:
+## Usage
 
-- creating new network itun devices
-- Generating and posting wireguard keys to the server
-- Fetching oauth tokens to pass server authentication
-- Configuring wireguard peers
-- Configuring routes for the subnets allowed by the server
-thus it needs NET_ADMIN capabilities.
+You can simply run wiresteward on your terminal:
 
-To try it one can:
+```
+wiresteward -server -config=path-to-config.json
+```
+
 ```
 wiresteward -agent -config=path-to-config.json
 ```
 
-It is recommended that the agent is run as a systemd service.
+Please note that because `wiresteward` will create and manage network devices
+and network routes, it requires `NET_ADMIN` capabilities. You can simply run it
+as root with `sudo`.
 
-### Running as systemd service
+See [`examples/server.json`](./examples/server.json) and
+[`examples/agent.json`](./examples/agent.json) for example configuration.
+
+
+## Agent
+The wiresteward agent is responsible for:
+
+- creating new network tun devices
+- fetching oauth tokens to pass server authentication
+- registering wireguard keys with the wiresteward server and retrieving configuration
+- configuring wireguard peers
+- configuring routes for the subnets allowed by the server
+
+It is recommended that the agent is run as a system service.
+
+### Configuration
+
+The agent can take a config file as an argument or look for it under the default
+location `/etc/wiresteward/config.json`. The config contains details about the
+oauth server and the local devices that we need the agent to manage.
+
+An example, where the config format can be found in
+[`examples/agent.json`](./examples/agent.json).
+
+#### MTU
+
+The default mtu for the interfaces created via the agent is `1420` and it comes
+from the [default value of wireguard-go package](https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14).
+Optionally, the mtu can be set explicitly per wg device created by the agent via
+the configuration file (using the "mtu" key under device config)
+
+### Running as systemd service (Linux)
 The agent is designed to run as a systemd service. An example working service
-is shown below. Typical location for user defined systemd service:
-`/etc/systemd/system/wiresteward.service`
+is described in [`examples/wiresteward.service`](./examples/wiresteward.service).
+
+A typical location for user defined systemd service is
+`/etc/systemd/system/wiresteward.service` so you'll need to copy the unit file
+to that location and then:
 
 ```
-[Unit]
-Description=wiresteward agent
-After=network-online.target
-Requires=network-online.target
-[Service]
-Restart=on-failure
-ExecStart=/usr/local/bin/wiresteward -agent
-[Install]
-WantedBy=multi-user.target
-```
-
-then:
-```
+systemctl daemon-reload
 systemctl enable wiresteward.service
 systemctl start wiresteward.service
 ```
 
-To look at it's logs:
+To look at its logs:
 ```
 journalctl -u  wiresteward.service
 ```
@@ -103,7 +115,7 @@ journalctl -u  wiresteward.service
 ### Running as launchd service (OSX)
 
 An example working service for launchd is described in
-[uk.co.uw.wiresteward.plist](./contrib/uk.co.uw.wiresteward.plist).
+[`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist).
 
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
@@ -128,63 +140,35 @@ tail -f /var/log/wiresteward.log
 You might want to setup log rotation as well if you find that the log file
 grows too large.
 
-### Run
+### Authentication
 
 The agent runs a local server on port 7773 and expects the user to visit
-`localhost:7773/` to trigger all the actions described above (under #Usage)
+`http://localhost:7773/` in order to authenticate. Once authenticated, the agent
+will be able to continue operating until the token retrieved is expired, at
+which point the user needs to authenticate again.
 
-Opening `localhost:7773/` on a browser will trigger the oauth process, if
-necessary, and ask the configured remote server peers for details to configure
-them as wg peers under the respective device (defined in configuration file,
-see below)
+## Server
+The wiresteward server is responsible for:
 
-### Config
+- creating new network wireguard device
+- registering new peers and allocating ip addresses for them
+- configuring wireguard peers
+- revoking access for expired address leases
 
-Agent can takes a config file as an argument or look for it under the default
-location `/etc/wiresteward/config.json`, chosen to suit the systemd service.
-The config contains details about the oauth server and the local devices that
-we need the agent to manage.
+It is recommended that the agent is run as a systemd service.
 
-An example, where the config format can be found is here:
-https://github.com/utilitywarehouse/wiresteward/blob/master/agent.json.example
+### Configuration
 
-### MTU
+The server can take a config file as an argument or look for it under the
+default location `/etc/wiresteward/config.json`. The config contains details
+about the oauth server and the network subnets that need to be exposed, as well
+as the network subnet from which peer addresses are leased to agents.
 
-The default mtu for the interfaces created via the agent is `1420` and it comes
-from the default value of wireguard-go package.
-(https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14)
-Optionally, mtu can be set explicitly per wg device created by the agent via the
-configuration file (using the "mtu" key under device config)
+An example, where the config format can be found in
+[`examples/server.json`](./examples/server.json).
 
-### Dev config - Example
+### Running
 
-A config file to talk to the dev-aws wiresteward servers:
-
-```
-{
-  "oauth": {
-    "clientID": "0oa5lj5deYlDCe8Es416",
-    "authUrl": "https://login.uw.systems/oauth2/v1/authorize",
-    "tokenUrl": "https://login.uw.systems/oauth2/v1/token"
-  },
-  "devices": [
-    {
-      "name": "wg-uw-dev-aws",
-      "peers": [
-        {
-	  "url": "https://wiresteward.dev.aws.uw.systems"
-	}
-      ]
-    },
-    {
-      "name": "wg-uw-dev-gcp",
-      "mtu": 1380,
-      "peers": [
-        {
-	  "url": "https://wiresteward.dev.gcp.uw.systems"
-	}
-      ]
-    }
-  ]
-}
-```
+There are terroform modules defined under [`terraform/`](./terraform) which
+describe the recommended deployment method in AWS and GCP. See the more specific
+[README](./terraform/README.md) file for details.
