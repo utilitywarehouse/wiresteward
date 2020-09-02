@@ -95,7 +95,7 @@ the configuration file (using the "mtu" key under device config)
 
 ### Running as systemd service (Linux)
 The agent is designed to run as a systemd service. An example working service
-is described in [`contrib/wiresteward.service`](./contrib/wiresteward.service).
+is described in [`examples/wiresteward.service`](./examples/wiresteward.service).
 
 A typical location for user defined systemd service is
 `/etc/systemd/system/wiresteward.service` so you'll need to copy the unit file
@@ -115,7 +115,7 @@ journalctl -u  wiresteward.service
 ### Running as launchd service (OSX)
 
 An example working service for launchd is described in
-[uk.co.uw.wiresteward.plist](./contrib/uk.co.uw.wiresteward.plist).
+[`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist).
 
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
