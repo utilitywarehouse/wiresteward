@@ -1,3 +1,9 @@
+variable "additional_security_group_ids" {
+  type        = list(string)
+  description = "Additional security groups to attach to wiresteward instances"
+  default     = []
+}
+
 variable "role_name" {
   type        = string
   default     = "wiresteward"
