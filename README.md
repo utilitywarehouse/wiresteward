@@ -10,6 +10,7 @@ Table of Contents
          * [Install](#install)
          * [Try](#try)
          * [Running as systemd service](#running-as-systemd-service)
+         * [Running as launchd service (OSX)](#running-as-launchd-service-osx)
          * [Run](#run)
          * [Config](#config)
          * [Dev aws config - Example](#dev-aws-config---example)
@@ -98,6 +99,34 @@ To look at it's logs:
 ```
 journalctl -u  wiresteward.service
 ```
+
+### Running as launchd service (OSX)
+
+An example working service for launchd is described in
+[uk.co.uw.wiresteward.plist](./contrib/uk.co.uw.wiresteward.plist).
+
+You need to copy the file under `/Library/LaunchDaemons/` and then set the
+ownership to root:
+```
+chown root:admin /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
+```
+
+Finally, you need to load the service:
+```
+sudo launchctl load /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
+```
+
+This will allow the service to run as root, which is required to operate on the
+network devices and routing table.
+
+Logs are stored in `/var/log/wirestward.log` as defined in the service file. To
+view the logs you can simply:
+```
+tail -f /var/log/wiresteward.log
+```
+
+You might want to setup log rotation as well if you find that the log file
+grows too large.
 
 ### Run
 
