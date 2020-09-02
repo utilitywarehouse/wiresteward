@@ -48,3 +48,7 @@ output "public_ipv4_addresses" {
 output "private_ipv4_addresses" {
   value = google_compute_instance.wiresteward.*.network_interface.0.network_ip
 }
+
+output "instances_target_tag" {
+  value = local.name
+}
