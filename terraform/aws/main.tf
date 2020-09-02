@@ -78,7 +78,7 @@ resource "aws_instance" "peer" {
   count                  = local.instance_count
   ami                    = data.aws_ami.flatcar_beta.id
   instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.wiresteward.id]
+  vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
   subnet_id              = var.subnet_ids[count.index]
   source_dest_check      = false
 
