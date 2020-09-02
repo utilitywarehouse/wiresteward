@@ -147,6 +147,10 @@ The agent runs a local server on port 7773 and expects the user to visit
 will be able to continue operating until the token retrieved is expired, at
 which point the user needs to authenticate again.
 
+Visiting `http://localhost:7773/` will cause the agent to immediately configure
+the local wireguard devices. If it already has a valid token, it will not prompt
+the user to re-authenticate but it will re-configure the system.
+
 ## Server
 The wiresteward server is responsible for:
 
