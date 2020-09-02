@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-const (
-	version = "v0.1.0-dev"
-)
-
 var (
+	version      = "dev"
+	commit       = "none"
+	date         = "unknown"
+	builtBy      = "unknown"
 	flagAgent    = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig   = flag.String("config", "/etc/wiresteward/config.json", "Config file")
 	flagLogLevel = flag.String("log-level", "info", "Log Level (debug|info|error)")
@@ -31,7 +31,7 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		logger.Info.Println(version)
+		logger.Info.Printf("version=%s commit=%s date=%s builtBy=%s", version, commit, date, builtBy)
 		return
 	}
 
