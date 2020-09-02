@@ -50,7 +50,7 @@ output "public_ipv4_addresses" {
 }
 
 output "private_ipv4_addresses" {
-  value = aws_eip.peer.*.private_ip
+  value = aws_instance.peer.*.private_ip
 }
 
 output "security_group_id" {
