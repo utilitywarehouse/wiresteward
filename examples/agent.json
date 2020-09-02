@@ -1,8 +1,8 @@
 {
   "oauth": {
     "clientID": "xxxxx",
-    "authUrl": "example.com/auth",
-    "tokenUrl": "example.com/token"
+    "authUrl": "https://example.com/auth",
+    "tokenUrl": "https://example.com/token"
   },
   "devices": [
     {
@@ -10,7 +10,7 @@
       "mtu": 1420,
       "peers": [
         {
-            "url": "example1.com"
+            "url": "https://example1.com"
         }
       ]
     }
