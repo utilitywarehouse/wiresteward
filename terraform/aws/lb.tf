@@ -43,10 +43,10 @@ locals {
 }
 
 resource "aws_route53_record" "cert_validation" {
-  name    = validation_options_list.0.resource_record_name
-  type    = validation_options_list.0.resource_record_type
+  name    = local.validation_options_list.0.resource_record_name
+  type    = local.validation_options_list.0.resource_record_type
   zone_id = var.dns_zone_id
-  records = [validation_options_list.0.resource_record_value]
+  records = [local.validation_options_list.0.resource_record_value]
   ttl     = 60
 }
 
