@@ -38,6 +38,10 @@ resource "aws_acm_certificate" "cert" {
   validation_method = "DNS"
 }
 
+# Since `domain_validation_options` is a Set, we convert it to a list to be
+# able to reference 0 index entry.
+# This is safe enough with a single element, but we had had >1 elements, we
+# would need something else here.
 locals {
   validation_options_list = tolist(aws_acm_certificate.cert.domain_validation_options)
 }
