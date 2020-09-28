@@ -1,11 +1,11 @@
-data "aws_ami" "flatcar_beta" {
+data "aws_ami" "flatcar_stable" {
   most_recent      = true
   executable_users = ["all"]
   owners           = ["075585003325"] // this is the account id that Flatcar use to release AMI images
 
   filter {
     name   = "name"
-    values = ["Flatcar-beta-*"]
+    values = ["Flatcar-stable-*"]
   }
 
   filter {
@@ -13,7 +13,7 @@ data "aws_ami" "flatcar_beta" {
     values = ["hvm"]
   }
 
-  name_regex = "^Flatcar-beta-\\d{4}.\\d+.\\d+-hvm$"
+  name_regex = "^Flatcar-stable-\\d{4}.\\d+.\\d+-hvm$"
 }
 
 resource "aws_security_group" "wiresteward" {
@@ -76,7 +76,7 @@ resource "aws_eip_association" "peer" {
 
 resource "aws_instance" "peer" {
   count                  = local.instance_count
-  ami                    = data.aws_ami.flatcar_beta.id
+  ami                    = data.aws_ami.flatcar_stable.id
   instance_type          = "t2.micro"
   vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
   subnet_id              = var.subnet_ids[count.index]
