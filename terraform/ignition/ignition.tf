@@ -28,10 +28,10 @@ data "ignition_config" "wiresteward" {
   count = local.instance_count
 
   files = concat([
-    data.ignition_file.wiresteward_config[count.index].id,
+    data.ignition_file.wiresteward_config[count.index].rendered,
   ], var.additional_ignition_files)
 
   systemd = concat([
-    data.ignition_systemd_unit.wiresteward_service.id,
+    data.ignition_systemd_unit.wiresteward_service.rendered,
   ], var.additional_systemd_units)
 }
