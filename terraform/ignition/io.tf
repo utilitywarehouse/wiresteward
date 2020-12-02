@@ -53,3 +53,11 @@ output "ignition" {
 output "endpoints" {
   value = local.wireguard_endpoints
 }
+
+output "ignition_systemd" {
+  value = data.ignition_config.wiresteward.*.systemd
+}
+
+output "ignition_files" {
+  value = data.ignition_config.wiresteward.*.files
+}
