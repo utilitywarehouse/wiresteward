@@ -44,8 +44,6 @@ module "wiresteward_ignition" {
 
   oauth2_client_id           = "xxxxxxxxxxxxxxxxxxxxx"
   oauth2_introspect_url      = "https://login.uw.systems/oauth2/default/v1/introspect"
-  ssh_key_agent_uri          = "https://s3-eu-west-1.amazonaws.com/ssh-keys/authmap"
-  ssh_key_agent_groups       = ["people@example.com"]
   wireguard_cidrs            = var.wiresteward_server_peers.*.wireguard_cidr
   wireguard_endpoint_base    = local.hostname_base
   wireguard_exposed_subnets  = ["10.20.0.0/16"]
