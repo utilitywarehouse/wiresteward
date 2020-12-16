@@ -9,8 +9,9 @@ The assumed topology includes:
 - The ability to assign and route public ips on host interfaces.
 
 This does not implement a load balancer between the deployed wiresteward servers
-but allows for additional ignition systemd services and files to be passed in
-order to work with different solutions (e.t.c. cloudflare argo tunnels)
+but since ignition systemd services and files are passed in as input variables
+one could include the necessary configuration in order to work with different
+solutions (e.t.c. cloudflare argo tunnels)
 
 ## Example usage
 
@@ -54,8 +55,6 @@ module "wiresteward" {
   matchbox_http_endpoint          = "https://matchbox.example.com"
   ignition_files                  = module.wiresteward_ignition.ignition_files
   ignition_systemd                = module.wiresteward_ignition.ignition_systemd
-  additional_ignition_files       = [] # Custom ignition files if needed
-  additional_ignition_systemd     = [] # Custom ignition systemd if needed
   wireguard_endpoints             = module.wiresteward_ignition.endpoints
   private_vlan_id                 = "100"
   private_vlan_gw                 = "10.0.0.1"

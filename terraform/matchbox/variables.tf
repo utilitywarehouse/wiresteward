@@ -1,13 +1,3 @@
-variable "additional_ignition_files" {
-  type        = list(list(string))
-  description = "A list of additional ignition files per wiresteward server."
-}
-
-variable "additional_ignition_systemd" {
-  type        = list(list(string))
-  description = "A list of additional ignition systemd configuration per wiresteward server."
-}
-
 variable "flatcar_kernel_address" {
   type        = string
   description = "Location of the http endpoint that serves the kernel vmlinuz file"

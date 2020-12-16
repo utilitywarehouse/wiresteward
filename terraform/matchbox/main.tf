@@ -58,7 +58,6 @@ data "ignition_config" "wiresteward" {
     list(
       data.ignition_systemd_unit.iptables-rule-load.rendered,
     ),
-    var.additional_ignition_systemd[count.index],
     var.ignition_systemd[count.index],
   )
 
@@ -67,7 +66,6 @@ data "ignition_config" "wiresteward" {
       data.ignition_file.hostname[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
     ),
-    var.additional_ignition_files[count.index],
     var.ignition_files[count.index],
   )
 }
