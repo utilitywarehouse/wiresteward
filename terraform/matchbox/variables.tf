@@ -39,11 +39,6 @@ variable "public_vlan_gw" {
   description = "Gateway ip for the public vlan"
 }
 
-variable "wireguard_cidrs" {
-  type        = list(string)
-  description = "The IP addresses and associated wireguard peer subnets in CIDR notation. Needed to allow packet forwarding on iptables"
-}
-
 variable "wireguard_endpoints" {
   type        = list(string)
   description = "A list of wireguard endpoints for the instances. Output of the ignition module."
@@ -58,6 +53,7 @@ variable "wiresteward_server_peers" {
   type = list(object({
     private_ip_address = string
     public_ip_address  = string
+    wireguard_cidr     = string
     mac_addresses      = list(string)
   }))
   description = "The list of the wiresteweard server peers to create."

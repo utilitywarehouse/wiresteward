@@ -39,7 +39,7 @@ data "ignition_file" "iptables_rules" {
 # Allow udp traffic to wireguard
 -A INPUT -p udp -m udp -d "${var.wiresteward_server_peers[count.index].public_ip_address}/32" --dport 51820 -j ACCEPT
 # Allow forwarding traffic on wg subnets
--A FORWARD -s "${join(", ", var.wireguard_cidrs)}" -j ACCEPT
+-A FORWARD -s "${var.wiresteward_server_peers[count.index].wireguard_cidr}" -j ACCEPT
 -A FORWARD -s "${join(", ", var.wireguard_exposed_subnets)}" -j ACCEPT
 # Allow incoming ICMP for echo replies, unreachable destination messages, and time exceeded
 -A INPUT -p icmp -m icmp -s 10.0.0.0/8 --icmp-type 0 -j ACCEPT
