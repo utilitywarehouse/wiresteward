@@ -1,7 +1,6 @@
-[![Docker Repository on Quay](https://quay.io/repository/utilitywarehouse/wiresteward/status "Docker Repository on Quay")](https://quay.io/repository/utilitywarehouse/wiresteward)
-[![Build Status](https://travis-ci.org/utilitywarehouse/wiresteward.svg?branch=master)](https://travis-ci.org/utilitywarehouse/wiresteward)
-
 # wiresteward
+
+[![Build Status](https://drone.prod.merit.uw.systems/api/badges/utilitywarehouse/wiresteward/status.svg)](https://drone.prod.merit.uw.systems/utilitywarehouse/wiresteward)
 
 Wiresteward is a wireguard peer manager with oauth2 authentication. It is
 comprised of two components: server and agent.
@@ -23,14 +22,14 @@ needed to enable access to a private network.
 * [Installation](#installation)
 * [Usage](#usage)
 * [Agent](#agent)
-    * [Configuration](#configuration)
-        * [MTU](#mtu)
-    * [Running as systemd service (Linux)](#running-as-systemd-service-linux)
-    * [Running as launchd service (OSX)](#running-as-launchd-service-osx)
-    * [Authentication](#authentication)
+	* [Configuration](#configuration)
+		* [MTU](#mtu)
+	* [Running as systemd service (Linux)](#running-as-systemd-service-linux)
+	* [Running as launchd service (OSX)](#running-as-launchd-service-osx)
+	* [Authentication](#authentication)
 * [Server](#server)
-    * [Configuration](#configuration-1)
-    * [Running](#running)
+	* [Configuration](#configuration-1)
+	* [Running](#running)
 
 <!-- vim-markdown-toc -->
 
