@@ -85,10 +85,13 @@ func TestCollector(t *testing.T) {
 			leaseManager: &FileLeaseManager{
 				wgRecords: map[string]WgRecord{
 					userA: WgRecord{
-						PubKey: pubPeerA.String(),
+						PubKey:  pubPeerA.String(),
+						IP:      net.ParseIP("10.0.0.1"),
+						expires: time.Unix(100, 0),
 					},
 					userB: WgRecord{
 						PubKey: pubPeerB.String(),
+						IP:     net.ParseIP("10.0.0.3"),
 					},
 				},
 			},
@@ -111,6 +114,8 @@ func TestCollector(t *testing.T) {
 				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg0",public_key="%v",username="%s"} 2`, pubPeerA.String(), userA),
 				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
 				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",public_key="%v",username=""} 0`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.1",public_key="%v",username="%s"} 100`, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.3",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
 			},
 		},
 	}

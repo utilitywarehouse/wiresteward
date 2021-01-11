@@ -7,12 +7,13 @@ import (
 
 // A collector is a prometheus.Collector for a WireGuard device.
 type collector struct {
-	DeviceInfo         *prometheus.Desc
-	PeerInfo           *prometheus.Desc
-	PeerAllowedIPsInfo *prometheus.Desc
-	PeerReceiveBytes   *prometheus.Desc
-	PeerTransmitBytes  *prometheus.Desc
-	PeerLastHandshake  *prometheus.Desc
+	DeviceInfo          *prometheus.Desc
+	PeerInfo            *prometheus.Desc
+	PeerAllowedIPsInfo  *prometheus.Desc
+	PeerReceiveBytes    *prometheus.Desc
+	PeerTransmitBytes   *prometheus.Desc
+	PeerLastHandshake   *prometheus.Desc
+	PeerLeaseExpiryTime *prometheus.Desc
 
 	devices      func() ([]*wgtypes.Device, error)
 	leaseManager *FileLeaseManager
@@ -61,6 +62,12 @@ func newMetricsCollector(devices func() ([]*wgtypes.Device, error), lm *FileLeas
 			append(labels, "username"),
 			nil,
 		),
+		PeerLeaseExpiryTime: prometheus.NewDesc(
+			"wiresteward_peer_lease_expiry_time",
+			"UNIX timestamp for the a peer's lease expiry time.",
+			[]string{"address", "public_key", "username"},
+			nil,
+		),
 		devices:      devices,
 		leaseManager: lm,
 	}
@@ -75,6 +82,7 @@ func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 		c.PeerReceiveBytes,
 		c.PeerTransmitBytes,
 		c.PeerLastHandshake,
+		c.PeerLeaseExpiryTime,
 	}
 
 	for _, d := range ds {
@@ -151,6 +159,21 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 				d.Name, pub, username,
 			)
 		}
+	}
+	for username, record := range c.leaseManager.wgRecords {
+		// Expose expiry time of 0 if not set.
+		var expiry float64
+		if !record.expires.IsZero() {
+			expiry = float64(record.expires.Unix())
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			c.PeerLeaseExpiryTime,
+			prometheus.GaugeValue,
+			expiry,
+			record.IP.String(),
+			record.PubKey, username,
+		)
 	}
 }
 
