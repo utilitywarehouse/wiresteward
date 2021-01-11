@@ -134,7 +134,7 @@ func TestCollector(t *testing.T) {
 	}
 }
 
-// return a we key or panic
+// return a wg key or panic
 func newWgKey() wgtypes.Key {
 	key, err := wgtypes.GenerateKey()
 	if err != nil {
