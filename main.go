@@ -6,6 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"golang.zx2c4.com/wireguard/wgctrl"
 )
 
 var (
@@ -82,12 +85,22 @@ func server() {
 	if err != nil {
 		logger.Error.Fatalf("Cannot start lease server: %v", err)
 	}
-
 	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
+	client, err := wgctrl.New()
+	if err != nil {
+		logger.Error.Fatalf(
+			"Failed to open WireGuard control client: %v",
+			err,
+		)
+	}
+	defer client.Close()
+	mc := newMetricsCollector(client.Devices, lm)
+	prometheus.MustRegister(mc)
 	lh := HTTPLeaseHandler{
-		leaseManager:   lm,
-		serverConfig:   cfg,
-		tokenValidator: tv,
+		leaseManager:     lm,
+		serverConfig:     cfg,
+		tokenValidator:   tv,
+		metricsCollector: mc,
 	}
 	go lh.start()
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)
