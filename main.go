@@ -86,6 +86,8 @@ func server() {
 		logger.Error.Fatalf("Cannot start lease server: %v", err)
 	}
 	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
+
+	// Start metrics server
 	client, err := wgctrl.New()
 	if err != nil {
 		logger.Error.Fatalf(
@@ -96,11 +98,12 @@ func server() {
 	defer client.Close()
 	mc := newMetricsCollector(client.Devices, lm)
 	prometheus.MustRegister(mc)
+	go startMetricsServer()
+
 	lh := HTTPLeaseHandler{
-		leaseManager:     lm,
-		serverConfig:     cfg,
-		tokenValidator:   tv,
-		metricsCollector: mc,
+		leaseManager:   lm,
+		serverConfig:   cfg,
+		tokenValidator: tv,
 	}
 	go lh.start()
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)

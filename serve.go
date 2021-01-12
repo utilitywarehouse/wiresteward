@@ -6,9 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -33,10 +30,9 @@ type leaseResponse struct {
 
 // HTTPLeaseHandler implements the HTTP server that manages peer address leases.
 type HTTPLeaseHandler struct {
-	leaseManager     *FileLeaseManager
-	serverConfig     *serverConfig
-	tokenValidator   *tokenValidator
-	metricsCollector prometheus.Collector
+	leaseManager   *FileLeaseManager
+	serverConfig   *serverConfig
+	tokenValidator *tokenValidator
 }
 
 func extractBearerTokenFromHeader(req *http.Request, header string) (string, error) {
@@ -120,7 +116,6 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 
 func (lh *HTTPLeaseHandler) start() {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
-	http.Handle("/metrics", promhttp.Handler())
 
 	logger.Info.Printf("Starting server for lease requests\n")
 	if err := http.ListenAndServe(lh.serverConfig.ServerListenAddress, nil); err != nil {

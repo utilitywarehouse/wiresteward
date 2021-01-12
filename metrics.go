@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -184,4 +187,19 @@ func (c *collector) getUserFromPubKey(pub string) string {
 		}
 	}
 	return ""
+}
+
+// Run metrics server on port 9586 that is marked for "WireGuard exporter":
+// https://github.com/prometheus/prometheus/wiki/Default-port-allocations
+func startMetricsServer() {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	server := http.Server{
+		Addr:    ":9586",
+		Handler: mux,
+	}
+	logger.Info.Printf("Starting metrics server at :9586\n")
+	if err := server.ListenAndServe(); err != nil {
+		logger.Error.Fatal(err)
+	}
 }
