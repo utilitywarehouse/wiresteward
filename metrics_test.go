@@ -98,9 +98,9 @@ func TestCollector(t *testing.T) {
 			metrics: []string{
 				fmt.Sprintf(`wiresteward_wg_device_info{device="wg0",public_key="%v"} 1`, pubDevA.String()),
 				fmt.Sprintf(`wiresteward_wg_device_info{device="wg1",public_key="%v"} 1`, pubDevB.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg0",endpoint="1.1.1.1:51820",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",endpoint="",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",endpoint="",public_key="%v",username=""} 1`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",public_key="%v",username=""} 1`, pubPeerC.String()),
 				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.1/32",device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
 				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.2/32",device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
 				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.3/32",device="wg1",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),

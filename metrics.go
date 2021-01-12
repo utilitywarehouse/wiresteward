@@ -38,7 +38,7 @@ func newMetricsCollector(devices func() ([]*wgtypes.Device, error), lm *FileLeas
 		PeerInfo: prometheus.NewDesc(
 			"wiresteward_wg_peer_info",
 			"Metadata about a peer. The public_key label on peer metrics refers to the peer's public key; not the device's public key.",
-			append(labels, []string{"endpoint", "username"}...),
+			append(labels, []string{"username"}...),
 			nil,
 		),
 		PeerAllowedIPsInfo: prometheus.NewDesc(
@@ -112,18 +112,13 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 
 		for _, p := range d.Peers {
 			pub := p.PublicKey.String()
-			// Use empty string instead of special Go <nil> syntax for no endpoint.
-			var endpoint string
-			if p.Endpoint != nil {
-				endpoint = p.Endpoint.String()
-			}
 			username := c.getUserFromPubKey(pub)
 
 			ch <- prometheus.MustNewConstMetric(
 				c.PeerInfo,
 				prometheus.GaugeValue,
 				1,
-				d.Name, pub, endpoint, username,
+				d.Name, pub, username,
 			)
 
 			for _, ip := range p.AllowedIPs {
