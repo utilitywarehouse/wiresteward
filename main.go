@@ -12,15 +12,14 @@ import (
 )
 
 var (
-	version      = "dev"
-	commit       = "none"
-	date         = "unknown"
-	builtBy      = "unknown"
-	flagAgent    = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig   = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagLogLevel = flag.String("log-level", "info", "Log Level (debug|info|error)")
-	// Pick the first available port as default for metrics: https://github.com/prometheus/prometheus/wiki/Default-port-allocations
-	flagMetricsAddr = flag.String("metrics-address", ":9781", "Metrics server address, meaningful when combined with -server flag")
+	version         = "dev"
+	commit          = "none"
+	date            = "unknown"
+	builtBy         = "unknown"
+	flagAgent       = flag.Bool("agent", false, "Run application in \"agent\" mode")
+	flagConfig      = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagLogLevel    = flag.String("log-level", "info", "Log Level (debug|info|error)")
+	flagMetricsAddr = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer      = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion     = flag.Bool("version", false, "Prints out application version")
 )
