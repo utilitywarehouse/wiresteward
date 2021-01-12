@@ -66,3 +66,8 @@ variable "ssh_address_range" {
 variable "metrics_subnet_cidr" {
   description = "cidr to accept connections for node exporter"
 }
+
+variable "wiresteward_metrics_port" {
+  description = "Port to scrape wiresteward metrics"
+  default     = "8081"
+}

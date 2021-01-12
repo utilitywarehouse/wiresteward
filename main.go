@@ -6,18 +6,22 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"golang.zx2c4.com/wireguard/wgctrl"
 )
 
 var (
-	version      = "dev"
-	commit       = "none"
-	date         = "unknown"
-	builtBy      = "unknown"
-	flagAgent    = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig   = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagLogLevel = flag.String("log-level", "info", "Log Level (debug|info|error)")
-	flagServer   = flag.Bool("server", false, "Run application in \"server\" mode")
-	flagVersion  = flag.Bool("version", false, "Prints out application version")
+	version         = "dev"
+	commit          = "none"
+	date            = "unknown"
+	builtBy         = "unknown"
+	flagAgent       = flag.Bool("agent", false, "Run application in \"agent\" mode")
+	flagConfig      = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagLogLevel    = flag.String("log-level", "info", "Log Level (debug|info|error)")
+	flagMetricsAddr = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
+	flagServer      = flag.Bool("server", false, "Run application in \"server\" mode")
+	flagVersion     = flag.Bool("version", false, "Prints out application version")
 )
 
 func main() {
@@ -82,8 +86,21 @@ func server() {
 	if err != nil {
 		logger.Error.Fatalf("Cannot start lease server: %v", err)
 	}
-
 	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
+
+	// Start metrics server
+	client, err := wgctrl.New()
+	if err != nil {
+		logger.Error.Fatalf(
+			"Failed to open WireGuard control client: %v",
+			err,
+		)
+	}
+	defer client.Close()
+	mc := newMetricsCollector(client.Devices, lm)
+	prometheus.MustRegister(mc)
+	go startMetricsServer(*flagMetricsAddr)
+
 	lh := HTTPLeaseHandler{
 		leaseManager:   lm,
 		serverConfig:   cfg,
