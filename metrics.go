@@ -189,17 +189,14 @@ func (c *collector) getUserFromPubKey(pub string) string {
 	return ""
 }
 
-// Run metrics server on port 9781 which is the first available withing the
-// ranges defined here:
-// https://github.com/prometheus/prometheus/wiki/Default-port-allocations
-func startMetricsServer() {
+func startMetricsServer(metricsAddr string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	server := http.Server{
-		Addr:    ":9781",
+		Addr:    metricsAddr,
 		Handler: mux,
 	}
-	logger.Info.Printf("Starting metrics server at :9781\n")
+	logger.Info.Printf("Starting metrics server at %s\n", metricsAddr)
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error.Fatal(err)
 	}
