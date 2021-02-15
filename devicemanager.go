@@ -12,11 +12,11 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// DeviceManager embeds a TunDevice and implements functionality related to
+// DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
 type DeviceManager struct {
-	*TunDevice
+	AgentDevice
 	configMutex sync.Mutex
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
@@ -28,16 +28,22 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	for _, e := range wirestewardURLs {
 		config[e] = nil
 	}
+	var device AgentDevice
+	if *flagDeviceType == "wireguard" {
+		device = newWireguardDevice(deviceName, mtu)
+	} else {
+		device = newTunDevice(deviceName, mtu)
+	}
 	return &DeviceManager{
-		TunDevice: newTunDevice(deviceName, mtu),
-		config:    config,
+		AgentDevice: device,
+		config:      config,
 	}
 }
 
-// Run starts the TunDevice by calling its Run() method and proceeds to
+// Run starts the AgentDevice by calling its Run() method and proceeds to
 // initialise it.
 func (dm *DeviceManager) Run() error {
-	if err := dm.TunDevice.Run(); err != nil {
+	if err := dm.AgentDevice.Run(); err != nil {
 		return fmt.Errorf("Error starting tun device `%s`: %w", dm.Name(), err)
 	}
 	if err := dm.ensureLinkUp(); err != nil {
