@@ -28,8 +28,14 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	for _, e := range wirestewardURLs {
 		config[e] = nil
 	}
+	var device AgentDevice
+	if *flagDeviceType == "wireguard" {
+		device = newWireguardDevice(deviceName, mtu)
+	} else {
+		device = newTunDevice(deviceName, mtu)
+	}
 	return &DeviceManager{
-		AgentDevice: newTunDevice(deviceName, mtu),
+		AgentDevice: device,
 		config:      config,
 	}
 }

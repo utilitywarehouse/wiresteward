@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ var (
 	builtBy         = "unknown"
 	flagAgent       = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagConfig      = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagDeviceType  = flag.String("device-type", "tun", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
 	flagLogLevel    = flag.String("log-level", "info", "Log Level (debug|info|error)")
 	flagMetricsAddr = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer      = flag.Bool("server", false, "Run application in \"server\" mode")
@@ -43,6 +45,11 @@ func main() {
 		logger.Error.Fatalln(
 			"Must only set -agent or -server, not both",
 		)
+	}
+
+	*flagDeviceType = strings.ToLower(*flagDeviceType)
+	if *flagDeviceType != "tun" && *flagDeviceType != "wireguard" {
+		logger.Error.Fatalf("Invalid device-type value `%s`", *flagDeviceType)
 	}
 
 	if *flagAgent {

@@ -149,6 +149,60 @@ func (td *TunDevice) cleanup() {
 	td.logger.Debug.Println("Device closed")
 }
 
+// WireguardDevice represents a kernel space wireguard network device on the
+// system. This is utilised by the agent-side wiresteward, to provide a native
+// device on linux systems with kernel support for wireguard.
+type WireguardDevice struct {
+	deviceName string
+	link       netlink.Link
+	logger     *device.Logger
+}
+
+func newWireguardDevice(name string, mtu int) *WireguardDevice {
+	if mtu == 0 {
+		mtu = device.DefaultMTU
+	}
+	return &WireguardDevice{
+		deviceName: name,
+		link: &netlink.Wireguard{LinkAttrs: netlink.LinkAttrs{
+			MTU:    mtu,
+			Name:   name,
+			TxQLen: 1000,
+		}},
+		logger: newLogger(fmt.Sprintf("wireguard/%s", name)),
+	}
+}
+
+// Name returns the name of the device.
+func (wd *WireguardDevice) Name() string {
+	return wd.deviceName
+}
+
+// Run creates the wireguard device.
+func (wd *WireguardDevice) Run() error {
+	h := netlink.Handle{}
+	defer h.Delete()
+	if err := h.LinkAdd(wd.link); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Stop will stop the device and cleanup underlying resources.
+func (wd *WireguardDevice) Stop() {
+	if wd.link == nil {
+		return
+	}
+	h := netlink.Handle{}
+	defer h.Delete()
+	if err := h.LinkSetDown(wd.link); err != nil {
+		wd.logger.Error.Println(err)
+	}
+	if err := h.LinkDel(wd.link); err != nil {
+		wd.logger.Error.Println(err)
+	}
+}
+
 // ServerDevice represents a wireguard network device on the system, setup
 // for use with kernel space wireguard. This is utilised by the server-side
 // wiresteward.
