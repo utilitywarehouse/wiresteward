@@ -28,7 +28,7 @@ type AgentDevice interface {
 
 // TunDevice represents a tun network device on the system, setup for use with
 // user space wireguard. This is utilised by the agent-side wiresteward, to
-// provide a cross-platform implementation basd on wireguard-go.
+// provide a cross-platform implementation based on wireguard-go.
 type TunDevice struct {
 	device     *device.Device
 	deviceMTU  int
@@ -149,10 +149,10 @@ func (td *TunDevice) cleanup() {
 	td.logger.Debug.Println("Device closed")
 }
 
-// WireguardDevice represents a wireguard network device on the system, setup
+// ServerDevice represents a wireguard network device on the system, setup
 // for use with kernel space wireguard. This is utilised by the server-side
 // wiresteward.
-type WireguardDevice struct {
+type ServerDevice struct {
 	deviceAddress netlink.Addr
 	deviceMTU     int
 	iptablesRule  []string
@@ -161,14 +161,14 @@ type WireguardDevice struct {
 	listenPort    int
 }
 
-func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
+func newServerDevice(cfg *serverConfig) *ServerDevice {
 	link := &netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:   cfg.DeviceName,
 			TxQLen: 1000,
 		},
 	}
-	return &WireguardDevice{
+	return &ServerDevice{
 		deviceAddress: netlink.Addr{
 			IPNet: &net.IPNet{
 				IP:   cfg.WireguardIPAddress,
@@ -188,37 +188,37 @@ func newWireguardDevice(cfg *serverConfig) *WireguardDevice {
 }
 
 // Start will create and setup the wireguard device.
-func (wd *WireguardDevice) Start() error {
+func (sd *ServerDevice) Start() error {
 	ipt, err := iptables.New()
 	if err != nil {
 		return err
 	}
-	logger.Info.Printf("Adding iptables rule %v", wd.iptablesRule)
-	if err := ipt.AppendUnique("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
+	logger.Info.Printf("Adding iptables rule %v", sd.iptablesRule)
+	if err := ipt.AppendUnique("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
 		return err
 	}
 	h := netlink.Handle{}
 	defer h.Delete()
 	logger.Info.Printf(
 		"Creating device %s with address %s",
-		wd.link.Attrs().Name,
-		wd.deviceAddress,
+		sd.link.Attrs().Name,
+		sd.deviceAddress,
 	)
-	if err := h.LinkAdd(wd.link); err != nil {
+	if err := h.LinkAdd(sd.link); err != nil {
 		return err
 	}
-	if err := wd.ensureLinkIsUp(h); err != nil {
+	if err := sd.ensureLinkIsUp(h); err != nil {
 		return err
 	}
-	if err := wd.configureWireguard(); err != nil {
+	if err := sd.configureWireguard(); err != nil {
 		return err
 	}
-	if err := h.AddrAdd(wd.link, &wd.deviceAddress); err != nil {
+	if err := h.AddrAdd(sd.link, &sd.deviceAddress); err != nil {
 		return err
 	}
-	mtu := wd.deviceMTU
+	mtu := sd.deviceMTU
 	if mtu <= 0 {
-		defaultMTU, err := wd.defaultMTU(h)
+		defaultMTU, err := sd.defaultMTU(h)
 		if err != nil {
 			logger.Error.Printf(
 				"Could not detect default MTU, defaulting to 1500: %v",
@@ -229,45 +229,45 @@ func (wd *WireguardDevice) Start() error {
 		mtu = defaultMTU - 80
 	}
 	logger.Info.Printf(
-		"Setting MTU to %d on device %s", mtu, wd.link.Attrs().Name)
-	if err := h.LinkSetMTU(wd.link, mtu); err != nil {
+		"Setting MTU to %d on device %s", mtu, sd.link.Attrs().Name)
+	if err := h.LinkSetMTU(sd.link, mtu); err != nil {
 		return err
 	}
-	logger.Info.Printf("Initialised device %s", wd.link.Attrs().Name)
+	logger.Info.Printf("Initialised device %s", sd.link.Attrs().Name)
 	return nil
 }
 
 // Stop will cleanup and delete the wireguard device.
-func (wd *WireguardDevice) Stop() error {
+func (sd *ServerDevice) Stop() error {
 	h := netlink.Handle{}
 	defer h.Delete()
-	if err := h.LinkSetDown(wd.link); err != nil {
+	if err := h.LinkSetDown(sd.link); err != nil {
 		return err
 	}
-	if err := h.LinkDel(wd.link); err != nil {
+	if err := h.LinkDel(sd.link); err != nil {
 		return err
 	}
 	ipt, err := iptables.New()
 	if err != nil {
 		return err
 	}
-	logger.Info.Printf("Removing iptables rule %v", wd.iptablesRule)
-	if err := ipt.Delete("nat", "POSTROUTING", wd.iptablesRule...); err != nil {
+	logger.Info.Printf("Removing iptables rule %v", sd.iptablesRule)
+	if err := ipt.Delete("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
 		return err
 	}
-	logger.Info.Printf("Cleaned up device %s", wd.link.Attrs().Name)
+	logger.Info.Printf("Cleaned up device %s", sd.link.Attrs().Name)
 	return nil
 }
 
-func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
-	kd, err := ioutil.ReadFile(wd.keyFilename)
+func (sd *ServerDevice) privateKey() (wgtypes.Key, error) {
+	kd, err := ioutil.ReadFile(sd.keyFilename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Info.Printf(
 				"No key found in %s, generating a new private key",
-				wd.keyFilename,
+				sd.keyFilename,
 			)
-			keyDir := filepath.Dir(wd.keyFilename)
+			keyDir := filepath.Dir(sd.keyFilename)
 			err := os.MkdirAll(keyDir, 0755)
 			if err != nil {
 				logger.Error.Printf(
@@ -280,7 +280,7 @@ func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
 			if err != nil {
 				return wgtypes.Key{}, err
 			}
-			if err := ioutil.WriteFile(wd.keyFilename, []byte(key.String()), 0600); err != nil {
+			if err := ioutil.WriteFile(sd.keyFilename, []byte(key.String()), 0600); err != nil {
 				return wgtypes.Key{}, err
 			}
 			return key, nil
@@ -290,7 +290,7 @@ func (wd *WireguardDevice) privateKey() (wgtypes.Key, error) {
 	return wgtypes.ParseKey(string(kd))
 }
 
-func (wd *WireguardDevice) configureWireguard() error {
+func (sd *ServerDevice) configureWireguard() error {
 	wg, err := wgctrl.New()
 	if err != nil {
 		return err
@@ -303,23 +303,23 @@ func (wd *WireguardDevice) configureWireguard() error {
 			)
 		}
 	}()
-	key, err := wd.privateKey()
+	key, err := sd.privateKey()
 	if err != nil {
 		return err
 	}
 	logger.Info.Printf(
 		"Configuring wireguard on port %v with public key %s",
-		wd.listenPort,
+		sd.listenPort,
 		key.PublicKey(),
 	)
-	return wg.ConfigureDevice(wd.link.Attrs().Name, wgtypes.Config{
+	return wg.ConfigureDevice(sd.link.Attrs().Name, wgtypes.Config{
 		PrivateKey: &key,
-		ListenPort: &wd.listenPort,
+		ListenPort: &sd.listenPort,
 	})
 }
 
 // defaultMTU returns the MTU of the default route or the respective device.
-func (wd *WireguardDevice) defaultMTU(h netlink.Handle) (int, error) {
+func (sd *ServerDevice) defaultMTU(h netlink.Handle) (int, error) {
 	routes, err := h.RouteList(nil, unix.AF_INET)
 	if err != nil {
 		return -1, err
@@ -345,31 +345,31 @@ func (wd *WireguardDevice) defaultMTU(h netlink.Handle) (int, error) {
 // get the UP flag set but subsequent AddrAdd() calls might fail, indicating
 // it did not properly set up. This method, will wait for the link to come up
 // automatically and will explicitly bring it up after timeout.
-func (wd *WireguardDevice) ensureLinkIsUp(h netlink.Handle) error {
+func (sd *ServerDevice) ensureLinkIsUp(h netlink.Handle) error {
 	tries := 1
 	for {
-		link, err := h.LinkByName(wd.link.Attrs().Name)
+		link, err := h.LinkByName(sd.link.Attrs().Name)
 		if err != nil {
 			return err
 		}
 		logger.Info.Printf(
 			"waiting for device %s to come up, current flags: %s",
-			wd.link.Attrs().Name,
+			sd.link.Attrs().Name,
 			link.Attrs().Flags,
 		)
 		if link.Attrs().Flags&net.FlagUp != 0 {
 			logger.Info.Printf(
 				"device %s came up automatically",
-				wd.link.Attrs().Name,
+				sd.link.Attrs().Name,
 			)
 			return nil
 		}
 		if tries > 4 {
 			logger.Info.Printf(
 				"timeout waiting for device %s to come up automatically",
-				wd.link.Attrs().Name,
+				sd.link.Attrs().Name,
 			)
-			return h.LinkSetUp(wd.link)
+			return h.LinkSetUp(sd.link)
 		}
 		tries++
 		time.Sleep(time.Second)

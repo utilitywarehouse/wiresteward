@@ -64,7 +64,7 @@ func server() {
 		logger.Error.Fatalf("Cannot read server config: %v", err)
 	}
 
-	wg := newWireguardDevice(cfg)
+	wg := newServerDevice(cfg)
 	if err := wg.Start(); err != nil {
 		logger.Error.Fatalf(
 			"Cannot setup wireguard device '%s': %v",
