@@ -20,6 +20,12 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+type AgentDevice interface {
+	Name() string
+	Run() error
+	Stop()
+}
+
 // TunDevice represents a tun network device on the system, setup for use with
 // user space wireguard. This is utilised by the agent-side wiresteward, to
 // provide a cross-platform implementation basd on wireguard-go.
