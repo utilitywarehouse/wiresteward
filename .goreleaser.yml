@@ -9,6 +9,9 @@ builds:
       - amd64
       - arm
       - arm64
+      - mips
+    gomips:
+      - softfloat
 release:
   github:
     owner: utilitywarehouse
