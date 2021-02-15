@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -22,12 +23,20 @@ var (
 	// looking wiresteward initials hex on ascii table (w = 0x77 and s = 0x73)
 	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")
 	flagConfig       = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagDeviceType   = flag.String("device-type", "tun", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
+	flagDeviceType   *string
 	flagLogLevel     = flag.String("log-level", "info", "Log Level (debug|info|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
+
+func init() {
+	defaultDeviceType := "tun"
+	if runtime.GOOS == "linux" {
+		defaultDeviceType = "wireguard"
+	}
+	flagDeviceType = flag.String("device-type", defaultDeviceType, "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
+}
 
 func main() {
 	flag.Parse()
