@@ -139,12 +139,16 @@ func agent() {
 		logger.Error.Fatalf("Cannot read agent config: %v", err)
 	}
 
-	agent := NewAgent(agentConf)
-	go agent.ListenAndServe()
-
 	term := make(chan os.Signal, 1)
 	signal.Notify(term, syscall.SIGTERM)
 	signal.Notify(term, os.Interrupt)
+
+	agent := NewAgent(agentConf)
+	go func() {
+		agent.ListenAndServe()
+		close(term)
+	}()
+
 	select {
 	case <-term:
 	}

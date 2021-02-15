@@ -74,7 +74,7 @@ func (a *Agent) ListenAndServe() {
 	// 7773 is chosen by looking wiresteward initials hex on ascii table
 	// (w = 0x77 and s = 0x73)
 	if err := http.ListenAndServe("127.0.0.1:7773", nil); err != nil {
-		logger.Error.Fatal(err)
+		logger.Error.Println(err)
 	}
 }
 
