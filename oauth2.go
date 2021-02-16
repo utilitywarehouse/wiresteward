@@ -30,7 +30,7 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 			ClientID: clientID,
 			//ClientSecret: clientSecret,
 			Scopes:      []string{"openid", "email"},
-			RedirectURL: "http://localhost:7773/oauth2/callback",
+			RedirectURL: fmt.Sprintf("http://%s/oauth2/callback", *flagAgentAddress),
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  authURL,
 				TokenURL: tokenURL,

@@ -54,8 +54,8 @@ func NewAgent(cfg *agentConfig) *Agent {
 	return agent
 }
 
-// ListenAndServe sets up and starts an http server on localhost, to allow for
-// the OAuth2 exchange and token renewal.
+// ListenAndServe sets up and starts an http server, to allow for the OAuth2
+// exchange and token renewal.
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/", a.mainHandler)
