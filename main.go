@@ -13,17 +13,20 @@ import (
 )
 
 var (
-	version         = "dev"
-	commit          = "none"
-	date            = "unknown"
-	builtBy         = "unknown"
-	flagAgent       = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagConfig      = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagDeviceType  = flag.String("device-type", "tun", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
-	flagLogLevel    = flag.String("log-level", "info", "Log Level (debug|info|error)")
-	flagMetricsAddr = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
-	flagServer      = flag.Bool("server", false, "Run application in \"server\" mode")
-	flagVersion     = flag.Bool("version", false, "Prints out application version")
+	version   = "dev"
+	commit    = "none"
+	date      = "unknown"
+	builtBy   = "unknown"
+	flagAgent = flag.Bool("agent", false, "Run application in \"agent\" mode")
+	// By default the agent runs at a high obscure port. 7773 is chosen by
+	// looking wiresteward initials hex on ascii table (w = 0x77 and s = 0x73)
+	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")
+	flagConfig       = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagDeviceType   = flag.String("device-type", "tun", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
+	flagLogLevel     = flag.String("log-level", "info", "Log Level (debug|info|error)")
+	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
+	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
+	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
 
 func main() {
@@ -50,6 +53,10 @@ func main() {
 	*flagDeviceType = strings.ToLower(*flagDeviceType)
 	if *flagDeviceType != "tun" && *flagDeviceType != "wireguard" {
 		logger.Error.Fatalf("Invalid device-type value `%s`", *flagDeviceType)
+	}
+
+	if *flagAgentAddress != "" && !*flagAgent {
+		logger.Error.Fatalln("Can only specify -agent-listen-address when running the agent")
 	}
 
 	if *flagAgent {

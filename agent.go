@@ -60,7 +60,7 @@ func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/", a.mainHandler)
 
-	logger.Info.Println("Starting agent at localhost:7773")
+	logger.Info.Printf("Starting agent at http://%s", *flagAgentAddress)
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
@@ -69,11 +69,7 @@ func (a *Agent) ListenAndServe() {
 		a.renewAllLeases(token.AccessToken)
 	}
 
-	// Start agent at a high obscure port. That port is hardcoded as oauth
-	// server needs to allow redirections to localhost:7773/oauth2/callback
-	// 7773 is chosen by looking wiresteward initials hex on ascii table
-	// (w = 0x77 and s = 0x73)
-	if err := http.ListenAndServe("127.0.0.1:7773", nil); err != nil {
+	if err := http.ListenAndServe(*flagAgentAddress, nil); err != nil {
 		logger.Error.Println(err)
 	}
 }
