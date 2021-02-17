@@ -38,12 +38,23 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	if err := h.AddrAdd(link, &netlink.Addr{IPNet: config.LocalAddress}); err != nil {
 		return err
 	}
+
 	for _, r := range config.AllowedIPs {
-		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r, Gw: config.LocalAddress.IP}); err != nil {
-			logger.Error.Printf(
-				"Could not add new route (%s): %s", r, err)
+		// In ip multipath is used just update the routeMap. The agent will need to apply the map later and create the routes
+		if dm.multipath {
+			if p, ok := routeMap[r.String()]; ok {
+				routeMap[r.String()] = append(p, &netlink.NexthopInfo{LinkIndex: link.Attrs().Index, Gw: config.LocalAddress.IP})
+			} else {
+				routeMap[r.String()] = []*netlink.NexthopInfo{{LinkIndex: link.Attrs().Index, Gw: config.LocalAddress.IP}}
+			}
+		} else {
+			if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r, Gw: config.LocalAddress.IP}); err != nil {
+				logger.Error.Printf(
+					"Could not add new route (%s): %s", r, err)
+			}
 		}
 	}
+
 	return nil
 }
 

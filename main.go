@@ -26,6 +26,7 @@ var (
 	flagDeviceType   *string
 	flagLogLevel     = flag.String("log-level", "info", "Log Level (debug|info|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
+	flagMultipath    = flag.Bool("multipath", false, "Agent will use multipaths instead of gateway for configuring route tables")
 	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
@@ -159,7 +160,7 @@ func agent() {
 	signal.Notify(term, syscall.SIGTERM)
 	signal.Notify(term, os.Interrupt)
 
-	agent := NewAgent(agentConf)
+	agent := NewAgent(agentConf, *flagMultipath)
 	go func() {
 		agent.ListenAndServe()
 		close(term)

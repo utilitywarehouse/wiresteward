@@ -17,19 +17,20 @@ const (
 type Agent struct {
 	deviceManagers []*DeviceManager
 	oa             *oauthTokenHandler
+	multipath      bool
 }
 
 // NewAgent creates an Agent from an AgentConfig. It generates a DeviceManager
 // per device specified in the configuration, sets up and starts the associated
 // resources.
-func NewAgent(cfg *agentConfig) *Agent {
+func NewAgent(cfg *agentConfig, multipath bool) *Agent {
 	agent := &Agent{}
 	for _, dev := range cfg.Devices {
 		urls := []string{}
 		for _, peer := range dev.Peers {
 			urls = append(urls, peer.URL)
 		}
-		dm := newDeviceManager(dev.Name, dev.MTU, urls)
+		dm := newDeviceManager(dev.Name, dev.MTU, urls, multipath)
 		if err := dm.Run(); err != nil {
 			logger.Error.Printf(
 				"Error starting device `%s`: %v",
@@ -51,6 +52,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		cfg.OAuth.ClientID,
 		defaultTokenFileLoc,
 	)
+	agent.multipath = multipath
 	return agent
 }
 
@@ -92,6 +94,9 @@ func (a *Agent) renewAllLeases(token string) {
 				err,
 			)
 		}
+	}
+	if a.multipath {
+		applyMap()
 	}
 }
 

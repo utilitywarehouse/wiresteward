@@ -20,10 +20,11 @@ type DeviceManager struct {
 	configMutex sync.Mutex
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
-	config map[string]*WirestewardPeerConfig
+	config    map[string]*WirestewardPeerConfig
+	multipath bool
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, multipath bool) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	for _, e := range wirestewardURLs {
 		config[e] = nil
@@ -37,6 +38,7 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	return &DeviceManager{
 		AgentDevice: device,
 		config:      config,
+		multipath:   multipath,
 	}
 }
 
