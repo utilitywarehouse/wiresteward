@@ -103,7 +103,7 @@ func (dm *DeviceManager) forceRenewLoop() {
 	}
 }
 
-func (dm *DeviceManager) ensureAllHealthChecksArestopeed() {
+func (dm *DeviceManager) ensureAllHealthChecksAreStopeed() {
 	for _, hc := range dm.healthCheck {
 		if hc.running {
 			hc.Stop()
@@ -121,7 +121,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
 	}
-	dm.ensureAllHealthChecksArestopeed()
+	dm.ensureAllHealthChecksAreStopeed()
 	// TODO: introduce randomness here
 	var serverURL string
 	for url, hc := range dm.healthCheck {
