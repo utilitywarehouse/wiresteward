@@ -7,7 +7,6 @@ require (
 	github.com/google/go-cmp v0.5.4
 	github.com/mdlayher/netlink v1.3.0 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
-	github.com/nirasan/go-oauth-pkce-code-verifier v0.0.0-20170819232839-0fbfe93532da
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/stretchr/testify v1.6.1
