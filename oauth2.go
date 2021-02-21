@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -186,7 +186,7 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Response status: %s", resp.Status)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w,", err)
 	}

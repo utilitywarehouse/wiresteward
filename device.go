@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -314,7 +313,7 @@ func (sd *ServerDevice) Stop() error {
 }
 
 func (sd *ServerDevice) privateKey() (wgtypes.Key, error) {
-	kd, err := ioutil.ReadFile(sd.keyFilename)
+	kd, err := os.ReadFile(sd.keyFilename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Info.Printf(
@@ -334,7 +333,7 @@ func (sd *ServerDevice) privateKey() (wgtypes.Key, error) {
 			if err != nil {
 				return wgtypes.Key{}, err
 			}
-			if err := ioutil.WriteFile(sd.keyFilename, []byte(key.String()), 0600); err != nil {
+			if err := os.WriteFile(sd.keyFilename, []byte(key.String()), 0600); err != nil {
 				return wgtypes.Key{}, err
 			}
 			return key, nil
