@@ -95,6 +95,19 @@ func udpClientRequest(address string, reader io.Reader) (string, error) {
 		logger.Error.Printf("cannot dial udp address (%s): %s", raddr, err)
 		return "", err
 	}
+	// set write and read timeouts
+	timeout := time.Second * time.Duration(1)
+	deadline := time.Now().Add(timeout)
+	err = conn.SetWriteDeadline(deadline)
+	if err != nil {
+		logger.Error.Printf("failed to set write timeout: %s", err)
+		return "", err
+	}
+	err = conn.SetReadDeadline(deadline)
+	if err != nil {
+		logger.Error.Printf("failed to set read timeout: %s", err)
+		return "", err
+	}
 	defer conn.Close()
 
 	_, err = io.Copy(conn, reader)
@@ -104,14 +117,6 @@ func udpClientRequest(address string, reader io.Reader) (string, error) {
 	}
 
 	buffer := make([]byte, maxBufferSize)
-	timeout := time.Second * time.Duration(1)
-	deadline := time.Now().Add(timeout)
-	err = conn.SetReadDeadline(deadline)
-	if err != nil {
-		logger.Error.Printf("failed to set read timeout: %s", err)
-		return "", err
-	}
-
 	nRead, addr, err := conn.ReadFrom(buffer)
 	if err != nil {
 		logger.Error.Printf("failed to read response: %s from addr: %s", err, addr)

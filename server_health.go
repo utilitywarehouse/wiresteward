@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"net"
 	"time"
@@ -26,7 +27,7 @@ func udpHealthServer(ctx context.Context, address string) (err error) {
 				logger.Error.Printf("udp read failed: %s", err)
 				continue
 			}
-			if string(buffer[:n]) != "health" {
+			if bytes.Compare(buffer[:n], []byte("health")) != 0 {
 				logger.Info.Printf("unknown udp request: bytes=%d (%s) from=%s\n",
 					n, string(buffer[:n]), addr.String())
 				continue
