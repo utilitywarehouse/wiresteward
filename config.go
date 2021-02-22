@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -76,7 +76,7 @@ func verifyAgentDevicesConfig(conf *agentConfig) error {
 
 func readAgentConfig(path string) (*agentConfig, error) {
 	conf := &agentConfig{}
-	fileContent, err := ioutil.ReadFile(path)
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return conf, fmt.Errorf("error reading config file: %v", err)
 	}
@@ -218,7 +218,7 @@ func verifyServerConfig(conf *serverConfig) error {
 
 func readServerConfig(path string) (*serverConfig, error) {
 	conf := &serverConfig{}
-	fileContent, err := ioutil.ReadFile(path)
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %v", err)
 	}

@@ -2,17 +2,48 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
-	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
 	"golang.org/x/oauth2"
 )
+
+// https://www.oauth.com/oauth2-servers/pkce/authorization-request/
+var (
+	codeVerifierCharSet = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~")
+	codeVerifierLength  = 43
+	codeVerifierRandMax = big.NewInt(int64(len(codeVerifierCharSet)))
+)
+
+type codeVerifier struct {
+	value []byte
+}
+
+func CreateCodeVerifier() (*codeVerifier, error) {
+	// "code verifier"
+	// > cryptographically random string using the characters A-Z, a-z,
+	// > 0-9, and the punctuation characters -._~ (hyphen, period, underscore,
+	// > and tilde), between 43 and 128 characters long
+	v := make([]byte, codeVerifierLength)
+	for i := 0; i < codeVerifierLength; i++ {
+		num, err := rand.Int(rand.Reader, codeVerifierRandMax)
+		if err != nil {
+			return nil, err
+		}
+		v[i] = codeVerifierCharSet[num.Int64()]
+	}
+
+	return &codeVerifier{value: v}, nil
+}
 
 // oauthTokenHandler implements functionality for the oauth2 flow.
 type oauthTokenHandler struct {
@@ -20,7 +51,7 @@ type oauthTokenHandler struct {
 	config       *oauth2.Config
 	tokFile      string             // File path to cache the token
 	t            chan *oauth2.Token // to feed the token from the redirect uri
-	codeVerifier *cv.CodeVerifier
+	codeVerifier *codeVerifier
 }
 
 func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
@@ -45,12 +76,17 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 
 // prepareTokenWebChalenge returns a url to follow oauth
 func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
-	codeVerifier, err := cv.CreateCodeVerifier()
+	codeVerifier, err := CreateCodeVerifier()
 	if err != nil {
 		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
 	}
 	oa.codeVerifier = codeVerifier
-	codeChallenge := oa.codeVerifier.CodeChallengeS256()
+
+	// "code challenge"
+	// > BASE64-URL-encoded string of the SHA256 hash of the code verifier
+	verifyHash := sha256.Sum256(oa.codeVerifier.value)
+	codeChallenge := base64.RawURLEncoding.EncodeToString(verifyHash[:])
+
 	codeChallengeOpt := oauth2.SetAuthURLParam("code_challenge", codeChallenge)
 	codeChallengeMethodOpt := oauth2.SetAuthURLParam("code_challenge_method", "S256")
 
@@ -69,6 +105,7 @@ func (oa *oauthTokenHandler) getTokenFromFile() (*oauth2.Token, error) {
 		return nil, err
 	}
 	defer f.Close()
+
 	tok := &oauth2.Token{}
 	if err := json.NewDecoder(f).Decode(tok); err != nil {
 		return nil, err
@@ -93,7 +130,7 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	if oa.codeVerifier == nil {
 		return nil, fmt.Errorf("unexpected callback received, please visit the root path instead")
 	}
-	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", oa.codeVerifier.String())
+	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", string(oa.codeVerifier.value))
 	tok, err := oa.config.Exchange(oa.ctx, code, codeVerifierOpt)
 	if err != nil {
 		return nil, err
@@ -150,7 +187,7 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Response status: %s", resp.Status)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w,", err)
 	}
