@@ -64,10 +64,6 @@ func main() {
 		logger.Error.Fatalf("Invalid device-type value `%s`", *flagDeviceType)
 	}
 
-	if *flagAgentAddress != "" && !*flagAgent {
-		logger.Error.Fatalln("Can only specify -agent-listen-address when running the agent")
-	}
-
 	if *flagAgent {
 		agent()
 		return
