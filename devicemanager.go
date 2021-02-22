@@ -25,21 +25,16 @@ type DeviceManager struct {
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
 	config map[string]*WirestewardPeerConfig
-	// keeps a healthcheck for a peer url
+	// keeps a health check for a peer url
 	healthCheck     map[string]*healthCheck
 	forceRenewLease chan struct{}
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, hc agentHealthCheckConfig) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	forceRenewLease := make(chan struct{})
-	hc := make(map[string]*healthCheck, len(wirestewardURLs))
 	for _, e := range wirestewardURLs {
 		config[e] = nil
-		u, _ := url.Parse(e)
-		server := strings.Split(u.Host, ":")[0]
-		hc[e] = newHealthCheck(
-			fmt.Sprintf("%s:%s", server, "51821"), time.Second*time.Duration(1), 3, forceRenewLease)
 	}
 	var device AgentDevice
 	if *flagDeviceType == "wireguard" {
@@ -50,9 +45,23 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	return &DeviceManager{
 		AgentDevice:     device,
 		config:          config,
-		healthCheck:     hc,
+		healthCheck:     setUpHealthChecks(wirestewardURLs, hc, forceRenewLease),
 		forceRenewLease: forceRenewLease,
 	}
+}
+
+func setUpHealthChecks(wirestewardURLs []string, hc agentHealthCheckConfig, renew chan struct{}) map[string]*healthCheck {
+	healthChecks := make(map[string]*healthCheck, len(wirestewardURLs))
+	if hc.Port == 0 { // Port not set, default if config not specified
+		return healthChecks
+	}
+	for _, e := range wirestewardURLs {
+		u, _ := url.Parse(e)
+		server := strings.Split(u.Host, ":")[0]
+		healthChecks[e] = newHealthCheck(
+			fmt.Sprintf("%s:%d", server, hc.Port), time.Second*time.Duration(1), 3, renew)
+	}
+	return healthChecks
 }
 
 // Run starts the AgentDevice by calling its Run() method and proceeds to
@@ -85,7 +94,9 @@ func (dm *DeviceManager) Run() error {
 		}
 	}
 
-	go dm.forceRenewLoop()
+	if len(dm.healthCheck) > 0 {
+		go dm.forceRenewLoop()
+	}
 	return nil
 }
 
@@ -111,6 +122,26 @@ func (dm *DeviceManager) ensureAllHealthChecksAreStopeed() {
 	}
 }
 
+func (dm *DeviceManager) pickHealthyServer() string {
+	// if health checks are defined, return the first one
+	if len(dm.healthCheck) > 0 {
+		// TODO: introduce randomness here
+		for url, hc := range dm.healthCheck {
+			res := hc.Check()
+			if res.healthy {
+				return url
+			}
+		}
+	}
+	// else return the first config key
+	for url, _ := range dm.config {
+		return url
+	}
+	// else return an empty string
+	return ""
+
+}
+
 // RenewLeases uses the provided oauth2 token to retrieve a new leases from one
 // of the healthy wiresteward servers associated with the underlying device. If
 // healthchecks are disabled then all serveres would be considered healthy. The
@@ -121,16 +152,9 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
 	}
+
 	dm.ensureAllHealthChecksAreStopeed()
-	// TODO: introduce randomness here
-	var serverURL string
-	for url, hc := range dm.healthCheck {
-		res := hc.Check()
-		if res.healthy {
-			serverURL = url
-			break
-		}
-	}
+	serverURL := dm.pickHealthyServer()
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
@@ -169,7 +193,9 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	if err := setPeers(dm.Name(), peers); err != nil {
 		return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
 	}
-	go dm.healthCheck[serverURL].Run()
+	if hc, ok := dm.healthCheck[serverURL]; ok {
+		go hc.Run()
+	}
 	return nil
 }
 

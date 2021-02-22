@@ -30,12 +30,19 @@ type agentPeerConfig struct {
 	URL string `json:"url"`
 }
 
+// agentPeerConfig contains the port to attempt health checking all peers for a
+// device
+type agentHealthCheckConfig struct {
+	Port int `json:"port"`
+}
+
 // agentDeviceConfig defines a network device and associated wiresteward
 // servers.
 type agentDeviceConfig struct {
-	Name  string            `json:"name"`
-	MTU   int               `json:"mtu"`
-	Peers []agentPeerConfig `json:"peers"`
+	Name        string                 `json:"name"`
+	MTU         int                    `json:"mtu"`
+	Peers       []agentPeerConfig      `json:"peers"`
+	HealthCheck agentHealthCheckConfig `json: "healthcheck"`
 }
 
 // AgentConfig describes the agent-side configuration of wiresteward.
