@@ -21,6 +21,7 @@ import (
 var (
 	codeVerifierCharSet = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~")
 	codeVerifierLength  = 43
+	codeVerifierRandMax = big.NewInt(int64(len(codeVerifierCharSet)))
 )
 
 type codeVerifier struct {
@@ -34,7 +35,7 @@ func CreateCodeVerifier() (*codeVerifier, error) {
 	// > and tilde), between 43 and 128 characters long
 	v := make([]byte, codeVerifierLength)
 	for i := 0; i < codeVerifierLength; i++ {
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(codeVerifierCharSet))))
+		num, err := rand.Int(rand.Reader, codeVerifierRandMax)
 		if err != nil {
 			return nil, err
 		}
