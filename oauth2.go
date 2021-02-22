@@ -23,11 +23,11 @@ var (
 	codeVerifierLength  = 43
 )
 
-type CodeVerifier struct {
-	Value []byte
+type codeVerifier struct {
+	value []byte
 }
 
-func CreateCodeVerifier() (*CodeVerifier, error) {
+func CreateCodeVerifier() (*codeVerifier, error) {
 	// "code verifier"
 	// > cryptographically random string using the characters A-Z, a-z,
 	// > 0-9, and the punctuation characters -._~ (hyphen, period, underscore,
@@ -41,7 +41,7 @@ func CreateCodeVerifier() (*CodeVerifier, error) {
 		v[i] = codeVerifierCharSet[num.Int64()]
 	}
 
-	return &CodeVerifier{Value: v}, nil
+	return &codeVerifier{value: v}, nil
 }
 
 // oauthTokenHandler implements functionality for the oauth2 flow.
@@ -50,7 +50,7 @@ type oauthTokenHandler struct {
 	config       *oauth2.Config
 	tokFile      string             // File path to cache the token
 	t            chan *oauth2.Token // to feed the token from the redirect uri
-	codeVerifier *CodeVerifier
+	codeVerifier *codeVerifier
 }
 
 func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
@@ -83,7 +83,7 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
 
 	// "code challenge"
 	// > BASE64-URL-encoded string of the SHA256 hash of the code verifier
-	verifyHash := sha256.Sum256(oa.codeVerifier.Value)
+	verifyHash := sha256.Sum256(oa.codeVerifier.value)
 	codeChallenge := base64.RawURLEncoding.EncodeToString(verifyHash[:])
 
 	codeChallengeOpt := oauth2.SetAuthURLParam("code_challenge", codeChallenge)
@@ -129,7 +129,7 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	if oa.codeVerifier == nil {
 		return nil, fmt.Errorf("unexpected callback received, please visit the root path instead")
 	}
-	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", string(oa.codeVerifier.Value))
+	codeVerifierOpt := oauth2.SetAuthURLParam("code_verifier", string(oa.codeVerifier.value))
 	tok, err := oa.config.Exchange(oa.ctx, code, codeVerifierOpt)
 	if err != nil {
 		return nil, err
