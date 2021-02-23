@@ -127,7 +127,6 @@ func server() {
 		tokenValidator: tv,
 	}
 	go lh.start()
-
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)
 	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)

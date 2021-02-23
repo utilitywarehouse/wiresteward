@@ -29,7 +29,7 @@ type DeviceManager struct {
 	forceRenewLease chan struct{}
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, hc agentHealthCheckConfig) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	forceRenewLease := make(chan struct{})
 	for _, e := range wirestewardURLs {
