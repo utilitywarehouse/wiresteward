@@ -35,7 +35,7 @@ func NewHealthCheck(address string, interval time.Duration, threshold int, renew
 }
 
 func (hc healthCheck) Stop() {
-	close(hc.stop)
+	hc.stop <- struct{}{}
 }
 
 func (hc healthCheck) Run() {
