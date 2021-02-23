@@ -41,6 +41,7 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, hc a
 	} else {
 		device = newTunDevice(deviceName, mtu)
 	}
+	rand.Seed(time.Now().Unix()) // initialize pseudo random generator for picking servers
 	return &DeviceManager{
 		AgentDevice:     device,
 		config:          config,
@@ -107,7 +108,6 @@ func (dm *DeviceManager) ensureHealthCheckIsStoped() {
 }
 
 func (dm *DeviceManager) nextServer() string {
-	rand.Seed(time.Now().Unix())
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 

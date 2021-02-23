@@ -100,7 +100,7 @@ func parseICMPEchoReply(msg icmpMsg) (id, seqnum, chksum uint16) {
 }
 
 func exchangeICMPEcho(ip net.IP, timeout time.Duration, echo icmpMsg) error {
-	c, err := net.ListenPacket("ip:icmp", "")
+	c, err := net.ListenPacket("ip4:icmp", "")
 	if err != nil {
 		return err
 	}
