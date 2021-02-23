@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"os/signal"
@@ -128,7 +127,7 @@ func server() {
 		tokenValidator: tv,
 	}
 	go lh.start()
-	go udpHealthServer(context.Background(), *flagHealthCheckAddr)
+
 	ticker := time.NewTicker(cfg.LeaserSyncInterval)
 	defer ticker.Stop()
 	quit := make(chan os.Signal, 1)

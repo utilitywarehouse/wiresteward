@@ -167,6 +167,9 @@ func verifyServerConfig(conf *serverConfig) error {
 	if len(conf.AllowedIPs) == 0 {
 		logger.Info.Printf("config missing `allowedIPs`, this server is not exposing any networks")
 	}
+	// Append the server wg /32 ip to the allowed ips in case the agent wants to ping it for health checking
+	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/%s", conf.WireguardIPAddress.String(), "32"))
+
 	if conf.DeviceName == "" {
 		conf.DeviceName = defaultWireguardDeviceName
 		logger.Info.Printf(

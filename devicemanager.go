@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,9 +23,9 @@ type DeviceManager struct {
 	configMutex sync.Mutex
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
-	config map[string]*WirestewardPeerConfig
-	// keeps a health check for a peer url
-	healthCheck     map[string]*healthCheck
+	config          map[string]*WirestewardPeerConfig
+	serverURLs      []string
+	healthCheck     *healthCheck
 	forceRenewLease chan struct{}
 }
 
@@ -45,23 +44,10 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, hc a
 	return &DeviceManager{
 		AgentDevice:     device,
 		config:          config,
-		healthCheck:     setUpHealthChecks(wirestewardURLs, hc, forceRenewLease),
+		serverURLs:      wirestewardURLs,
+		healthCheck:     &healthCheck{running: false},
 		forceRenewLease: forceRenewLease,
 	}
-}
-
-func setUpHealthChecks(wirestewardURLs []string, hc agentHealthCheckConfig, renew chan struct{}) map[string]*healthCheck {
-	healthChecks := make(map[string]*healthCheck, len(wirestewardURLs))
-	if hc.Port == 0 { // Port not set, default if config not specified
-		return healthChecks
-	}
-	for _, e := range wirestewardURLs {
-		u, _ := url.Parse(e)
-		server := strings.Split(u.Host, ":")[0]
-		healthChecks[e] = newHealthCheck(
-			fmt.Sprintf("%s:%d", server, hc.Port), time.Second*time.Duration(1), 3, renew)
-	}
-	return healthChecks
 }
 
 // Run starts the AgentDevice by calling its Run() method and proceeds to
@@ -94,7 +80,7 @@ func (dm *DeviceManager) Run() error {
 		}
 	}
 
-	if len(dm.healthCheck) > 0 {
+	if len(dm.serverURLs) > 0 {
 		go dm.forceRenewLoop()
 	}
 	return nil
@@ -114,32 +100,15 @@ func (dm *DeviceManager) forceRenewLoop() {
 	}
 }
 
-func (dm *DeviceManager) ensureAllHealthChecksAreStopeed() {
-	for _, hc := range dm.healthCheck {
-		if hc.running {
-			hc.Stop()
-		}
+func (dm *DeviceManager) ensureHealthCheckIsStoped() {
+	if dm.healthCheck.running {
+		dm.healthCheck.Stop()
 	}
 }
 
-func (dm *DeviceManager) pickHealthyServer() string {
-	// if health checks are defined, return the first one
-	if len(dm.healthCheck) > 0 {
-		// TODO: introduce randomness here
-		for url, hc := range dm.healthCheck {
-			res := hc.Check()
-			if res.healthy {
-				return url
-			}
-		}
-	}
-	// else return the first config key
-	for url, _ := range dm.config {
-		return url
-	}
-	// else return an empty string
-	return ""
-
+func (dm *DeviceManager) nextServer() string {
+	rand.Seed(time.Now().Unix())
+	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 
 // RenewLeases uses the provided oauth2 token to retrieve a new leases from one
@@ -153,14 +122,13 @@ func (dm *DeviceManager) RenewLease(token string) error {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
 	}
 
-	dm.ensureAllHealthChecksAreStopeed()
-	serverURL := dm.pickHealthyServer()
+	serverURL := dm.nextServer()
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
 	oldConfig := dm.config[serverURL]
 	peers := []wgtypes.PeerConfig{}
-	config, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
 	if err != nil {
 		logger.Error.Printf(
 			"Could not get wiresteward peer config from `%s`: %v",
@@ -193,8 +161,17 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	if err := setPeers(dm.Name(), peers); err != nil {
 		return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
 	}
-	if hc, ok := dm.healthCheck[serverURL]; ok {
-		go hc.Run()
+
+	// Start health checking if we have an address for the server wg client
+	// and more servers to potentially fell over.
+	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
+		dm.ensureHealthCheckIsStoped()
+		hc, err := NewHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
+		if err != nil {
+			return fmt.Errorf("Cannot create healthchek: %v", err)
+		}
+		dm.healthCheck = hc
+		go dm.healthCheck.Run()
 	}
 	return nil
 }
@@ -206,27 +183,27 @@ type WirestewardPeerConfig struct {
 	LocalAddress *net.IPNet
 }
 
-func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardPeerConfig, error) {
+func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardPeerConfig, string, error) {
 	ip, mask, err := net.ParseCIDR(lr.IP)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	address := &net.IPNet{IP: ip, Mask: mask.Mask}
 	pc, err := newPeerConfig(lr.PubKey, "", lr.Endpoint, lr.AllowedIPs)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return &WirestewardPeerConfig{
 		PeerConfig:   pc,
 		LocalAddress: address,
-	}, nil
+	}, lr.ServerWireguardIP, nil
 }
 
-func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, error) {
+func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, string, error) {
 	// Marshal key into json
 	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Prepare the request
@@ -241,21 +218,21 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*Wirestew
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Response status: %s", resp.Status)
+		return nil, "", fmt.Errorf("Response status: %s", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w,", err)
+		return nil, "", fmt.Errorf("error reading response body: %w,", err)
 	}
 
 	response := &leaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return newWirestewardPeerConfigFromLeaseResponse(response)
 }
