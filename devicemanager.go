@@ -29,6 +29,12 @@ type DeviceManager struct {
 	forceRenewLease chan struct{}
 }
 
+// Shoule be called before creating new device managers to initialize the pseudo
+// random generator for picking serveres
+func InitDeviceManagerSeed() {
+	rand.Seed(time.Now().Unix())
+}
+
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	forceRenewLease := make(chan struct{})
@@ -41,7 +47,6 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	} else {
 		device = newTunDevice(deviceName, mtu)
 	}
-	rand.Seed(time.Now().Unix()) // initialize pseudo random generator for picking servers
 	return &DeviceManager{
 		AgentDevice:     device,
 		config:          config,
@@ -94,17 +99,18 @@ func (dm *DeviceManager) forceRenewLoop() {
 			logger.Info.Printf("healthceck failed, renewing lease")
 			if err := dm.RenewLease(dm.cachedToken); err != nil {
 				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
-				time.Sleep(1 * time.Second)
-				go func() { dm.forceRenewLease <- struct{}{} }()
+				// Wait a second in a goroutine so we do not block here and try again
+				go func() {
+					time.Sleep(1 * time.Second)
+					dm.forceRenewLease <- struct{}{}
+				}()
 			}
 		}
 	}
 }
 
 func (dm *DeviceManager) ensureHealthCheckIsStoped() {
-	if dm.healthCheck.running {
-		dm.healthCheck.Stop()
-	}
+	dm.healthCheck.Stop()
 }
 
 func (dm *DeviceManager) nextServer() string {

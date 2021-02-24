@@ -14,10 +14,6 @@ type healthCheck struct {
 	renew     chan struct{} // Chan to notify for a reboot
 }
 
-type healthCheckResult struct {
-	healthy bool
-}
-
 func NewHealthCheck(address string, interval time.Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
 	pc, err := NewPingChecker(address)
 	if err != nil {
@@ -35,27 +31,28 @@ func NewHealthCheck(address string, interval time.Duration, threshold int, renew
 }
 
 func (hc healthCheck) Stop() {
-	hc.stop <- struct{}{}
+	if hc.running {
+		hc.stop <- struct{}{}
+	}
 }
 
 func (hc healthCheck) Run() {
 	healthSyncTicker := time.NewTicker(hc.interval)
 	defer healthSyncTicker.Stop()
-	healthSyncTickerChan := healthSyncTicker.C
 	unhealthyCount := 0
 	hc.running = true
 	for {
 		select {
-		case <-healthSyncTickerChan:
-			res := hc.Check()
-			if res.healthy {
+		case <-healthSyncTicker.C:
+			success := hc.Check()
+			if success {
 				if !hc.healthy {
 					logger.Info.Printf("server at: %s is healthy", hc.checker.IP.String())
 				}
 				hc.healthy = true
 				unhealthyCount = 0
 			}
-			if !res.healthy {
+			if !success {
 				unhealthyCount = unhealthyCount + 1
 			}
 			if unhealthyCount >= hc.threshold && hc.healthy {
@@ -72,10 +69,11 @@ func (hc healthCheck) Run() {
 	}
 }
 
-func (hc healthCheck) Check() healthCheckResult {
-	success, err := hc.checker.Check()
+// Check returns true if the check was successful
+func (hc healthCheck) Check() bool {
+	err := hc.checker.Check()
 	if err != nil {
 		logger.Error.Printf("healthcheck failed for (%s): %s", hc.checker.IP.String(), err)
 	}
-	return healthCheckResult{healthy: success}
+	return err == nil
 }
