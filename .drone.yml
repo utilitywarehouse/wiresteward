@@ -9,7 +9,7 @@ steps:
       - git fetch --tags
 
   - name: release
-    image: golang:1.15
+    image: golang:1.16
     environment:
       CGO_ENABLED: 0
       GITHUB_TOKEN:
