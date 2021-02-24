@@ -81,8 +81,11 @@ resource "aws_instance" "peer" {
   vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
   subnet_id              = var.subnet_ids[count.index]
   source_dest_check      = false
+  user_data              = var.ignition[count.index]
 
-  user_data = var.ignition[count.index]
+  lifecycle {
+    ignore_changes = [ami]
+  }
 
   root_block_device {
     volume_type = "gp2"
