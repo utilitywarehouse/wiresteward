@@ -155,7 +155,6 @@ func agent() {
 	signal.Notify(term, syscall.SIGTERM)
 	signal.Notify(term, os.Interrupt)
 
-	InitDeviceManagerSeed()
 	agent := NewAgent(agentConf)
 	go func() {
 		agent.ListenAndServe()

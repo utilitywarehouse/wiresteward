@@ -14,6 +14,10 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
@@ -27,12 +31,6 @@ type DeviceManager struct {
 	serverURLs      []string
 	healthCheck     *healthCheck
 	forceRenewLease chan struct{}
-}
-
-// Shoule be called before creating new device managers to initialize the pseudo
-// random generator for picking serveres
-func InitDeviceManagerSeed() {
-	rand.Seed(time.Now().Unix())
 }
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
@@ -109,10 +107,6 @@ func (dm *DeviceManager) forceRenewLoop() {
 	}
 }
 
-func (dm *DeviceManager) ensureHealthCheckIsStoped() {
-	dm.healthCheck.Stop()
-}
-
 func (dm *DeviceManager) nextServer() string {
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
@@ -171,7 +165,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	// Start health checking if we have an address for the server wg client
 	// and more servers to potentially fell over.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
-		dm.ensureHealthCheckIsStoped()
+		dm.healthCheck.Stop()
 		hc, err := NewHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
 		if err != nil {
 			return fmt.Errorf("Cannot create healthchek: %v", err)
