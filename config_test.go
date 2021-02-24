@@ -136,7 +136,7 @@ func TestServerConfig(t *testing.T) {
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
-				AllowedIPs:          []string{"1.2.3.4/8"},
+				AllowedIPs:          []string{"1.2.3.4/8", "10.0.0.1/32"},
 				DeviceName:          "wg0",
 				Endpoint:            "1.2.3.4:1234",
 				KeyFilename:         defaultKeyFilename,
@@ -165,6 +165,7 @@ func TestServerConfig(t *testing.T) {
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
+				AllowedIPs:          []string{"10.0.0.1/32"},
 				DeviceMTU:           1300,
 				DeviceName:          "wg1",
 				Endpoint:            "1.2.3.4:12345",

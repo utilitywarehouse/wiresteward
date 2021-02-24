@@ -85,7 +85,7 @@ func (a *Agent) Stop() {
 func (a *Agent) renewAllLeases(token string) {
 	logger.Info.Println("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
-		if err := dm.RenewLeases(token); err != nil {
+		if err := dm.RenewLease(token); err != nil {
 			logger.Error.Printf(
 				"Failed to renew leases for device `%s`: %v",
 				dm.Name(),

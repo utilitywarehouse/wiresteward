@@ -39,7 +39,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 		return err
 	}
 	for _, r := range config.AllowedIPs {
-		if err := h.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r, Gw: config.LocalAddress.IP}); err != nil {
+		if err := h.RouteReplace(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r, Gw: config.LocalAddress.IP}); err != nil {
 			logger.Error.Printf(
 				"Could not add new route (%s): %s", r, err)
 		}

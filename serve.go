@@ -21,11 +21,12 @@ type leaseRequest struct {
 // leaseResponse define the payload of a lease HTTP response returned by a
 // server.
 type leaseResponse struct {
-	Status     string
-	IP         string
-	AllowedIPs []string
-	PubKey     string
-	Endpoint   string
+	Status            string
+	IP                string
+	ServerWireguardIP string
+	AllowedIPs        []string
+	PubKey            string
+	Endpoint          string
 }
 
 // HTTPLeaseHandler implements the HTTP server that manages peer address leases.
@@ -96,11 +97,12 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		response := &leaseResponse{
-			Status:     "success",
-			IP:         fmt.Sprintf("%s/32", wg.IP.String()),
-			AllowedIPs: lh.serverConfig.AllowedIPs,
-			PubKey:     pubKey,
-			Endpoint:   lh.serverConfig.Endpoint,
+			Status:            "success",
+			IP:                fmt.Sprintf("%s/32", wg.IP.String()),
+			ServerWireguardIP: lh.serverConfig.WireguardIPAddress.String(),
+			AllowedIPs:        lh.serverConfig.AllowedIPs,
+			PubKey:            pubKey,
+			Endpoint:          lh.serverConfig.Endpoint,
 		}
 		r, err := json.Marshal(response)
 		if err != nil {

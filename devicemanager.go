@@ -5,26 +5,37 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
 
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
 type DeviceManager struct {
 	AgentDevice
+	cachedToken string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
 	configMutex sync.Mutex
 	// config maps a wiresteward server url to a running configuration. It is
 	// used to cleanup running configuration before applying a new one.
-	config map[string]*WirestewardPeerConfig
+	config          map[string]*WirestewardPeerConfig
+	serverURLs      []string
+	healthCheck     *healthCheck
+	forceRenewLease chan struct{}
 }
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
 	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
+	forceRenewLease := make(chan struct{})
 	for _, e := range wirestewardURLs {
 		config[e] = nil
 	}
@@ -35,8 +46,11 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 		device = newTunDevice(deviceName, mtu)
 	}
 	return &DeviceManager{
-		AgentDevice: device,
-		config:      config,
+		AgentDevice:     device,
+		config:          config,
+		serverURLs:      wirestewardURLs,
+		healthCheck:     &healthCheck{running: false},
+		forceRenewLease: forceRenewLease,
 	}
 }
 
@@ -69,52 +83,95 @@ func (dm *DeviceManager) Run() error {
 			return err
 		}
 	}
+
+	if len(dm.serverURLs) > 0 {
+		go dm.forceRenewLoop()
+	}
 	return nil
 }
 
-// RenewLeases uses the provided oauth2 token to retrieve new leases from the
-// wiresteward servers associated with the underlying device. The received
-// configuration is then applied to the device.
-func (dm *DeviceManager) RenewLeases(token string) error {
+func (dm *DeviceManager) forceRenewLoop() {
+	for {
+		select {
+		case <-dm.forceRenewLease:
+			logger.Info.Printf("healthceck failed, renewing lease")
+			if err := dm.RenewLease(dm.cachedToken); err != nil {
+				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
+				// Wait a second in a goroutine so we do not block here and try again
+				go func() {
+					time.Sleep(1 * time.Second)
+					dm.forceRenewLease <- struct{}{}
+				}()
+			}
+		}
+	}
+}
+
+func (dm *DeviceManager) nextServer() string {
+	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
+}
+
+// RenewLeases uses the provided oauth2 token to retrieve a new leases from one
+// of the healthy wiresteward servers associated with the underlying device. If
+// healthchecks are disabled then all serveres would be considered healthy. The
+// received configuration is then applied to the device.
+func (dm *DeviceManager) RenewLease(token string) error {
+	dm.cachedToken = token
 	publicKey, _, err := getKeys(dm.Name())
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
 	}
-	peers := []wgtypes.PeerConfig{}
-	for serverURL, oldConfig := range dm.config {
-		config, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
-		if err != nil {
-			logger.Error.Printf(
-				"Could not get wiresteward peer config from `%s`: %v",
-				serverURL,
-				err,
-			)
-			continue
-		}
-		peers = append(peers, *config.PeerConfig)
 
-		dm.configMutex.Lock()
-		logger.Info.Printf(
-			"Configuring offered ip address %s on device %s",
-			config.LocalAddress,
-			dm.Name(),
-		)
-		// TODO: Depending on the implementation of updateDeviceConfig, if the
-		// update fails partially, we might end up with the wrong "old" config
-		// and fail to cleanup properly when we update the next time.
-		if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
-			logger.Error.Printf(
-				"Could not update peer configuration for `%s`: %v",
-				serverURL,
-				err,
-			)
-		} else {
-			dm.config[serverURL] = config
-		}
-		dm.configMutex.Unlock()
+	serverURL := dm.nextServer()
+	if serverURL == "" {
+		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
+	oldConfig := dm.config[serverURL]
+	peers := []wgtypes.PeerConfig{}
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
+	if err != nil {
+		logger.Error.Printf(
+			"Could not get wiresteward peer config from `%s`: %v",
+			serverURL,
+			err,
+		)
+		return err
+	}
+	peers = append(peers, *config.PeerConfig)
+
+	dm.configMutex.Lock()
+	logger.Info.Printf(
+		"Configuring offered ip address %s on device %s",
+		config.LocalAddress,
+		dm.Name(),
+	)
+	// TODO: Depending on the implementation of updateDeviceConfig, if the
+	// update fails partially, we might end up with the wrong "old" config
+	// and fail to cleanup properly when we update the next time.
+	if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
+		logger.Error.Printf(
+			"Could not update peer configuration for `%s`: %v",
+			serverURL,
+			err,
+		)
+	} else {
+		dm.config[serverURL] = config
+	}
+	dm.configMutex.Unlock()
 	if err := setPeers(dm.Name(), peers); err != nil {
 		return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
+	}
+
+	// Start health checking if we have an address for the server wg client
+	// and more servers to potentially fell over.
+	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
+		dm.healthCheck.Stop()
+		hc, err := NewHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
+		if err != nil {
+			return fmt.Errorf("Cannot create healthchek: %v", err)
+		}
+		dm.healthCheck = hc
+		go dm.healthCheck.Run()
 	}
 	return nil
 }
@@ -126,27 +183,27 @@ type WirestewardPeerConfig struct {
 	LocalAddress *net.IPNet
 }
 
-func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardPeerConfig, error) {
+func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardPeerConfig, string, error) {
 	ip, mask, err := net.ParseCIDR(lr.IP)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	address := &net.IPNet{IP: ip, Mask: mask.Mask}
 	pc, err := newPeerConfig(lr.PubKey, "", lr.Endpoint, lr.AllowedIPs)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return &WirestewardPeerConfig{
 		PeerConfig:   pc,
 		LocalAddress: address,
-	}, nil
+	}, lr.ServerWireguardIP, nil
 }
 
-func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, error) {
+func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, string, error) {
 	// Marshal key into json
 	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Prepare the request
@@ -161,21 +218,21 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*Wirestew
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Response status: %s", resp.Status)
+		return nil, "", fmt.Errorf("Response status: %s", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w,", err)
+		return nil, "", fmt.Errorf("error reading response body: %w,", err)
 	}
 
 	response := &leaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	return newWirestewardPeerConfigFromLeaseResponse(response)
 }
