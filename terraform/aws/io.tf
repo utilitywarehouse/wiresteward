@@ -42,7 +42,7 @@ variable "wiresteward_endpoint" {
 
 locals {
   instance_count = length(var.ignition)
-  name           = "${var.role_name}"
+  name           = var.role_name
 }
 
 output "public_ipv4_addresses" {
