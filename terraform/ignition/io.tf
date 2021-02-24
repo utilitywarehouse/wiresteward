@@ -38,7 +38,13 @@ variable "wireguard_exposed_subnets" {
 variable "wiresteward_version" {
   type        = string
   description = "The version of wiresteward to deploy (see https://github.com/utilitywarehouse/wiresteward/)"
-  default     = "latest"
+  default     = "0.2.0-rc.2"
+}
+
+variable "traefik_image" {
+  type        = string
+  description = "Traefik image for the proxy service to wiresteward"
+  default     = "traefik:v2.3.7"
 }
 
 locals {

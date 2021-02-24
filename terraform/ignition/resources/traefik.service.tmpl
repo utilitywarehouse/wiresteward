@@ -1,0 +1,26 @@
+[Unit]
+Description=traefik to wiresteward server
+After=docker.service
+Requires=docker.service
+[Service]
+Restart=on-failure
+ExecStartPre=-/bin/mkdir -p /etc/traefik/ssl
+ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
+ --net=host \
+ -v /etc/traefik/:/etc/traefik/ \
+ ${traefik_image} \
+ --api.insecure=true \
+ --ping \
+ --metrics.prometheus \
+ --log.level=ERROR \
+ --entryPoints.web.address=:80 \
+ --entrypoints.web.http.redirections.entryPoint.to=web-secure \
+ --entryPoints.web-secure.address=:443 \
+ --entryPoints.web-secure.http.tls=true \
+ --entryPoints.traefik.address=:30080 \
+ --providers.file.filename=/etc/traefik/wiresteward-proxy.toml \
+ --certificatesresolvers.cert-resolver.acme.httpchallenge.entrypoint=web \
+ --certificatesresolvers.cert-resolver.acme.storage=/etc/traefik/ssl/acme.json'
+ExecStop=/bin/sh -c 'docker stop -t 3 "$(docker ps -q --filter=name=%p_)"'
+[Install]
+WantedBy=multi-user.target
