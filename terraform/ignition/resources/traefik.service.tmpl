@@ -4,10 +4,12 @@ After=s3fs.service
 Requires=s3fs.service
 [Service]
 Restart=on-failure
-ExecStartPre=-/bin/mkdir -p /etc/traefik/ssl
+ExecStartPre=-/bin/mkdir -p /etc/traefik
+ExecStartPre=-/bin/mkdir -p /var/lib/traefik/ssl
 ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
  --net=host \
  -v /etc/traefik/:/etc/traefik/ \
+ -v /var/lib/traefik/ssl/:/var/lib/traefik/ssl/ \
  ${traefik_image} \
  --api.insecure=true \
  --ping \
