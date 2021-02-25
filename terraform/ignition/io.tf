@@ -47,6 +47,26 @@ variable "traefik_image" {
   default     = "traefik:v2.3.7"
 }
 
+variable "s3fs_access_key" {
+  type        = string
+  description = "The aws key for the user that has permissions on the s3 bucket to save traefik certs"
+}
+
+variable "s3fs_access_secret" {
+  type        = string
+  description = "The aws secret for the user that has permissions on the s3 bucket to save traefik certs"
+}
+
+variable "s3fs_bucket" {
+  type        = string
+  description = "The aws s3 bucket to save traefik certs. Assumes that it contains a numbered dir for every wiresteward server"
+}
+
+variable "s3fs_image" {
+  type    = string
+  default = "quay.io/utilitywarehouse/sys-s3fs:v1.89"
+}
+
 locals {
   instance_count      = length(var.wireguard_cidrs)
   wireguard_endpoints = [for i in range(local.instance_count) : "${i}.${var.wireguard_endpoint_base}"]

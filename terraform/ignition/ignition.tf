@@ -24,6 +24,22 @@ data "ignition_systemd_unit" "wiresteward_service" {
   })
 }
 
+# s3fs for traefik certificate storage
+data "ignition_systemd_unit" "s3fs" {
+  count = local.instance_count
+  name  = "s3fs.service"
+
+  content = templatefile("${path.module}/resources/s3fs.service.tmpl", {
+    s3fs_access_key    = var.s3fs_access_key,
+    s3fs_access_secret = var.s3fs_access_secret,
+    s3fs_bucket        = var.s3fs_bucket,
+    s3fs_image         = var.s3fs_image,
+    host_mount_point   = "/var/lib/traefik/ssl/",
+    instance_count     = count.index
+  })
+}
+
+
 # traefik
 data "ignition_file" "traefik_config" {
   count      = local.instance_count
@@ -46,7 +62,6 @@ data "ignition_systemd_unit" "traefik" {
   })
 }
 
-
 data "ignition_config" "wiresteward" {
   count = local.instance_count
 
@@ -56,6 +71,7 @@ data "ignition_config" "wiresteward" {
   ], var.additional_ignition_files)
 
   systemd = concat([
+    data.ignition_systemd_unit.s3fs[count.index].rendered,
     data.ignition_systemd_unit.traefik.rendered,
     data.ignition_systemd_unit.wiresteward_service.rendered,
   ], var.additional_systemd_units)
