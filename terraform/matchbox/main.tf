@@ -72,7 +72,7 @@ data "ignition_config" "wiresteward" {
 
 resource "matchbox_profile" "wiresteward" {
   count  = length(var.wiresteward_server_peers)
-  name   = "wiresteward-${count.index}"
+  name   = "${var.role}-${count.index}"
   kernel = var.flatcar_kernel_address
   initrd = var.flatcar_initrd_addresses
   args = [
@@ -100,7 +100,7 @@ locals {
 
 resource "matchbox_group" "wiresteward" {
   count = length(local.groups)
-  name  = "wiresteward-${count.index}"
+  name  = "${var.role}-${count.index}"
 
   profile = local.groups[count.index].profile.name
 

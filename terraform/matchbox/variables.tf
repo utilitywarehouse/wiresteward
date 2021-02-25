@@ -1,3 +1,9 @@
+variable "role" {
+  type        = string
+  description = "role to be used when naming matchbox profiles and groups"
+  default     = "wiresteward"
+}
+
 variable "flatcar_kernel_address" {
   type        = string
   description = "Location of the http endpoint that serves the kernel vmlinuz file"
