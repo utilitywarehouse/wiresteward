@@ -81,6 +81,19 @@ resource "google_compute_firewall" "wiresteward-udp" {
   target_tags   = [local.name]
 }
 
+resource "google_compute_firewall" "wiresteward-tcp" {
+  name      = "${local.name}-tcp"
+  network   = var.vpc_link
+  direction = "INGRESS"
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = [local.name]
+}
+
 //https://cloud.google.com/load-balancing/docs/health-checks#firewall_rules
 resource "google_compute_firewall" "wiresteward-healthcheck" {
   name    = "${local.name}-healthcheck"
