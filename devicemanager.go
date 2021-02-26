@@ -23,22 +23,16 @@ func init() {
 // wiresteward servers.
 type DeviceManager struct {
 	AgentDevice
-	cachedToken string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
-	configMutex sync.Mutex
-	// config maps a wiresteward server url to a running configuration. It is
-	// used to cleanup running configuration before applying a new one.
-	config          map[string]*WirestewardPeerConfig
+	cachedToken     string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
+	configMutex     sync.Mutex
+	config          *WirestewardPeerConfig // To keep the current config
 	serverURLs      []string
 	healthCheck     *healthCheck
 	forceRenewLease chan struct{}
 }
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
-	config := make(map[string]*WirestewardPeerConfig, len(wirestewardURLs))
 	forceRenewLease := make(chan struct{})
-	for _, e := range wirestewardURLs {
-		config[e] = nil
-	}
 	var device AgentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
@@ -47,7 +41,6 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	}
 	return &DeviceManager{
 		AgentDevice:     device,
-		config:          config,
 		serverURLs:      wirestewardURLs,
 		healthCheck:     &healthCheck{running: false},
 		forceRenewLease: forceRenewLease,
@@ -126,7 +119,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
-	oldConfig := dm.config[serverURL]
+	oldConfig := dm.config
 	peers := []wgtypes.PeerConfig{}
 	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
 	if err != nil {
@@ -155,7 +148,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 			err,
 		)
 	} else {
-		dm.config[serverURL] = config
+		dm.config = config
 	}
 	dm.configMutex.Unlock()
 	if err := setPeers(dm.Name(), peers); err != nil {
