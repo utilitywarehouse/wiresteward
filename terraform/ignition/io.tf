@@ -38,7 +38,33 @@ variable "wireguard_exposed_subnets" {
 variable "wiresteward_version" {
   type        = string
   description = "The version of wiresteward to deploy (see https://github.com/utilitywarehouse/wiresteward/)"
-  default     = "latest"
+  default     = "0.2.0-rc.2"
+}
+
+variable "traefik_image" {
+  type        = string
+  description = "Traefik image for the proxy service to wiresteward"
+  default     = "traefik:v2.3.7"
+}
+
+variable "s3fs_access_key" {
+  type        = string
+  description = "The aws key for the user that has permissions on the s3 bucket to save traefik certs"
+}
+
+variable "s3fs_access_secret" {
+  type        = string
+  description = "The aws secret for the user that has permissions on the s3 bucket to save traefik certs"
+}
+
+variable "s3fs_bucket" {
+  type        = string
+  description = "The aws s3 bucket to save traefik certs. Assumes that it contains a numbered dir for every wiresteward server"
+}
+
+variable "s3fs_image" {
+  type    = string
+  default = "quay.io/utilitywarehouse/sys-s3fs:v1.89"
 }
 
 locals {

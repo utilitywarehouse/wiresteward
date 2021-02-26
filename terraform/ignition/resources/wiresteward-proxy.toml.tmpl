@@ -1,0 +1,13 @@
+[http]
+  [http.routers]
+    [http.routers.wiresteward-proxy]
+      entryPoints = ["web-secure"]
+      service = "wiresteward-proxy"
+      rule = "Host(`${wireguard_endpoint}`)"
+    [http.routers.wiresteward-proxy.tls]
+      certResolver = "cert-resolver"
+  [http.services]
+    [http.services.wiresteward-proxy]
+      [http.services.wiresteward-proxy.loadBalancer]
+        [[http.services.wiresteward-proxy.loadBalancer.servers]]
+          url = "http://127.0.0.1:8080"

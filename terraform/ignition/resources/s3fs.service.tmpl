@@ -1,0 +1,22 @@
+[Unit]
+Description=s3fs mounter
+After=docker.service
+Requires=docker.service
+[Service]
+Restart=on-failure
+Environment=AWS_KEY=${s3fs_access_key}
+Environment=AWS_SECRET_KEY="${s3fs_access_secret}"
+Environment=S3_BUCKET=${s3fs_bucket}
+Environment=HOST_MOUNT_POINT=${host_mount_point}
+ExecStartPre=-/bin/mkdir -p ${host_mount_point}
+ExecStart=/bin/sh -c 'docker run --name=s3fs --rm \
+ --privileged \
+ -e AWS_KEY=$${AWS_KEY} \
+ -e AWS_SECRET_KEY=$${AWS_SECRET_KEY} \
+ -e S3_BUCKET=$${S3_BUCKET}:/${instance_count} \
+ -v $${HOST_MOUNT_POINT}:/var/lib/s3fs:shared \
+ ${s3fs_image}'
+ExecStop=/bin/sh -c 'docker stop -t 3 "$(docker ps -q --filter=name=s3fs)"'
+ExecStopPost=-/usr/bin/umount $${HOST_MOUNT_POINT}
+[Install]
+WantedBy=multi-user.target

@@ -3,5 +3,6 @@
   "allowedIPs": ${jsonencode(wireguard_exposed_subnets)},
   "endpoint": "${wireguard_endpoint}:51820",
   "oauthIntrospectUrl": "${oauth2_introspect_url}",
-  "oauthClientId": "${oauth2_client_id}"
+  "oauthClientId": "${oauth2_client_id}",
+  "serverListenAddress": "127.0.0.1:8080"
 }

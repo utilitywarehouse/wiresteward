@@ -38,6 +38,9 @@ data "ignition_file" "iptables_rules" {
 -A INPUT -p tcp -m tcp -s "${var.metrics_subnet_cidr}" --dport 9100 -j ACCEPT
 # Allow scraping wiresteward metrics port
 -A INPUT -p tcp -m tcp -s "${var.metrics_subnet_cidr}" --dport "${var.wiresteward_metrics_port}" -j ACCEPT
+# Allow all to traefik ports 80 and 443
+-A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
 # Allow udp traffic to wireguard
 -A INPUT -p udp -m udp -d "${var.wiresteward_server_peers[count.index].public_ip_address}/32" --dport 51820 -j ACCEPT
 # Allow forwarding traffic on wg subnets
