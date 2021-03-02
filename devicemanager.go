@@ -23,16 +23,15 @@ func init() {
 // wiresteward servers.
 type DeviceManager struct {
 	agentDevice
-	cachedToken     string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
-	configMutex     sync.Mutex
-	config          *WirestewardPeerConfig // To keep the current config
-	serverURLs      []string
-	healthCheck     *healthCheck
-	forceRenewLease chan struct{}
+	cachedToken    string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
+	configMutex    sync.Mutex
+	config         *WirestewardPeerConfig // To keep the current config
+	serverURLs     []string
+	healthCheck    *healthCheck
+	renewLeaseChan chan struct{}
 }
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
-	forceRenewLease := make(chan struct{})
 	var device agentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
@@ -40,10 +39,10 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 		device = newTunDevice(deviceName, mtu)
 	}
 	return &DeviceManager{
-		agentDevice:     device,
-		serverURLs:      wirestewardURLs,
-		healthCheck:     &healthCheck{running: false},
-		forceRenewLease: forceRenewLease,
+		agentDevice:    device,
+		serverURLs:     wirestewardURLs,
+		healthCheck:    &healthCheck{running: false},
+		renewLeaseChan: make(chan struct{}),
 	}
 }
 
@@ -78,22 +77,22 @@ func (dm *DeviceManager) Run() error {
 	}
 
 	if len(dm.serverURLs) > 0 {
-		go dm.forceRenewLoop()
+		go dm.renewLoop()
 	}
 	return nil
 }
 
-func (dm *DeviceManager) forceRenewLoop() {
+func (dm *DeviceManager) renewLoop() {
 	for {
 		select {
-		case <-dm.forceRenewLease:
+		case <-dm.renewLeaseChan:
 			logger.Info.Printf("healthceck failed, renewing lease")
-			if err := dm.RenewLease(dm.cachedToken); err != nil {
+			if err := dm.renewLease(); err != nil {
 				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
 				// Wait a second in a goroutine so we do not block here and try again
 				go func() {
 					time.Sleep(1 * time.Second)
-					dm.forceRenewLease <- struct{}{}
+					dm.renewLeaseChan <- struct{}{}
 				}()
 			}
 		}
@@ -104,12 +103,22 @@ func (dm *DeviceManager) nextServer() string {
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 
+// RenewTokenAndLease is called via the agent to renew the cached token data and
+// trigger a lease renewal
+func (dm *DeviceManager) RenewTokenAndLease(token string) {
+	dm.cachedToken = token
+	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
+	dm.renewLeaseChan <- struct{}{}
+}
+
 // RenewLease uses the provided oauth2 token to retrieve a new leases from one
 // of the healthy wiresteward servers associated with the underlying device. If
 // healthchecks are disabled then all serveres would be considered healthy. The
 // received configuration is then applied to the device.
-func (dm *DeviceManager) RenewLease(token string) error {
-	dm.cachedToken = token
+func (dm *DeviceManager) renewLease() error {
+	if dm.cachedToken == "" {
+		return fmt.Errorf("Empty cached token")
+	}
 	publicKey, _, err := getKeys(dm.Name())
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
@@ -121,7 +130,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	}
 	oldConfig := dm.config
 	peers := []wgtypes.PeerConfig{}
-	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey)
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey)
 	if err != nil {
 		logger.Error.Printf(
 			"Could not get wiresteward peer config from `%s`: %v",
@@ -159,7 +168,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	// and more servers to potentially fell over.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
-		hc, err := newHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
+		hc, err := newHealthCheck(wgServerAddr, time.Second, 3, dm.renewLeaseChan)
 		if err != nil {
 			return fmt.Errorf("Cannot create healthchek: %v", err)
 		}
