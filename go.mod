@@ -4,10 +4,10 @@ go 1.16
 
 require (
 	github.com/coreos/go-iptables v0.5.0
+	github.com/golang/mock v1.5.0
 	github.com/google/go-cmp v0.5.4
 	github.com/mdlayher/netlink v1.3.1 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
-	github.com/mikioh/ipaddr v0.0.0-20190404000644-d465c8ab6721 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/common v0.17.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
