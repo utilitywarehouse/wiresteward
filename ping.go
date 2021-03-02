@@ -22,7 +22,7 @@ type pingChecker struct {
 	Seqnum int
 }
 
-type pingCheckerInterface interface {
+type checker interface {
 	Check() error
 	TargetIP() string
 }

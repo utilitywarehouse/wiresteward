@@ -9,49 +9,49 @@ import (
 	reflect "reflect"
 )
 
-// MockpingCheckerInterface is a mock of pingCheckerInterface interface
-type MockpingCheckerInterface struct {
+// Mockchecker is a mock of checker interface
+type Mockchecker struct {
 	ctrl     *gomock.Controller
-	recorder *MockpingCheckerInterfaceMockRecorder
+	recorder *MockcheckerMockRecorder
 }
 
-// MockpingCheckerInterfaceMockRecorder is the mock recorder for MockpingCheckerInterface
-type MockpingCheckerInterfaceMockRecorder struct {
-	mock *MockpingCheckerInterface
+// MockcheckerMockRecorder is the mock recorder for Mockchecker
+type MockcheckerMockRecorder struct {
+	mock *Mockchecker
 }
 
-// NewMockpingCheckerInterface creates a new mock instance
-func NewMockpingCheckerInterface(ctrl *gomock.Controller) *MockpingCheckerInterface {
-	mock := &MockpingCheckerInterface{ctrl: ctrl}
-	mock.recorder = &MockpingCheckerInterfaceMockRecorder{mock}
+// NewMockchecker creates a new mock instance
+func NewMockchecker(ctrl *gomock.Controller) *Mockchecker {
+	mock := &Mockchecker{ctrl: ctrl}
+	mock.recorder = &MockcheckerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockpingCheckerInterface) EXPECT() *MockpingCheckerInterfaceMockRecorder {
+func (m *Mockchecker) EXPECT() *MockcheckerMockRecorder {
 	return m.recorder
 }
 
 // Check mocks base method
-func (m *MockpingCheckerInterface) Check() error {
+func (m *Mockchecker) Check() error {
 	ret := m.ctrl.Call(m, "Check")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Check indicates an expected call of Check
-func (mr *MockpingCheckerInterfaceMockRecorder) Check() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*MockpingCheckerInterface)(nil).Check))
+func (mr *MockcheckerMockRecorder) Check() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*Mockchecker)(nil).Check))
 }
 
 // TargetIP mocks base method
-func (m *MockpingCheckerInterface) TargetIP() string {
+func (m *Mockchecker) TargetIP() string {
 	ret := m.ctrl.Call(m, "TargetIP")
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
 // TargetIP indicates an expected call of TargetIP
-func (mr *MockpingCheckerInterfaceMockRecorder) TargetIP() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TargetIP", reflect.TypeOf((*MockpingCheckerInterface)(nil).TargetIP))
+func (mr *MockcheckerMockRecorder) TargetIP() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TargetIP", reflect.TypeOf((*Mockchecker)(nil).TargetIP))
 }

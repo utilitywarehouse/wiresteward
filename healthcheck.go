@@ -5,7 +5,7 @@ import (
 )
 
 type healthCheck struct {
-	checker   pingCheckerInterface
+	checker   checker
 	interval  time.Duration
 	threshold int
 	healthy   bool

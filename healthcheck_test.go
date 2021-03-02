@@ -23,7 +23,7 @@ func TestHealthcheck_NewHealthCheck(t *testing.T) {
 func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockChecker := mocks.NewMockpingCheckerInterface(ctrl)
+	mockChecker := mocks.NewMockchecker(ctrl)
 
 	renewNotify := make(chan struct{})
 	hc, err := newHealthCheck("10.0.0.0", 100*time.Millisecond, 3, renewNotify)
@@ -54,7 +54,7 @@ func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
 func TestHealthcheck_RunHealthyCheckResets(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockChecker := mocks.NewMockpingCheckerInterface(ctrl)
+	mockChecker := mocks.NewMockchecker(ctrl)
 
 	renewNotify := make(chan struct{})
 	hc, err := newHealthCheck("10.0.0.0", 100*time.Millisecond, 3, renewNotify)
