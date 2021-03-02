@@ -22,7 +22,7 @@ func init() {
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
 type DeviceManager struct {
-	AgentDevice
+	agentDevice
 	cachedToken     string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
 	configMutex     sync.Mutex
 	config          *WirestewardPeerConfig // To keep the current config
@@ -33,14 +33,14 @@ type DeviceManager struct {
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
 	forceRenewLease := make(chan struct{})
-	var device AgentDevice
+	var device agentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
 	} else {
 		device = newTunDevice(deviceName, mtu)
 	}
 	return &DeviceManager{
-		AgentDevice:     device,
+		agentDevice:     device,
 		serverURLs:      wirestewardURLs,
 		healthCheck:     &healthCheck{running: false},
 		forceRenewLease: forceRenewLease,
@@ -50,7 +50,7 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 // Run starts the AgentDevice by calling its Run() method and proceeds to
 // initialise it.
 func (dm *DeviceManager) Run() error {
-	if err := dm.AgentDevice.Run(); err != nil {
+	if err := dm.agentDevice.Run(); err != nil {
 		return fmt.Errorf("Error starting tun device `%s`: %w", dm.Name(), err)
 	}
 	if err := dm.ensureLinkUp(); err != nil {
@@ -104,7 +104,7 @@ func (dm *DeviceManager) nextServer() string {
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 
-// RenewLeases uses the provided oauth2 token to retrieve a new leases from one
+// RenewLease uses the provided oauth2 token to retrieve a new leases from one
 // of the healthy wiresteward servers associated with the underlying device. If
 // healthchecks are disabled then all serveres would be considered healthy. The
 // received configuration is then applied to the device.
@@ -159,7 +159,7 @@ func (dm *DeviceManager) RenewLease(token string) error {
 	// and more servers to potentially fell over.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
-		hc, err := NewHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
+		hc, err := newHealthCheck(wgServerAddr, time.Second, 3, dm.forceRenewLease)
 		if err != nil {
 			return fmt.Errorf("Cannot create healthchek: %v", err)
 		}

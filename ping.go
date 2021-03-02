@@ -16,26 +16,26 @@ const defaultPingTimeout = time.Second
 
 var nextPingCheckerID = os.Getpid() & 0xffff
 
-type PingChecker struct {
+type pingChecker struct {
 	IP     net.IP
 	ID     int
 	Seqnum int
 }
 
-func NewPingChecker(address string) (*PingChecker, error) {
+func newPingChecker(address string) (*pingChecker, error) {
 	ip := net.ParseIP(address)
 	if ip.To4() == nil {
 		return nil, fmt.Errorf("No valid ip for %s", address)
 	}
 	id := nextPingCheckerID
 	nextPingCheckerID++
-	return &PingChecker{
+	return &pingChecker{
 		IP: ip,
 		ID: id,
 	}, nil
 }
 
-func (hc *PingChecker) Check() error {
+func (hc *pingChecker) Check() error {
 	seq := hc.Seqnum
 	hc.Seqnum++
 	echo, err := newICMPv4EchoRequest(hc.ID, seq, []byte("Healthcheck"))
@@ -80,7 +80,8 @@ func exchangeICMPEcho(ip net.IP, timeout time.Duration, echo []byte) error {
 		if !ip.Equal(net.ParseIP(addr.String())) {
 			continue
 		}
-		// 1 == ipv4 ICMP proto number (https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)
+		// 1 == ipv4 ICMP proto number
+		// https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
 		rm, err := icmp.ParseMessage(1, reply[:n])
 		if err != nil {
 			return fmt.Errorf("Cannot parse icmp response: %v", err)
@@ -95,7 +96,8 @@ func exchangeICMPEcho(ip net.IP, timeout time.Duration, echo []byte) error {
 		if rm.Body.(*icmp.Echo).ID != em.Body.(*icmp.Echo).ID || rm.Body.(*icmp.Echo).Seq != em.Body.(*icmp.Echo).Seq {
 			continue
 		}
-		// if we reach that point all checks for receiving our echo reply have passed
+		// if we reach that point all checks for receiving our echo
+		// reply have passed
 		break
 	}
 	return nil
