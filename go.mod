@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/coreos/go-iptables v0.5.0
+	github.com/golang/mock v1.5.0 // indirect
 	github.com/google/go-cmp v0.5.4
 	github.com/mdlayher/netlink v1.3.1 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
@@ -19,6 +20,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
 	golang.org/x/sys v0.0.0-20210220050731-9a76102bfb43
 	golang.org/x/text v0.3.5 // indirect
+	golang.org/x/tools v0.1.0 // indirect
 	golang.zx2c4.com/wireguard v0.0.20200121
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
 	google.golang.org/appengine v1.6.7 // indirect

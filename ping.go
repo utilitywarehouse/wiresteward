@@ -22,6 +22,11 @@ type pingChecker struct {
 	Seqnum int
 }
 
+type pingCheckerInterface interface {
+	Check() error
+	TargetIP() string
+}
+
 func newPingChecker(address string) (*pingChecker, error) {
 	ip := net.ParseIP(address)
 	if ip.To4() == nil {
@@ -43,6 +48,11 @@ func (hc *pingChecker) Check() error {
 		return fmt.Errorf("Cannot construct icmp echo: %v", err)
 	}
 	return exchangeICMPEcho(hc.IP, defaultPingTimeout, echo)
+}
+
+// return a string representation of the checker's target ip
+func (hc *pingChecker) TargetIP() string {
+	return hc.IP.String()
 }
 
 func newICMPv4EchoRequest(id, seqnum int, data []byte) ([]byte, error) {

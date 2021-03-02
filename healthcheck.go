@@ -5,7 +5,7 @@ import (
 )
 
 type healthCheck struct {
-	checker   *pingChecker
+	checker   pingCheckerInterface
 	interval  time.Duration
 	threshold int
 	healthy   bool
@@ -47,7 +47,7 @@ func (hc healthCheck) Run() {
 			success := hc.Check()
 			if success {
 				if !hc.healthy {
-					logger.Info.Printf("server at: %s is healthy", hc.checker.IP.String())
+					logger.Info.Printf("server at: %s is healthy", hc.checker.TargetIP())
 				}
 				hc.healthy = true
 				unhealthyCount = 0
@@ -56,7 +56,7 @@ func (hc healthCheck) Run() {
 				unhealthyCount = unhealthyCount + 1
 			}
 			if unhealthyCount >= hc.threshold && hc.healthy {
-				logger.Info.Printf("server at: %s became unhealthy", hc.checker.IP.String())
+				logger.Info.Printf("server at: %s became unhealthy", hc.checker.TargetIP())
 				hc.running = false
 				hc.healthy = false
 				hc.renew <- struct{}{}
@@ -73,7 +73,7 @@ func (hc healthCheck) Run() {
 func (hc healthCheck) Check() bool {
 	err := hc.checker.Check()
 	if err != nil {
-		logger.Error.Printf("healthcheck failed for (%s): %s", hc.checker.IP.String(), err)
+		logger.Error.Printf("healthcheck failed for (%s): %s", hc.checker.TargetIP(), err)
 	}
 	return err == nil
 }
