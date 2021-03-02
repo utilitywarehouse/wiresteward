@@ -5,7 +5,7 @@ import (
 )
 
 type healthCheck struct {
-	checker   *PingChecker
+	checker   *pingChecker
 	interval  time.Duration
 	threshold int
 	healthy   bool
@@ -14,8 +14,8 @@ type healthCheck struct {
 	renew     chan struct{} // Chan to notify for a reboot
 }
 
-func NewHealthCheck(address string, interval time.Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
-	pc, err := NewPingChecker(address)
+func newHealthCheck(address string, interval time.Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
+	pc, err := newPingChecker(address)
 	if err != nil {
 		return &healthCheck{}, err
 	}

@@ -28,7 +28,7 @@ type codeVerifier struct {
 	value []byte
 }
 
-func CreateCodeVerifier() (*codeVerifier, error) {
+func createCodeVerifier() (*codeVerifier, error) {
 	// "code verifier"
 	// > cryptographically random string using the characters A-Z, a-z,
 	// > 0-9, and the punctuation characters -._~ (hyphen, period, underscore,
@@ -76,7 +76,7 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 
 // prepareTokenWebChalenge returns a url to follow oauth
 func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
-	codeVerifier, err := CreateCodeVerifier()
+	codeVerifier, err := createCodeVerifier()
 	if err != nil {
 		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
 	}

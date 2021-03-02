@@ -19,7 +19,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-type AgentDevice interface {
+type agentDevice interface {
 	Name() string
 	Run() error
 	Stop()
