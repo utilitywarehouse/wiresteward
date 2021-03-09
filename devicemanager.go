@@ -46,6 +46,14 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	}
 }
 
+func (dm *DeviceManager) IsHealthy() bool {
+	return dm.healthCheck.IsHealthy()
+}
+
+func (dm *DeviceManager) IsHealthChecked() bool {
+	return len(dm.serverURLs) > 1
+}
+
 // Run starts the AgentDevice by calling its Run() method and proceeds to
 // initialise it.
 func (dm *DeviceManager) Run() error {
@@ -86,7 +94,7 @@ func (dm *DeviceManager) renewLoop() {
 	for {
 		select {
 		case <-dm.renewLeaseChan:
-			logger.Info.Printf("healthceck failed, renewing lease")
+			logger.Info.Printf("Renewing lease for device:%s\n", dm.Name())
 			if err := dm.renewLease(); err != nil {
 				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
 				// Wait a second in a goroutine so we do not block here and try again

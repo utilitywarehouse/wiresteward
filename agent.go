@@ -58,6 +58,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 // exchange and token renewal.
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
+	http.HandleFunc("/renew", a.renewHandler)
 	http.HandleFunc("/", a.mainHandler)
 
 	logger.Info.Printf("Starting agent at http://%s", *flagAgentAddress)
@@ -85,7 +86,6 @@ func (a *Agent) Stop() {
 func (a *Agent) renewAllLeases(token string) {
 	logger.Info.Println("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
-		logger.Info.Printf("Updating token and renewing lease for device `%s`", dm.Name())
 		dm.RenewTokenAndLease(token)
 	}
 }
@@ -101,15 +101,10 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.renewAllLeases(token.AccessToken)
-	fmt.Fprintf(w, "Auth is now complete and agent is running! You can close this window")
+	a.statusHandler(w, r)
 }
 
-func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
+func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
 		logger.Error.Println(
@@ -128,5 +123,23 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.renewAllLeases(token.AccessToken)
-	fmt.Fprintf(w, "Agent refreshed and running! You can close this window now")
+	a.statusHandler(w, r)
+}
+
+func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	a.statusHandler(w, r)
+}
+
+func (a *Agent) statusHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := a.oa.getTokenFromFile()
+	if err != nil || token.AccessToken == "" {
+		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
+		statusHttpWriter(w, r, a.deviceManagers, nil)
+		return
+	}
+	statusHttpWriter(w, r, a.deviceManagers, token)
 }
