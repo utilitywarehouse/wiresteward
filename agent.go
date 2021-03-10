@@ -138,8 +138,8 @@ func (a *Agent) statusHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" {
 		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
-		statusHttpWriter(w, r, a.deviceManagers, nil)
+		statusHTTPWriter(w, r, a.deviceManagers, nil)
 		return
 	}
-	statusHttpWriter(w, r, a.deviceManagers, token)
+	statusHTTPWriter(w, r, a.deviceManagers, token)
 }
