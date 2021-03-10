@@ -16,7 +16,7 @@ func TestHealthcheck_NewHealthCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Assert init healthcheck conditions
-	assert.Equal(t, hc.healthy, true)
+	assert.Equal(t, hc.healthy, false)
 	assert.Equal(t, hc.running, false)
 }
 

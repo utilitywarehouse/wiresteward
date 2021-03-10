@@ -23,20 +23,24 @@ func newHealthCheck(address string, interval time.Duration, threshold int, renew
 		checker:   pc,
 		interval:  interval,
 		threshold: threshold,
-		healthy:   true, // assume target is healthy when starting
+		healthy:   false, // assume target is not healthy when starting until we make a successful check
 		running:   false,
 		stop:      make(chan struct{}),
 		renew:     renew,
 	}, nil
 }
 
-func (hc healthCheck) Stop() {
+func (hc *healthCheck) Stop() {
 	if hc.running {
 		hc.stop <- struct{}{}
 	}
 }
 
-func (hc healthCheck) Run() {
+func (hc *healthCheck) isHealthy() bool {
+	return hc.healthy
+}
+
+func (hc *healthCheck) Run() {
 	healthSyncTicker := time.NewTicker(hc.interval)
 	defer healthSyncTicker.Stop()
 	unhealthyCount := 0
@@ -55,14 +59,16 @@ func (hc healthCheck) Run() {
 			if !success {
 				unhealthyCount = unhealthyCount + 1
 			}
-			if unhealthyCount >= hc.threshold && hc.healthy {
-				logger.Info.Printf("server at: %s became unhealthy", hc.checker.TargetIP())
+			// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
+			if unhealthyCount >= hc.threshold {
+				logger.Info.Printf("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
 				hc.running = false
 				hc.healthy = false
 				hc.renew <- struct{}{}
 				return
 			}
 		case <-hc.stop:
+			logger.Info.Printf("stopping healthcheck for: %s", hc.checker.TargetIP())
 			hc.running = false
 			return
 		}
@@ -70,7 +76,7 @@ func (hc healthCheck) Run() {
 }
 
 // Check returns true if the check was successful
-func (hc healthCheck) Check() bool {
+func (hc *healthCheck) Check() bool {
 	err := hc.checker.Check()
 	if err != nil {
 		logger.Error.Printf("healthcheck failed for (%s): %s", hc.checker.TargetIP(), err)
