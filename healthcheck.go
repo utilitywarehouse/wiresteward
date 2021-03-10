@@ -36,7 +36,7 @@ func (hc *healthCheck) Stop() {
 	}
 }
 
-func (hc *healthCheck) IsHealthy() bool {
+func (hc *healthCheck) isHealthy() bool {
 	return hc.healthy
 }
 

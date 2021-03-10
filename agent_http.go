@@ -143,8 +143,8 @@ func statusHTTPWriter(w http.ResponseWriter, r *http.Request, deviceManagers []*
 					Device:          dm.Name(),
 					Dst:             ip.String(),
 					GW:              dm.config.LocalAddress.String(),
-					IsHealthChecked: dm.IsHealthChecked(),
-					Healthy:         dm.IsHealthy(),
+					IsHealthChecked: dm.isHealthChecked(),
+					Healthy:         dm.isHealthy(),
 				}
 				routes = append(routes, r)
 			}

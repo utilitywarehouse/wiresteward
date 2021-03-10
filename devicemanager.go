@@ -46,14 +46,11 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *Dev
 	}
 }
 
-// IsHealthy exposes the health status of the device managers healthcheck
-func (dm *DeviceManager) IsHealthy() bool {
-	return dm.healthCheck.IsHealthy()
+func (dm *DeviceManager) isHealthy() bool {
+	return dm.healthCheck.isHealthy()
 }
 
-// IsHealthChecked returns true if the device manager is trying to healthcheck
-// the server it connects to
-func (dm *DeviceManager) IsHealthChecked() bool {
+func (dm *DeviceManager) isHealthChecked() bool {
 	return len(dm.serverURLs) > 1
 }
 
