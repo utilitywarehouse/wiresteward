@@ -101,7 +101,9 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.renewAllLeases(token.AccessToken)
-	a.statusHandler(w, r)
+	// Redirect to / after renewing leases
+	rootUrl := fmt.Sprintf("http://%s/", r.Host)
+	http.Redirect(w, r, rootUrl, 302)
 }
 
 func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +125,9 @@ func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.renewAllLeases(token.AccessToken)
-	a.statusHandler(w, r)
+	// Redirect to / after renewing leases
+	rootUrl := fmt.Sprintf("http://%s/", r.Host)
+	http.Redirect(w, r, rootUrl, 302)
 }
 
 func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
@@ -131,10 +135,7 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	a.statusHandler(w, r)
-}
 
-func (a *Agent) statusHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" {
 		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
