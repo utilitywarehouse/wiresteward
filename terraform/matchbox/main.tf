@@ -65,6 +65,7 @@ data "ignition_config" "wiresteward" {
     list(
       data.ignition_file.hostname[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
+      data.ignition_file.resolved_conf.rendered,
     ),
     var.ignition_files[count.index],
   )
