@@ -35,6 +35,11 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = verifyAgentHTTPClientConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
 
 	devicesOnly := []byte(`
 {
@@ -71,6 +76,11 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = verifyAgentHTTPClientConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
 
 	full := []byte(`
 {
@@ -89,7 +99,10 @@ func TestAgentConfigFmt(t *testing.T) {
         }
       ]
     }
-  ]
+  ],
+  "httpclient": {
+    "timeout": "5s"
+  }
 }
 `)
 
@@ -115,6 +128,11 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = verifyAgentHTTPClientConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HTTPClient.Timeout, "5s")
 }
 
 func TestServerConfig(t *testing.T) {

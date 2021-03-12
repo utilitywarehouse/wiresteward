@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	defaultKeyFilename         = "/etc/wiresteward/key"
-	defaultLeaserSyncInterval  = 1 * time.Minute
-	defaultLeasesFilename      = "/var/lib/wiresteward/leases"
-	defaultServerListenAddress = "0.0.0.0:8080"
+	defaultKeyFilename            = "/etc/wiresteward/key"
+	defaultLeaserSyncInterval     = 1 * time.Minute
+	defaultLeasesFilename         = "/var/lib/wiresteward/leases"
+	defaultServerListenAddress    = "0.0.0.0:8080"
+	defaultAgentHTTPClientTimeout = "3s"
 )
 
 // agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
@@ -38,10 +39,17 @@ type agentDeviceConfig struct {
 	Peers []agentPeerConfig `json:"peers"`
 }
 
+// agentHTTPClientConfig contains variable to set http client options for
+// requests to the wiresteward servers.
+type agentHTTPClientConfig struct {
+	Timeout string `json:"timeout"`
+}
+
 // AgentConfig describes the agent-side configuration of wiresteward.
 type agentConfig struct {
-	OAuth   agentOAuthConfig    `json:"oauth"`
-	Devices []agentDeviceConfig `json:"devices"`
+	OAuth      agentOAuthConfig      `json:"oauth"`
+	Devices    []agentDeviceConfig   `json:"devices"`
+	HTTPClient agentHTTPClientConfig `json:"httpclient"`
 }
 
 func verifyAgentOAuthConfig(conf *agentConfig) error {
@@ -74,6 +82,14 @@ func verifyAgentDevicesConfig(conf *agentConfig) error {
 	return nil
 }
 
+func verifyAgentHTTPClientConfig(conf *agentConfig) error {
+	if conf.HTTPClient.Timeout == "" {
+		conf.HTTPClient.Timeout = defaultAgentHTTPClientTimeout
+	}
+	_, err := time.ParseDuration(conf.HTTPClient.Timeout)
+	return err
+}
+
 func readAgentConfig(path string) (*agentConfig, error) {
 	conf := &agentConfig{}
 	fileContent, err := os.ReadFile(path)
@@ -87,6 +103,9 @@ func readAgentConfig(path string) (*agentConfig, error) {
 		return nil, err
 	}
 	if err = verifyAgentDevicesConfig(conf); err != nil {
+		return nil, err
+	}
+	if err = verifyAgentHTTPClientConfig(conf); err != nil {
 		return nil, err
 	}
 	return conf, nil

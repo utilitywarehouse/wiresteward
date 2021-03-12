@@ -23,26 +23,29 @@ func init() {
 // wiresteward servers.
 type DeviceManager struct {
 	agentDevice
-	cachedToken    string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
-	configMutex    sync.Mutex
-	config         *WirestewardPeerConfig // To keep the current config
-	serverURLs     []string
-	healthCheck    *healthCheck
-	renewLeaseChan chan struct{}
+	cachedToken       string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
+	configMutex       sync.Mutex
+	config            *WirestewardPeerConfig // To keep the current config
+	serverURLs        []string
+	healthCheck       *healthCheck
+	renewLeaseChan    chan struct{}
+	httpClientTimeout time.Duration
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout string) *DeviceManager {
 	var device agentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
 	} else {
 		device = newTunDevice(deviceName, mtu)
 	}
+	t, _ := time.ParseDuration(httpClientTimeout)
 	return &DeviceManager{
-		agentDevice:    device,
-		serverURLs:     wirestewardURLs,
-		healthCheck:    &healthCheck{running: false},
-		renewLeaseChan: make(chan struct{}),
+		agentDevice:       device,
+		serverURLs:        wirestewardURLs,
+		healthCheck:       &healthCheck{running: false},
+		renewLeaseChan:    make(chan struct{}),
+		httpClientTimeout: t,
 	}
 }
 
@@ -138,7 +141,7 @@ func (dm *DeviceManager) renewLease() error {
 	}
 	oldConfig := dm.config
 	peers := []wgtypes.PeerConfig{}
-	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey)
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey, dm.httpClientTimeout)
 	if err != nil {
 		logger.Error.Printf(
 			"Could not get wiresteward peer config from `%s`: %v",
@@ -209,7 +212,7 @@ func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardP
 	}, lr.ServerWireguardIP, nil
 }
 
-func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*WirestewardPeerConfig, string, error) {
+func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout time.Duration) (*WirestewardPeerConfig, string, error) {
 	// Marshal key into json
 	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
@@ -225,7 +228,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string) (*Wirestew
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
