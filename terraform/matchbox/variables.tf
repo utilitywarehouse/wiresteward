@@ -77,3 +77,12 @@ variable "wiresteward_metrics_port" {
   description = "Port to scrape wiresteward metrics"
   default     = "8081"
 }
+
+variable "dns_nameservers" {
+  type        = list(string)
+  description = "A list of DNS servers"
+  default = [
+    "1.1.1.1",
+    "1.0.0.1",
+  ]
+}

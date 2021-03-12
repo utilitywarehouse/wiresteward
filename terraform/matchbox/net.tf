@@ -64,7 +64,6 @@ MTUBytes=9000
 MACAddress=${var.wiresteward_server_peers[count.index].mac_addresses[0]}
 [Network]
 DHCP=no
-DNS=1.1.1.1
 VLAN=bond0.${var.private_vlan_id}
 VLAN=bond0.${var.public_vlan_id}
 EOS
