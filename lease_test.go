@@ -1,22 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"net"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"inet.af/netaddr"
 )
 
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
-	ip, network, _ := net.ParseCIDR("10.90.0.1/20")
-	lm := &FileLeaseManager{
-		wgRecords: map[string]WgRecord{},
-		cidr:      network,
-		ip:        ip,
+	ipPrefix := netaddr.MustParseIPPrefix("10.90.0.1/20")
+	lm := &fileLeaseManager{
+		wgRecords: map[string]WGRecord{},
+		ipPrefix:  ipPrefix,
 	}
 	testPubKey1 := "k1a1fEw+lqB/JR1pKjI597R54xzfP9Kxv4M7hufyNAY="
 	testPubKey2 := "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo="
@@ -28,8 +25,8 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if record.IP.Equal(lm.ip) {
-		t.Fatalf("Unexpected ip returned %v", record.IP)
+	if record.IP.Compare(netaddr.MustParseIP("10.90.0.2")) != 0 {
+		t.Fatalf("Unexpected IP returned %s", record.IP.String())
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey1, lm.wgRecords[testUsername].PubKey)
@@ -41,7 +38,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
 	assert.Equal(t, testPubKey2, lm.wgRecords[testUsername].PubKey)
-	if !record.IP.Equal(record2.IP) {
+	if record.IP.Compare(record2.IP) != 0 {
 		t.Fatalf("Expected the same ip address for the same user, got %v", record2.IP)
 	}
 	// Test that empty username will error
@@ -49,47 +46,36 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	assert.Equal(t, err, fmt.Errorf("Cannot add peer for empty username"))
 }
 
-func TestIncIPAddress(t *testing.T) {
-	testCases := []struct{ t, e net.IP }{
-		{
-			t: net.IP([]byte{10, 10, 10, 0}),
-			e: net.IP([]byte{10, 10, 10, 1}),
-		},
-		{
-			t: net.IP([]byte{10, 10, 10, 255}),
-			e: net.IP([]byte{10, 10, 11, 0}),
-		},
-	}
-	for _, test := range testCases {
-		incIPAddress(test.t)
-		if !bytes.Equal(test.t, test.e) {
-			t.Errorf("inIPAddress: expected %v, got %v", test.e, test.t)
-		}
-	}
-}
-
 func TestGetAvailableIPAddresses(t *testing.T) {
+	ipPrefix := netaddr.MustParseIPPrefix("10.90.0.1/20")
+	r1 := WGRecord{
+		PubKey:  "k1a1fEw+lqB/JR1pKjI597R54xzfP9Kxv4M7hufyNAY=",
+		IP:      netaddr.MustParseIP("10.90.0.2"),
+		expires: time.Unix(0, 0)}
+
+	r2 := WGRecord{
+		PubKey:  "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo=",
+		IP:      netaddr.MustParseIP("10.90.0.4"),
+		expires: time.Unix(0, 0)}
+
+	lm := &fileLeaseManager{
+		wgRecords: map[string]WGRecord{"r1": r1, "r2": r2},
+		ipPrefix:  ipPrefix,
+	}
+
 	testCases := []struct {
-		c    string
-		t, e []net.IP
+		t fileLeaseManager
+		e netaddr.IP
 	}{
 		{
-			c: "10.10.10.0/29",
-			t: []net.IP{[]byte{10, 10, 10, 1}, []byte{10, 10, 10, 3}},
-			e: []net.IP{[]byte{10, 10, 10, 2}, []byte{10, 10, 10, 4}, []byte{10, 10, 10, 5}, []byte{10, 10, 10, 6}},
+			t: *lm,
+			e: netaddr.IPv4(10, 90, 0, 3),
 		},
 	}
 	for _, test := range testCases {
-		_, c, err := net.ParseCIDR(test.c)
-		if err != nil {
-			t.Errorf("net.ParseCIDR: %v", err)
-		}
-		a, err := getAvailableIPAddresses(c, test.t)
-		if err != nil {
-			t.Errorf("getAvailableIPAddresses: %v", err)
-		}
-		if diff := cmp.Diff(test.e, a); diff != "" {
-			t.Errorf("getAvailableIPAddresses: did not get expected result:\n%s", diff)
+		a := test.t.nextAvailableAddress()
+		if a.Compare(test.e) != 0 {
+			t.Errorf("getNextAvailableAddress: expected=%s got=%s", test.e.String(), a.String())
 		}
 	}
 }

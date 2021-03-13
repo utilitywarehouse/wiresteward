@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,31 +12,31 @@ import (
 	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"inet.af/netaddr"
 )
 
-// WgRecord describes a lease entry for a peer.
-type WgRecord struct {
+// WGRecord describes a lease entry for a peer.
+type WGRecord struct {
 	PubKey  string
-	IP      net.IP
+	IP      netaddr.IP
 	expires time.Time
 }
 
-func (wgr WgRecord) String() string {
+func (wgr WGRecord) String() string {
 	return wgr.PubKey + " " + wgr.IP.String() + " " + wgr.expires.Format(time.RFC3339)
 }
 
-// FileLeaseManager implements functionality for managing address leases for
+// fileLeaseManager implements functionality for managing address leases for
 // peers, using a file as a state backend.
-type FileLeaseManager struct {
-	cidr           *net.IPNet
+type fileLeaseManager struct {
 	deviceName     string
 	filename       string
-	ip             net.IP
-	wgRecords      map[string]WgRecord
+	ipPrefix       netaddr.IPPrefix
+	wgRecords      map[string]WGRecord
 	wgRecordsMutex sync.Mutex
 }
 
-func newFileLeaseManager(cfg *serverConfig) (*FileLeaseManager, error) {
+func newFileLeaseManager(cfg *serverConfig) (*fileLeaseManager, error) {
 	if cfg.LeasesFilename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
@@ -49,11 +48,10 @@ func newFileLeaseManager(cfg *serverConfig) (*FileLeaseManager, error) {
 		return nil, err
 	}
 
-	lm := &FileLeaseManager{
-		cidr:       cfg.WireguardIPNetwork,
+	lm := &fileLeaseManager{
+		ipPrefix:   cfg.WireguardIPPrefix,
 		deviceName: cfg.DeviceName,
 		filename:   cfg.LeasesFilename,
-		ip:         cfg.WireguardIPAddress,
 	}
 
 	if err := lm.loadWgRecords(); err != nil {
@@ -68,11 +66,11 @@ func newFileLeaseManager(cfg *serverConfig) (*FileLeaseManager, error) {
 	return lm, nil
 }
 
-func (lm *FileLeaseManager) loadWgRecords() error {
+func (lm *fileLeaseManager) loadWgRecords() error {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
 
-	lm.wgRecords = make(map[string]WgRecord)
+	lm.wgRecords = make(map[string]WGRecord)
 
 	r, err := os.Open(lm.filename)
 	if err != nil {
@@ -94,17 +92,16 @@ func (lm *FileLeaseManager) loadWgRecords() error {
 
 		username := tokens[0]
 		pubKey := tokens[1]
-		ipaddr := net.ParseIP(tokens[2])
-		// TODO: support v6?
-		if ipaddr.To4() == nil {
-			return fmt.Errorf("expected an IPv4 address, got: %v", ipaddr)
+		ipaddr, err := netaddr.ParseIP(tokens[2])
+		if err != nil {
+			return err
 		}
 		expires, err := time.Parse(time.RFC3339, tokens[3])
 		if err != nil {
 			return fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
 		}
 		if expires.After(time.Now()) {
-			lm.wgRecords[username] = WgRecord{
+			lm.wgRecords[username] = WGRecord{
 				PubKey:  pubKey,
 				IP:      ipaddr,
 				expires: expires,
@@ -116,7 +113,7 @@ func (lm *FileLeaseManager) loadWgRecords() error {
 	return nil
 }
 
-func (lm *FileLeaseManager) saveWgRecords() error {
+func (lm *fileLeaseManager) saveWgRecords() error {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
 	f, err := os.OpenFile(lm.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
@@ -132,7 +129,7 @@ func (lm *FileLeaseManager) saveWgRecords() error {
 	return nil
 }
 
-func (lm *FileLeaseManager) syncWgRecords() error {
+func (lm *fileLeaseManager) syncWgRecords() error {
 	lm.wgRecordsMutex.Lock()
 	changed := false
 	for k, r := range lm.wgRecords {
@@ -153,7 +150,7 @@ func (lm *FileLeaseManager) syncWgRecords() error {
 	return nil
 }
 
-func (lm *FileLeaseManager) updateWgPeers() error {
+func (lm *fileLeaseManager) updateWgPeers() error {
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
 	peers := []wgtypes.PeerConfig{}
@@ -168,12 +165,12 @@ func (lm *FileLeaseManager) updateWgPeers() error {
 	return setPeers(lm.deviceName, peers)
 }
 
-func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WgRecord, error) {
+func (lm *fileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WGRecord, error) {
 	if username == "" {
-		return WgRecord{}, fmt.Errorf("Cannot add peer for empty username")
+		return WGRecord{}, fmt.Errorf("Cannot add peer for empty username")
 	}
 	if pubKey == "" {
-		return WgRecord{}, fmt.Errorf("Cannot add peer for empty public key")
+		return WGRecord{}, fmt.Errorf("Cannot add peer for empty public key")
 	}
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
@@ -183,64 +180,44 @@ func (lm *FileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry t
 		lm.wgRecords[username] = record
 		return lm.wgRecords[username], nil
 	}
-	// Find all already allocated IP addresses
-	allocatedIPs := []net.IP{lm.ip}
-	for _, r := range lm.wgRecords {
-		allocatedIPs = append(allocatedIPs, r.IP)
-	}
-	// Add the gateway IP to the list of already allocated IPs
-	availableIPs, err := getAvailableIPAddresses(lm.cidr, allocatedIPs)
-	if err != nil {
-		return WgRecord{}, err
-	}
-	lm.wgRecords[username] = WgRecord{
+	lm.wgRecords[username] = WGRecord{
 		PubKey:  pubKey,
-		IP:      availableIPs[0],
+		IP:      lm.nextAvailableAddress(),
 		expires: expiry,
 	}
 	return lm.wgRecords[username], nil
 }
 
-func (lm *FileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time) (WgRecord, error) {
+func (lm *fileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time) (WGRecord, error) {
 	record, err := lm.createOrUpdatePeer(username, pubKey, expiry)
 	if err != nil {
-		return WgRecord{}, err
+		return WGRecord{}, err
 	}
 	if err := lm.updateWgPeers(); err != nil {
-		return WgRecord{}, err
+		return WGRecord{}, err
 	}
 	if err := lm.saveWgRecords(); err != nil {
-		return WgRecord{}, err
+		return WGRecord{}, err
 	}
 	return record, nil
 }
 
-func getAvailableIPAddresses(cidr *net.IPNet, allocated []net.IP) ([]net.IP, error) {
-	var ips []net.IP
-	for ip := append(cidr.IP[:0:0], cidr.IP...); cidr.Contains(ip); incIPAddress(ip) {
-		ips = append(ips, append(ip[:0:0], ip...))
+// nextAvailableAddress returns an available IP address within subnet
+//   - Add the whole subnet
+//   - remove the gateway address
+//   - remove the *first* and *last* address (reserved)
+//     https://en.wikipedia.org/wiki/IPv4#First_and_last_subnet_addresses
+//   - remove all already leased addresses
+// Remaining IPs are "available", get the first one
+func (lm *fileLeaseManager) nextAvailableAddress() netaddr.IP {
+	var b netaddr.IPSetBuilder
+	b.AddPrefix(lm.ipPrefix)
+	b.Remove(lm.ipPrefix.IP)
+	b.Remove(lm.ipPrefix.Range().From)
+	b.Remove(lm.ipPrefix.Range().To)
+	for _, r := range lm.wgRecords {
+		b.Remove(r.IP)
 	}
-	var available []net.IP
-	for _, ip := range ips[1 : len(ips)-1] {
-		found := false
-		for _, a := range allocated {
-			found = ip.Equal(a)
-			if found {
-				break
-			}
-		}
-		if !found {
-			available = append(available, ip)
-		}
-	}
-	return available, nil
-}
-
-func incIPAddress(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
+	a := b.IPSet()
+	return a.Prefixes()[0].IP
 }

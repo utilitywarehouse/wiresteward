@@ -31,7 +31,7 @@ type leaseResponse struct {
 
 // HTTPLeaseHandler implements the HTTP server that manages peer address leases.
 type HTTPLeaseHandler struct {
-	leaseManager   *FileLeaseManager
+	leaseManager   *fileLeaseManager
 	serverConfig   *serverConfig
 	tokenValidator *tokenValidator
 }
@@ -99,7 +99,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		response := &leaseResponse{
 			Status:            "success",
 			IP:                fmt.Sprintf("%s/32", wg.IP.String()),
-			ServerWireguardIP: lh.serverConfig.WireguardIPAddress.String(),
+			ServerWireguardIP: lh.serverConfig.WireguardIPPrefix.IP.String(),
 			AllowedIPs:        lh.serverConfig.AllowedIPs,
 			PubKey:            pubKey,
 			Endpoint:          lh.serverConfig.Endpoint,

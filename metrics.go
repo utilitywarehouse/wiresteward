@@ -19,12 +19,12 @@ type collector struct {
 	PeerLeaseExpiryTime *prometheus.Desc
 
 	devices      func() ([]*wgtypes.Device, error)
-	leaseManager *FileLeaseManager
+	leaseManager *fileLeaseManager
 }
 
 // NewMetricsCollector constructs a prometheus.Collector to collect metrics for
 // all present wg devices and correlate with user if possible
-func newMetricsCollector(devices func() ([]*wgtypes.Device, error), lm *FileLeaseManager) prometheus.Collector {
+func newMetricsCollector(devices func() ([]*wgtypes.Device, error), lm *fileLeaseManager) prometheus.Collector {
 	// common labels for all metrics
 	labels := []string{"device", "public_key"}
 

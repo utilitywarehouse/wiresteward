@@ -8,6 +8,7 @@ import (
 
 	"github.com/mdlayher/promtest"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"inet.af/netaddr"
 )
 
 func TestCollector(t *testing.T) {
@@ -25,7 +26,7 @@ func TestCollector(t *testing.T) {
 	tests := []struct {
 		name         string
 		devices      func() ([]*wgtypes.Device, error)
-		leaseManager *FileLeaseManager
+		leaseManager *fileLeaseManager
 		metrics      []string
 	}{
 		{
@@ -82,16 +83,16 @@ func TestCollector(t *testing.T) {
 					},
 				}, nil
 			},
-			leaseManager: &FileLeaseManager{
-				wgRecords: map[string]WgRecord{
-					userA: WgRecord{
+			leaseManager: &fileLeaseManager{
+				wgRecords: map[string]WGRecord{
+					userA: WGRecord{
 						PubKey:  pubPeerA.String(),
-						IP:      net.ParseIP("10.0.0.1"),
+						IP:      netaddr.MustParseIP("10.0.0.1"),
 						expires: time.Unix(100, 0),
 					},
-					userB: WgRecord{
+					userB: WGRecord{
 						PubKey: pubPeerB.String(),
-						IP:     net.ParseIP("10.0.0.3"),
+						IP:     netaddr.MustParseIP("10.0.0.3"),
 					},
 				},
 			},
