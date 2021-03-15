@@ -223,14 +223,11 @@ func newServerDevice(cfg *serverConfig) *ServerDevice {
 	}
 	return &ServerDevice{
 		deviceAddress: netlink.Addr{
-			IPNet: &net.IPNet{
-				IP:   cfg.WireguardIPAddress,
-				Mask: cfg.WireguardIPNetwork.Mask,
-			},
+			IPNet: cfg.WireguardIPPrefix.IPNet(),
 		},
 		deviceMTU: cfg.DeviceMTU,
 		iptablesRule: []string{
-			"-s", cfg.WireguardIPNetwork.String(),
+			"-s", cfg.WireguardIPPrefix.String(),
 			"-d", strings.Join(cfg.AllowedIPs, ","),
 			"-j", "MASQUERADE",
 		},

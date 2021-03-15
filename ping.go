@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
+	"inet.af/netaddr"
 )
 
 const defaultPingTimeout = time.Second
@@ -17,7 +18,7 @@ const defaultPingTimeout = time.Second
 var nextPingCheckerID = os.Getpid() & 0xffff
 
 type pingChecker struct {
-	IP     net.IP
+	IP     netaddr.IP
 	ID     int
 	Seqnum int
 }
@@ -28,8 +29,8 @@ type checker interface {
 }
 
 func newPingChecker(address string) (*pingChecker, error) {
-	ip := net.ParseIP(address)
-	if ip.To4() == nil {
+	ip, err := netaddr.ParseIP(address)
+	if err != nil {
 		return nil, fmt.Errorf("No valid ip for %s", address)
 	}
 	id := nextPingCheckerID
@@ -68,14 +69,14 @@ func newICMPv4EchoRequest(id, seqnum int, data []byte) ([]byte, error) {
 	return wm.Marshal(nil)
 }
 
-func exchangeICMPEcho(ip net.IP, timeout time.Duration, echo []byte) error {
+func exchangeICMPEcho(ip netaddr.IP, timeout time.Duration, echo []byte) error {
 	c, err := net.ListenPacket("ip4:icmp", "")
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 
-	_, err = c.WriteTo(echo, &net.IPAddr{IP: ip})
+	_, err = c.WriteTo(echo, ip.IPAddr())
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,8 @@ func exchangeICMPEcho(ip net.IP, timeout time.Duration, echo []byte) error {
 		if err != nil {
 			return err
 		}
-		if !ip.Equal(net.ParseIP(addr.String())) {
+		rip := netaddr.MustParseIP(addr.String())
+		if ip.Compare(rip) != 0 {
 			continue
 		}
 		// 1 == ipv4 ICMP proto number

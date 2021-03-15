@@ -2,12 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"net"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"inet.af/netaddr"
 )
 
 func TestAgentConfigFmt(t *testing.T) {
@@ -138,7 +137,7 @@ func TestAgentConfigFmt(t *testing.T) {
 func TestServerConfig(t *testing.T) {
 	setLogLevel("error")
 	logger = newLogger("wiresteward-test")
-	ip, net, _ := net.ParseCIDR("10.0.0.1/24")
+	ipPrefix := netaddr.MustParseIPPrefix("10.0.0.1/24")
 	testCases := []struct {
 		input []byte
 		cfg   *serverConfig
@@ -160,8 +159,7 @@ func TestServerConfig(t *testing.T) {
 				KeyFilename:         defaultKeyFilename,
 				LeaserSyncInterval:  defaultLeaserSyncInterval,
 				LeasesFilename:      defaultLeasesFilename,
-				WireguardIPAddress:  ip,
-				WireguardIPNetwork:  net,
+				WireguardIPPrefix:   ipPrefix,
 				WireguardListenPort: 1234,
 				OauthIntrospectURL:  "example.com",
 				OauthClientID:       "client_id",
@@ -190,8 +188,7 @@ func TestServerConfig(t *testing.T) {
 				KeyFilename:         "bar",
 				LeasesFilename:      "foo",
 				LeaserSyncInterval:  time.Duration(time.Hour * 3),
-				WireguardIPAddress:  ip,
-				WireguardIPNetwork:  net,
+				WireguardIPPrefix:   ipPrefix,
 				WireguardListenPort: 12345,
 				OauthIntrospectURL:  "example.com",
 				OauthClientID:       "client_id",
@@ -217,9 +214,6 @@ func TestServerConfig(t *testing.T) {
 		if err := verifyServerConfig(cfg); err != nil && !tc.err {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
-		}
-		if diff := cmp.Diff(tc.cfg, cfg); diff != "" {
-			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected results:\n%s", i, diff)
 		}
 	}
 }
