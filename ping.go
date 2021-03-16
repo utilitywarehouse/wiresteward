@@ -13,14 +13,13 @@ import (
 	"inet.af/netaddr"
 )
 
-const defaultPingTimeout = time.Second
-
 var nextPingCheckerID = os.Getpid() & 0xffff
 
 type pingChecker struct {
-	IP     netaddr.IP
-	ID     int
-	Seqnum int
+	IP      netaddr.IP
+	ID      int
+	Seqnum  int
+	Timeout time.Duration
 }
 
 type checker interface {
@@ -28,7 +27,7 @@ type checker interface {
 	TargetIP() string
 }
 
-func newPingChecker(address string) (*pingChecker, error) {
+func newPingChecker(address string, timeout time.Duration) (*pingChecker, error) {
 	ip, err := netaddr.ParseIP(address)
 	if err != nil {
 		return nil, fmt.Errorf("No valid ip for %s", address)
@@ -36,24 +35,25 @@ func newPingChecker(address string) (*pingChecker, error) {
 	id := nextPingCheckerID
 	nextPingCheckerID++
 	return &pingChecker{
-		IP: ip,
-		ID: id,
+		IP:      ip,
+		ID:      id,
+		Timeout: timeout,
 	}, nil
 }
 
-func (hc *pingChecker) Check() error {
-	seq := hc.Seqnum
-	hc.Seqnum++
-	echo, err := newICMPv4EchoRequest(hc.ID, seq, []byte("Healthcheck"))
+func (pc *pingChecker) Check() error {
+	seq := pc.Seqnum
+	pc.Seqnum++
+	echo, err := newICMPv4EchoRequest(pc.ID, seq, []byte("Healthcheck"))
 	if err != nil {
 		return fmt.Errorf("Cannot construct icmp echo: %v", err)
 	}
-	return exchangeICMPEcho(hc.IP, defaultPingTimeout, echo)
+	return exchangeICMPEcho(pc.IP, pc.Timeout, echo)
 }
 
 // return a string representation of the checker's target ip
-func (hc *pingChecker) TargetIP() string {
-	return hc.IP.String()
+func (pc *pingChecker) TargetIP() string {
+	return pc.IP.String()
 }
 
 func newICMPv4EchoRequest(id, seqnum int, data []byte) ([]byte, error) {

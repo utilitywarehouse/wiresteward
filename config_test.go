@@ -39,6 +39,13 @@ func TestAgentConfigFmt(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
+	err = verifyAgentHealthCheckConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HealthCheck.Interval, defaultAgentHealthCheckInterval)
+	assert.Equal(t, conf.HealthCheck.Timeout, defaultAgentHealthCheckTimeout)
+	assert.Equal(t, conf.HealthCheck.Threshold, defaultAgentHealthCheckThreshold)
 
 	devicesOnly := []byte(`
 {
@@ -80,6 +87,13 @@ func TestAgentConfigFmt(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
+	err = verifyAgentHealthCheckConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HealthCheck.Interval, defaultAgentHealthCheckInterval)
+	assert.Equal(t, conf.HealthCheck.Timeout, defaultAgentHealthCheckTimeout)
+	assert.Equal(t, conf.HealthCheck.Threshold, defaultAgentHealthCheckThreshold)
 
 	full := []byte(`
 {
@@ -101,6 +115,11 @@ func TestAgentConfigFmt(t *testing.T) {
   ],
   "httpclient": {
     "timeout": "5s"
+  },
+  "healthcheck": {
+    "interval": "5s",
+    "timeout": "5s",
+    "threshold": 5
   }
 }
 `)
@@ -132,6 +151,13 @@ func TestAgentConfigFmt(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, conf.HTTPClient.Timeout, "5s")
+	err = verifyAgentHealthCheckConfig(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, conf.HealthCheck.Interval, "5s")
+	assert.Equal(t, conf.HealthCheck.Timeout, "5s")
+	assert.Equal(t, conf.HealthCheck.Threshold, 5)
 }
 
 func TestServerConfig(t *testing.T) {

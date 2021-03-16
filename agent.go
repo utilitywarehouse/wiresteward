@@ -29,7 +29,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		for _, peer := range dev.Peers {
 			urls = append(urls, peer.URL)
 		}
-		dm := newDeviceManager(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout)
+		dm := newDeviceManager(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout, cfg.HealthCheck)
 		if err := dm.Run(); err != nil {
 			logger.Error.Printf(
 				"Error starting device `%s`: %v",

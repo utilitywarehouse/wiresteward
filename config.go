@@ -12,11 +12,14 @@ import (
 )
 
 const (
-	defaultKeyFilename            = "/etc/wiresteward/key"
-	defaultLeaserSyncInterval     = 1 * time.Minute
-	defaultLeasesFilename         = "/var/lib/wiresteward/leases"
-	defaultServerListenAddress    = "0.0.0.0:8080"
-	defaultAgentHTTPClientTimeout = "3s"
+	defaultKeyFilename               = "/etc/wiresteward/key"
+	defaultLeaserSyncInterval        = 1 * time.Minute
+	defaultLeasesFilename            = "/var/lib/wiresteward/leases"
+	defaultServerListenAddress       = "0.0.0.0:8080"
+	defaultAgentHTTPClientTimeout    = "3s"
+	defaultAgentHealthCheckInterval  = "1s"
+	defaultAgentHealthCheckTimeout   = "1s"
+	defaultAgentHealthCheckThreshold = 3
 )
 
 // agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
@@ -46,11 +49,20 @@ type agentHTTPClientConfig struct {
 	Timeout string `json:"timeout"`
 }
 
+// agentHealthcheckConfig contains the global config for all the healthchecks
+// created by the agent against server peers.
+type agentHealthCheckConfig struct {
+	Interval  string `json:"interval"`
+	Threshold int    `json:"threshold"`
+	Timeout   string `json:"timeout"`
+}
+
 // AgentConfig describes the agent-side configuration of wiresteward.
 type agentConfig struct {
-	OAuth      agentOAuthConfig      `json:"oauth"`
-	Devices    []agentDeviceConfig   `json:"devices"`
-	HTTPClient agentHTTPClientConfig `json:"httpclient"`
+	OAuth       agentOAuthConfig       `json:"oauth"`
+	Devices     []agentDeviceConfig    `json:"devices"`
+	HTTPClient  agentHTTPClientConfig  `json:"httpclient"`
+	HealthCheck agentHealthCheckConfig `json:"healthcheck"`
 }
 
 func verifyAgentOAuthConfig(conf *agentConfig) error {
@@ -91,6 +103,27 @@ func verifyAgentHTTPClientConfig(conf *agentConfig) error {
 	return err
 }
 
+func verifyAgentHealthCheckConfig(conf *agentConfig) error {
+	if conf.HealthCheck.Interval == "" {
+		conf.HealthCheck.Interval = defaultAgentHealthCheckInterval
+	}
+	_, err := time.ParseDuration(conf.HealthCheck.Interval)
+	if err != nil {
+		return err
+	}
+	if conf.HealthCheck.Timeout == "" {
+		conf.HealthCheck.Timeout = defaultAgentHealthCheckTimeout
+	}
+	_, err = time.ParseDuration(conf.HealthCheck.Timeout)
+	if err != nil {
+		return err
+	}
+	if conf.HealthCheck.Threshold == 0 {
+		conf.HealthCheck.Threshold = defaultAgentHealthCheckThreshold
+	}
+	return nil
+}
+
 func readAgentConfig(path string) (*agentConfig, error) {
 	conf := &agentConfig{}
 	fileContent, err := os.ReadFile(path)
@@ -107,6 +140,9 @@ func readAgentConfig(path string) (*agentConfig, error) {
 		return nil, err
 	}
 	if err = verifyAgentHTTPClientConfig(conf); err != nil {
+		return nil, err
+	}
+	if err = verifyAgentHealthCheckConfig(conf); err != nil {
 		return nil, err
 	}
 	return conf, nil

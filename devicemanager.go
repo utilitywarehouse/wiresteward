@@ -18,6 +18,22 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
+type parsedHealthCheckConfig struct {
+	interval  time.Duration
+	threshold int
+	timeout   time.Duration
+}
+
+func parseAgentHealthcheckConfig(conf agentHealthCheckConfig) parsedHealthCheckConfig {
+	i, _ := time.ParseDuration(conf.Interval)
+	to, _ := time.ParseDuration(conf.Timeout)
+	return parsedHealthCheckConfig{
+		interval:  i,
+		threshold: conf.Threshold,
+		timeout:   to,
+	}
+}
+
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
@@ -27,12 +43,13 @@ type DeviceManager struct {
 	configMutex       sync.Mutex
 	config            *WirestewardPeerConfig // To keep the current config
 	serverURLs        []string
-	healthCheck       *healthCheck
+	healthCheck       *healthCheck // Pointer to the device manager running healthchek
+	healthCheckConf   parsedHealthCheckConfig
 	renewLeaseChan    chan struct{}
 	httpClientTimeout time.Duration
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout string) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout string, hcc agentHealthCheckConfig) *DeviceManager {
 	var device agentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
@@ -44,6 +61,7 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		agentDevice:       device,
 		serverURLs:        wirestewardURLs,
 		healthCheck:       &healthCheck{running: false},
+		healthCheckConf:   parseAgentHealthcheckConfig(hcc),
 		renewLeaseChan:    make(chan struct{}),
 		httpClientTimeout: t,
 	}
@@ -179,7 +197,13 @@ func (dm *DeviceManager) renewLease() error {
 	// and more servers to potentially fell over.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
-		hc, err := newHealthCheck(wgServerAddr, time.Second, 3, dm.renewLeaseChan)
+		hc, err := newHealthCheck(
+			wgServerAddr,
+			dm.healthCheckConf.interval,
+			dm.healthCheckConf.timeout,
+			dm.healthCheckConf.threshold,
+			dm.renewLeaseChan,
+		)
 		if err != nil {
 			return fmt.Errorf("Cannot create healthchek: %v", err)
 		}
