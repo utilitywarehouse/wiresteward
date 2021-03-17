@@ -11,7 +11,7 @@ import (
 )
 
 func TestHealthcheck_NewHealthCheck(t *testing.T) {
-	hc, err := newHealthCheck("10.0.0.0", time.Second, time.Second, 3, make(chan struct{}))
+	hc, err := newHealthCheck("10.0.0.0", Duration{time.Second}, Duration{time.Second}, 3, make(chan struct{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
 	mockChecker := mocks.NewMockchecker(ctrl)
 
 	renewNotify := make(chan struct{})
-	hc, err := newHealthCheck("10.0.0.0", 100*time.Millisecond, time.Second, 3, renewNotify)
+	hc, err := newHealthCheck("10.0.0.0", Duration{100 * time.Millisecond}, Duration{time.Second}, 3, renewNotify)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestHealthcheck_RunHealthyCheckResets(t *testing.T) {
 	mockChecker := mocks.NewMockchecker(ctrl)
 
 	renewNotify := make(chan struct{})
-	hc, err := newHealthCheck("10.0.0.0", 100*time.Millisecond, time.Second, 3, renewNotify)
+	hc, err := newHealthCheck("10.0.0.0", Duration{100 * time.Millisecond}, Duration{time.Second}, 3, renewNotify)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,7 @@ type pingChecker struct {
 	IP      netaddr.IP
 	ID      int
 	Seqnum  int
-	Timeout time.Duration
+	Timeout Duration
 }
 
 type checker interface {
@@ -27,7 +27,7 @@ type checker interface {
 	TargetIP() string
 }
 
-func newPingChecker(address string, timeout time.Duration) (*pingChecker, error) {
+func newPingChecker(address string, timeout Duration) (*pingChecker, error) {
 	ip, err := netaddr.ParseIP(address)
 	if err != nil {
 		return nil, fmt.Errorf("No valid ip for %s", address)
@@ -48,7 +48,7 @@ func (pc *pingChecker) Check() error {
 	if err != nil {
 		return fmt.Errorf("Cannot construct icmp echo: %v", err)
 	}
-	return exchangeICMPEcho(pc.IP, pc.Timeout, echo)
+	return exchangeICMPEcho(pc.IP, pc.Timeout.Duration, echo)
 }
 
 // return a string representation of the checker's target ip

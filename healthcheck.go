@@ -6,7 +6,7 @@ import (
 
 type healthCheck struct {
 	checker   checker
-	interval  time.Duration
+	interval  Duration
 	threshold int
 	healthy   bool
 	running   bool          // bool to help us identify running healthchecks and stop them if needed
@@ -14,7 +14,7 @@ type healthCheck struct {
 	renew     chan struct{} // Chan to notify for a reboot
 }
 
-func newHealthCheck(address string, interval, timeout time.Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
+func newHealthCheck(address string, interval, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
 	pc, err := newPingChecker(address, timeout)
 	if err != nil {
 		return &healthCheck{}, err
@@ -41,7 +41,7 @@ func (hc *healthCheck) isHealthy() bool {
 }
 
 func (hc *healthCheck) Run() {
-	healthSyncTicker := time.NewTicker(hc.interval)
+	healthSyncTicker := time.NewTicker(hc.interval.Duration)
 	defer healthSyncTicker.Stop()
 	unhealthyCount := 0
 	hc.running = true
