@@ -16,10 +16,13 @@ const (
 	defaultLeaserSyncInterval        = 1 * time.Minute
 	defaultLeasesFilename            = "/var/lib/wiresteward/leases"
 	defaultServerListenAddress       = "0.0.0.0:8080"
-	defaultAgentHTTPClientTimeout    = "3s"
-	defaultAgentHealthCheckInterval  = "1s"
-	defaultAgentHealthCheckTimeout   = "1s"
 	defaultAgentHealthCheckThreshold = 3
+)
+
+var (
+	defaultAgentHTTPClientTimeout   = Duration{3 * time.Second}
+	defaultAgentHealthCheckInterval = Duration{time.Second}
+	defaultAgentHealthCheckTimeout  = Duration{time.Second}
 )
 
 // agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
@@ -46,15 +49,25 @@ type agentDeviceConfig struct {
 // agentHTTPClientConfig contains variable to set http client options for
 // requests to the wiresteward servers.
 type agentHTTPClientConfig struct {
-	Timeout string `json:"timeout"`
+	Timeout Duration `json:"timeout"`
+}
+
+var defaultAgentHTTPClientConfig = agentHTTPClientConfig{
+	Timeout: defaultAgentHTTPClientTimeout,
 }
 
 // agentHealthcheckConfig contains the global config for all the healthchecks
 // created by the agent against server peers.
 type agentHealthCheckConfig struct {
-	Interval  string `json:"interval"`
-	Threshold int    `json:"threshold"`
-	Timeout   string `json:"timeout"`
+	Interval  Duration `json:"interval"`
+	Threshold int      `json:"threshold"`
+	Timeout   Duration `json:"timeout"`
+}
+
+var dedfaultAgentHealthCheckConfig = agentHealthCheckConfig{
+	Interval:  defaultAgentHealthCheckInterval,
+	Threshold: defaultAgentHealthCheckThreshold,
+	Timeout:   defaultAgentHealthCheckTimeout,
 }
 
 // AgentConfig describes the agent-side configuration of wiresteward.
@@ -95,37 +108,15 @@ func verifyAgentDevicesConfig(conf *agentConfig) error {
 	return nil
 }
 
-func verifyAgentHTTPClientConfig(conf *agentConfig) error {
-	if conf.HTTPClient.Timeout == "" {
-		conf.HTTPClient.Timeout = defaultAgentHTTPClientTimeout
-	}
-	_, err := time.ParseDuration(conf.HTTPClient.Timeout)
-	return err
-}
-
-func verifyAgentHealthCheckConfig(conf *agentConfig) error {
-	if conf.HealthCheck.Interval == "" {
-		conf.HealthCheck.Interval = defaultAgentHealthCheckInterval
-	}
-	_, err := time.ParseDuration(conf.HealthCheck.Interval)
-	if err != nil {
-		return err
-	}
-	if conf.HealthCheck.Timeout == "" {
-		conf.HealthCheck.Timeout = defaultAgentHealthCheckTimeout
-	}
-	_, err = time.ParseDuration(conf.HealthCheck.Timeout)
-	if err != nil {
-		return err
-	}
-	if conf.HealthCheck.Threshold == 0 {
-		conf.HealthCheck.Threshold = defaultAgentHealthCheckThreshold
-	}
-	return nil
+// Add a var of the default interface used to read agent config, so that changes
+// here can take effect on both this code and the tests.
+var agentConfRead = &agentConfig{
+	HTTPClient:  defaultAgentHTTPClientConfig,
+	HealthCheck: dedfaultAgentHealthCheckConfig,
 }
 
 func readAgentConfig(path string) (*agentConfig, error) {
-	conf := &agentConfig{}
+	conf := agentConfRead
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return conf, fmt.Errorf("error reading config file: %v", err)
@@ -137,12 +128,6 @@ func readAgentConfig(path string) (*agentConfig, error) {
 		return nil, err
 	}
 	if err = verifyAgentDevicesConfig(conf); err != nil {
-		return nil, err
-	}
-	if err = verifyAgentHTTPClientConfig(conf); err != nil {
-		return nil, err
-	}
-	if err = verifyAgentHealthCheckConfig(conf); err != nil {
 		return nil, err
 	}
 	return conf, nil

@@ -21,7 +21,7 @@ func TestAgentConfigFmt(t *testing.T) {
   }
 }
 `)
-	conf := &agentConfig{}
+	conf := agentConfRead
 	err := json.Unmarshal(oauthOnly, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -34,18 +34,10 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = verifyAgentHTTPClientConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
-	err = verifyAgentHealthCheckConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HealthCheck.Interval, defaultAgentHealthCheckInterval)
-	assert.Equal(t, conf.HealthCheck.Timeout, defaultAgentHealthCheckTimeout)
-	assert.Equal(t, conf.HealthCheck.Threshold, defaultAgentHealthCheckThreshold)
+	assert.Equal(t, defaultAgentHTTPClientTimeout, conf.HTTPClient.Timeout)
+	assert.Equal(t, defaultAgentHealthCheckInterval, conf.HealthCheck.Interval)
+	assert.Equal(t, defaultAgentHealthCheckTimeout, conf.HealthCheck.Timeout)
+	assert.Equal(t, defaultAgentHealthCheckThreshold, conf.HealthCheck.Threshold)
 
 	devicesOnly := []byte(`
 {
@@ -64,8 +56,7 @@ func TestAgentConfigFmt(t *testing.T) {
   ]
 }
 `)
-
-	conf = &agentConfig{}
+	conf = agentConfRead
 	err = json.Unmarshal(devicesOnly, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -82,18 +73,10 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = verifyAgentHTTPClientConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HTTPClient.Timeout, defaultAgentHTTPClientTimeout)
-	err = verifyAgentHealthCheckConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HealthCheck.Interval, defaultAgentHealthCheckInterval)
-	assert.Equal(t, conf.HealthCheck.Timeout, defaultAgentHealthCheckTimeout)
-	assert.Equal(t, conf.HealthCheck.Threshold, defaultAgentHealthCheckThreshold)
+	assert.Equal(t, defaultAgentHTTPClientTimeout, conf.HTTPClient.Timeout)
+	assert.Equal(t, defaultAgentHealthCheckInterval, conf.HealthCheck.Interval)
+	assert.Equal(t, defaultAgentHealthCheckTimeout, conf.HealthCheck.Timeout)
+	assert.Equal(t, defaultAgentHealthCheckThreshold, conf.HealthCheck.Threshold)
 
 	full := []byte(`
 {
@@ -123,8 +106,7 @@ func TestAgentConfigFmt(t *testing.T) {
   }
 }
 `)
-
-	conf = &agentConfig{}
+	conf = agentConfRead
 	err = json.Unmarshal(full, conf)
 	if err != nil {
 		t.Fatal(err)
@@ -146,18 +128,10 @@ func TestAgentConfigFmt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = verifyAgentHTTPClientConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HTTPClient.Timeout, "5s")
-	err = verifyAgentHealthCheckConfig(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, conf.HealthCheck.Interval, "5s")
-	assert.Equal(t, conf.HealthCheck.Timeout, "5s")
-	assert.Equal(t, conf.HealthCheck.Threshold, 5)
+	assert.Equal(t, Duration{5 * time.Second}, conf.HTTPClient.Timeout)
+	assert.Equal(t, Duration{5 * time.Second}, conf.HealthCheck.Interval)
+	assert.Equal(t, Duration{5 * time.Second}, conf.HealthCheck.Timeout)
+	assert.Equal(t, 5, conf.HealthCheck.Threshold)
 }
 
 func TestServerConfig(t *testing.T) {

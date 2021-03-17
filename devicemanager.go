@@ -18,22 +18,6 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-type parsedHealthCheckConfig struct {
-	interval  time.Duration
-	threshold int
-	timeout   time.Duration
-}
-
-func parseAgentHealthcheckConfig(conf agentHealthCheckConfig) parsedHealthCheckConfig {
-	i, _ := time.ParseDuration(conf.Interval)
-	to, _ := time.ParseDuration(conf.Timeout)
-	return parsedHealthCheckConfig{
-		interval:  i,
-		threshold: conf.Threshold,
-		timeout:   to,
-	}
-}
-
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
@@ -44,26 +28,25 @@ type DeviceManager struct {
 	config            *WirestewardPeerConfig // To keep the current config
 	serverURLs        []string
 	healthCheck       *healthCheck // Pointer to the device manager running healthchek
-	healthCheckConf   parsedHealthCheckConfig
+	healthCheckConf   agentHealthCheckConfig
 	renewLeaseChan    chan struct{}
-	httpClientTimeout time.Duration
+	httpClientTimeout Duration
 }
 
-func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout string, hcc agentHealthCheckConfig) *DeviceManager {
+func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout Duration, hcc agentHealthCheckConfig) *DeviceManager {
 	var device agentDevice
 	if *flagDeviceType == "wireguard" {
 		device = newWireguardDevice(deviceName, mtu)
 	} else {
 		device = newTunDevice(deviceName, mtu)
 	}
-	t, _ := time.ParseDuration(httpClientTimeout)
 	return &DeviceManager{
 		agentDevice:       device,
 		serverURLs:        wirestewardURLs,
 		healthCheck:       &healthCheck{running: false},
-		healthCheckConf:   parseAgentHealthcheckConfig(hcc),
+		healthCheckConf:   hcc,
 		renewLeaseChan:    make(chan struct{}),
-		httpClientTimeout: t,
+		httpClientTimeout: httpClientTimeout,
 	}
 }
 
@@ -199,9 +182,9 @@ func (dm *DeviceManager) renewLease() error {
 		dm.healthCheck.Stop()
 		hc, err := newHealthCheck(
 			wgServerAddr,
-			dm.healthCheckConf.interval,
-			dm.healthCheckConf.timeout,
-			dm.healthCheckConf.threshold,
+			dm.healthCheckConf.Interval,
+			dm.healthCheckConf.Timeout,
+			dm.healthCheckConf.Threshold,
 			dm.renewLeaseChan,
 		)
 		if err != nil {
@@ -236,7 +219,7 @@ func newWirestewardPeerConfigFromLeaseResponse(lr *leaseResponse) (*WirestewardP
 	}, lr.ServerWireguardIP, nil
 }
 
-func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout time.Duration) (*WirestewardPeerConfig, string, error) {
+func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout Duration) (*WirestewardPeerConfig, string, error) {
 	// Marshal key into json
 	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
@@ -252,7 +235,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout ti
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{Timeout: timeout.Duration}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
