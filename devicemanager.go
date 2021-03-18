@@ -62,7 +62,7 @@ func (dm *DeviceManager) isHealthChecked() bool {
 // initialise it.
 func (dm *DeviceManager) Run() error {
 	if err := dm.agentDevice.Run(); err != nil {
-		return fmt.Errorf("Error starting tun device `%s`: %w", dm.Name(), err)
+		return fmt.Errorf("Error starting device `%s`: %w", dm.Name(), err)
 	}
 	if err := dm.ensureLinkUp(); err != nil {
 		return err
