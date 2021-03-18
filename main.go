@@ -23,20 +23,12 @@ var (
 	// looking wiresteward initials hex on ascii table (w = 0x77 and s = 0x73)
 	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")
 	flagConfig       = flag.String("config", "/etc/wiresteward/config.json", "Config file")
-	flagDeviceType   *string
+	flagDeviceType   = flag.String("device-type", "", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer or wireguard-dkms module + Linux headers).")
 	flagLogLevel     = flag.String("log-level", "info", "Log Level (debug|info|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
-
-func init() {
-	defaultDeviceType := "tun"
-	if runtime.GOOS == "linux" {
-		defaultDeviceType = "wireguard"
-	}
-	flagDeviceType = flag.String("device-type", defaultDeviceType, "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer).")
-}
 
 func main() {
 	flag.Parse()
@@ -60,8 +52,17 @@ func main() {
 	}
 
 	*flagDeviceType = strings.ToLower(*flagDeviceType)
-	if *flagDeviceType != "tun" && *flagDeviceType != "wireguard" {
+	if *flagDeviceType == "" {
+		if runtime.GOOS == "linux" && wgDevTypeSupported() {
+			*flagDeviceType = "wireguard"
+		} else {
+			*flagDeviceType = "tun"
+		}
+		logger.Info.Printf("Setting default devtype=%s", *flagDeviceType)
+	} else if *flagDeviceType != "tun" && *flagDeviceType != "wireguard" {
 		logger.Error.Fatalf("Invalid device-type value `%s`", *flagDeviceType)
+	} else if *flagDeviceType == "wireguard" && !wgDevTypeSupported() {
+		logger.Error.Fatalf("Cannot use devtype=%s. Not supported by the OS.", *flagDeviceType)
 	}
 
 	if *flagAgent {

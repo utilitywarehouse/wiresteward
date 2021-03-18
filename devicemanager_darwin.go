@@ -220,3 +220,8 @@ func setRoute(fd int, tp int, addr []route.Addr) error {
 	}
 	return nil
 }
+
+// MacOS currently only supports tun devices
+func wgDevTypeSupported() bool {
+	return false
+}
