@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -53,7 +52,7 @@ func main() {
 
 	*flagDeviceType = strings.ToLower(*flagDeviceType)
 	if *flagDeviceType == "" {
-		if runtime.GOOS == "linux" && wgDevTypeSupported() {
+		if wgDevTypeSupported() {
 			*flagDeviceType = "wireguard"
 		} else {
 			*flagDeviceType = "tun"
