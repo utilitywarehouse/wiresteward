@@ -3,6 +3,9 @@
 package main
 
 import (
+	"os"
+	"regexp"
+
 	"github.com/vishvananda/netlink"
 )
 
@@ -73,4 +76,13 @@ func (dm *DeviceManager) flushAddresses() error {
 		}
 	}
 	return nil
+}
+
+func wgDevTypeSupported() bool {
+	wgModule := regexp.MustCompile(`(^|\n)wireguard .+`)
+	m, err := os.ReadFile("/proc/modules")
+	if err != nil {
+		panic(err)
+	}
+	return wgModule.Match(m)
 }
