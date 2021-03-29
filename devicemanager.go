@@ -50,10 +50,6 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 	}
 }
 
-func (dm *DeviceManager) isHealthy() bool {
-	return dm.healthCheck.isHealthy()
-}
-
 func (dm *DeviceManager) isHealthChecked() bool {
 	return len(dm.serverURLs) > 1
 }
@@ -183,6 +179,7 @@ func (dm *DeviceManager) renewLease() error {
 		hc, err := newHealthCheck(
 			wgServerAddr,
 			dm.healthCheckConf.Interval,
+			dm.healthCheckConf.IntervalAfterFailure,
 			dm.healthCheckConf.Timeout,
 			dm.healthCheckConf.Threshold,
 			dm.renewLeaseChan,

@@ -20,9 +20,10 @@ const (
 )
 
 var (
-	defaultAgentHTTPClientTimeout   = Duration{3 * time.Second}
-	defaultAgentHealthCheckInterval = Duration{time.Second}
-	defaultAgentHealthCheckTimeout  = Duration{time.Second}
+	defaultAgentHTTPClientTimeout               = Duration{3 * time.Second}
+	defaultAgentHealthCheckInterval             = Duration{10 * time.Second}
+	defaultAgentHealthCheckIntervalAfterFailure = Duration{time.Second}
+	defaultAgentHealthCheckTimeout              = Duration{time.Second}
 )
 
 // agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
@@ -59,15 +60,17 @@ var defaultAgentHTTPClientConfig = agentHTTPClientConfig{
 // agentHealthcheckConfig contains the global config for all the healthchecks
 // created by the agent against server peers.
 type agentHealthCheckConfig struct {
-	Interval  Duration `json:"interval"`
-	Threshold int      `json:"threshold"`
-	Timeout   Duration `json:"timeout"`
+	Interval             Duration `json:"interval"`
+	IntervalAfterFailure Duration `json:"intervalAF"`
+	Threshold            int      `json:"threshold"`
+	Timeout              Duration `json:"timeout"`
 }
 
 var dedfaultAgentHealthCheckConfig = agentHealthCheckConfig{
-	Interval:  defaultAgentHealthCheckInterval,
-	Threshold: defaultAgentHealthCheckThreshold,
-	Timeout:   defaultAgentHealthCheckTimeout,
+	Interval:             defaultAgentHealthCheckInterval,
+	IntervalAfterFailure: defaultAgentHealthCheckIntervalAfterFailure,
+	Threshold:            defaultAgentHealthCheckThreshold,
+	Timeout:              defaultAgentHealthCheckTimeout,
 }
 
 // AgentConfig describes the agent-side configuration of wiresteward.
