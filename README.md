@@ -41,7 +41,7 @@ https://github.com/utilitywarehouse/wiresteward/releases
 To install on linux:
 
 ```
-wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/0.2.0-rc.6/wiresteward_0.2.0-rc.6_linux_amd64
+wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.0/wiresteward_0.2.0_linux_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
