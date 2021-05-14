@@ -48,11 +48,6 @@ resource "google_compute_instance_group" "wiresteward" {
     google_compute_instance.wiresteward.*.self_link[count.index],
   ]
 
-  named_port {
-    name = "wiresteward-http"
-    port = "8080"
-  }
-
   zone = data.google_compute_zones.available.names[count.index]
 }
 
@@ -91,23 +86,6 @@ resource "google_compute_firewall" "wiresteward-tcp" {
   }
 
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = [local.name]
-}
-
-//https://cloud.google.com/load-balancing/docs/health-checks#firewall_rules
-resource "google_compute_firewall" "wiresteward-healthcheck" {
-  name    = "${local.name}-healthcheck"
-  network = var.vpc_link
-
-  direction = "INGRESS"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8080"]
-  }
-
-  // https://cloud.google.com/load-balancing/docs/health-checks#fw-netlb
-  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   target_tags   = [local.name]
 }
 

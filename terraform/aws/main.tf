@@ -49,14 +49,6 @@ resource "aws_security_group" "wiresteward" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # wiresteward http server
-  ingress {
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.wiresteward-lb.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
