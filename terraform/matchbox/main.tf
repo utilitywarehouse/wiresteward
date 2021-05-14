@@ -55,18 +55,18 @@ data "ignition_config" "wiresteward" {
   ]
 
   systemd = concat(
-    list(
+    tolist([
       data.ignition_systemd_unit.iptables-rule-load.rendered,
-    ),
+    ]),
     var.ignition_systemd[count.index],
   )
 
   files = concat(
-    list(
+    tolist([
       data.ignition_file.hostname[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
       data.ignition_file.resolved_conf.rendered,
-    ),
+    ]),
     var.ignition_files[count.index],
   )
 }
