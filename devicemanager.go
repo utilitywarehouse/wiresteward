@@ -127,6 +127,13 @@ func (dm *DeviceManager) renewLease() error {
 	if dm.cachedToken == "" {
 		return fmt.Errorf("Empty cached token")
 	}
+	t, err := parseToken(dm.cachedToken)
+	if err != nil {
+		return fmt.Errorf("Cannot unmarshal cached token: %v", err)
+	}
+	if t.Expiry.Before(time.Now()) {
+		return fmt.Errorf("Cached token is expired")
+	}
 	publicKey, _, err := getKeys(dm.Name())
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)

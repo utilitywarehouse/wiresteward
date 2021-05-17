@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"golang.org/x/oauth2"
 )
@@ -197,6 +198,13 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 // validate takes a token and queries the introspection endpoint with it.
 // https://tools.ietf.org/html/rfc7662#section-2.2
 func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
+	t, err := parseToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("Cannot unmarshal token: %v", err)
+	}
+	if t.Expiry.Before(time.Now()) {
+		return nil, fmt.Errorf("Token has already expired, skipping validation")
+	}
 	body, err := tv.requestIntospection(token, tokenTypeHint)
 	if err != nil {
 		return nil, err
@@ -207,4 +215,14 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 		return nil, err
 	}
 	return response, nil
+}
+
+// parseToken takes a string and unmarshals to an oauth2 Token
+func parseToken(stringToken string) (*oauth2.Token, error) {
+	tok := &oauth2.Token{}
+	err := json.Unmarshal([]byte(stringToken), tok)
+	if err != nil {
+		return tok, err
+	}
+	return tok, nil
 }
