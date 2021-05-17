@@ -218,9 +218,9 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 }
 
 // parseToken takes a string and unmarshals to an oauth2 Token
-func parseToken(stringToken string) (*oauth2.Token, error) {
+func parseToken(t string) (*oauth2.Token, error) {
 	tok := &oauth2.Token{}
-	err := json.Unmarshal([]byte(stringToken), tok)
+	err := json.Unmarshal([]byte(t), tok)
 	if err != nil {
 		return tok, err
 	}
