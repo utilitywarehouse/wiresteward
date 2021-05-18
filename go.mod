@@ -21,5 +21,6 @@ require (
 	golang.zx2c4.com/wireguard v0.0.20200121
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
 	google.golang.org/appengine v1.6.7 // indirect
+	gopkg.in/square/go-jose.v2 v2.5.1
 	inet.af/netaddr v0.0.0-20210311133851-b21affee3d06
 )

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // https://www.oauth.com/oauth2-servers/pkce/authorization-request/
@@ -198,12 +199,8 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 // validate takes a token and queries the introspection endpoint with it.
 // https://tools.ietf.org/html/rfc7662#section-2.2
 func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
-	t, err := parseToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot unmarshal token: %v", err)
-	}
-	if t.Expiry.Before(time.Now()) {
-		return nil, fmt.Errorf("Token has already expired, skipping validation")
+	if err := validateJWTToken(token); err != nil {
+		return nil, fmt.Errorf("Cannot validate JWT token: %v", err)
 	}
 	body, err := tv.requestIntospection(token, tokenTypeHint)
 	if err != nil {
@@ -217,12 +214,27 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 	return response, nil
 }
 
-// parseToken takes a string and unmarshals to an oauth2 Token
-func parseToken(t string) (*oauth2.Token, error) {
-	tok := &oauth2.Token{}
-	err := json.Unmarshal([]byte(t), tok)
+// validateJWTToken takes a string and tries to validate it as jwt token. It
+// returns an error if parsing and validation fails or nil otherwise
+func validateJWTToken(t string) error {
+	tok, err := jwt.ParseSigned(t)
 	if err != nil {
-		return tok, err
+		return fmt.Errorf("Cannot parse JWT token: %v", err)
 	}
-	return tok, nil
+
+	cl := jwt.Claims{}
+	if err := tok.UnsafeClaimsWithoutVerification(&cl); err != nil {
+		return fmt.Errorf("Cannot unmarshal claims: %v", err)
+	}
+
+	if cl.Expiry == nil {
+		return fmt.Errorf("JWT token does not have exp field")
+	}
+	// Validate Claims
+	if err := cl.ValidateWithLeeway(jwt.Expected{
+		Time: time.Now(),
+	}, 0); err != nil {
+		return fmt.Errorf("Cannot validate JWT token: %v", err)
+	}
+	return nil
 }
