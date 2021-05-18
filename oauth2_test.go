@@ -51,4 +51,22 @@ func TestValidateJWTToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error validating token: %v", err)
 	}
+
+	// Missing exp field
+	missingExpCL := jwt.Claims{
+		Subject: "subject",
+		Issuer:  "issuer",
+	}
+	tok, err = jwt.Signed(signer).Claims(missingExpCL).CompactSerialize()
+	if err != nil {
+		t.Fatalf("unable to creat jwt token %s", err)
+	}
+
+	err = validateJWTToken(tok)
+	expectedErr = fmt.Errorf("JWT token does not have exp field")
+	if err == nil {
+		t.Fatal("Validation of expired token did not fail")
+	}
+	assert.Equal(t, err, expectedErr)
+
 }
