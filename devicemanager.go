@@ -128,7 +128,7 @@ func (dm *DeviceManager) renewLease() error {
 		return fmt.Errorf("Empty cached token")
 	}
 	if err := validateJWTToken(dm.cachedToken); err != nil {
-		return fmt.Errorf("Cannot validate cached token: %v", err)
+		return fmt.Errorf("Validation failed: %v", err)
 	}
 	publicKey, _, err := getKeys(dm.Name())
 	if err != nil {
