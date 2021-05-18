@@ -200,7 +200,7 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 // https://tools.ietf.org/html/rfc7662#section-2.2
 func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
 	if err := validateJWTToken(token); err != nil {
-		return nil, fmt.Errorf("Cannot validate JWT token: %v", err)
+		return nil, fmt.Errorf("Validation failed: %v", err)
 	}
 	body, err := tv.requestIntospection(token, tokenTypeHint)
 	if err != nil {
