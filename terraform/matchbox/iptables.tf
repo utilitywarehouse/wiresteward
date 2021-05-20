@@ -32,7 +32,7 @@ data "ignition_file" "iptables_rules" {
 -A INPUT -i lo -j ACCEPT
 # Allow all connections initiated by the host
 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-# Allow ssh from jumpbox
+# Allow ssh
 -A INPUT -p tcp -m tcp -s "${var.ssh_address_range}" --dport 22 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 # Allow nodes subnet to talk to node exporter
 -A INPUT -p tcp -m tcp -s "${var.metrics_subnet_cidr}" --dport 9100 -j ACCEPT
