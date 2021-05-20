@@ -104,7 +104,7 @@ resource "aws_instance" "peer" {
 
   tags = {
     Name  = local.name
-    owner = system
+    owner = "system"
   }
 }
 
