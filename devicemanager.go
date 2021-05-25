@@ -27,9 +27,12 @@ type DeviceManager struct {
 	configMutex       sync.Mutex
 	config            *WirestewardPeerConfig // To keep the current config
 	serverURLs        []string
+	backoff           *backoff     // backoff timer for retries to get a new lease
 	healthCheck       *healthCheck // Pointer to the device manager running healthchek
 	healthCheckConf   agentHealthCheckConfig
 	renewLeaseChan    chan struct{}
+	stopLeaseBackoff  chan struct{}
+	inBackoffLoop     bool // bool to signal if there is a backoff loop in progress
 	httpClientTimeout Duration
 }
 
@@ -43,9 +46,12 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 	return &DeviceManager{
 		agentDevice:       device,
 		serverURLs:        wirestewardURLs,
+		backoff:           newBackoff(1*time.Second, 64*time.Second, 2),
 		healthCheck:       &healthCheck{running: false},
 		healthCheckConf:   hcc,
 		renewLeaseChan:    make(chan struct{}),
+		stopLeaseBackoff:  make(chan struct{}),
+		inBackoffLoop:     false,
 		httpClientTimeout: httpClientTimeout,
 	}
 }
@@ -96,12 +102,20 @@ func (dm *DeviceManager) renewLoop() {
 		case <-dm.renewLeaseChan:
 			logger.Info.Printf("Renewing lease for device:%s\n", dm.Name())
 			if err := dm.renewLease(); err != nil {
-				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
-				// Wait a second in a goroutine so we do not block here and try again
 				go func() {
-					time.Sleep(1 * time.Second)
-					dm.renewLeaseChan <- struct{}{}
+					dm.inBackoffLoop = true
+					duration := dm.backoff.Duration()
+					logger.Error.Printf("Cannot update lease, will retry in %s: %s", duration, err)
+					select {
+					case <-time.After(duration):
+						dm.renewLeaseChan <- struct{}{}
+					case <-dm.stopLeaseBackoff:
+						break
+					}
+					dm.inBackoffLoop = false
 				}()
+			} else {
+				dm.backoff.Reset()
 			}
 		}
 	}
@@ -116,6 +130,10 @@ func (dm *DeviceManager) nextServer() string {
 func (dm *DeviceManager) RenewTokenAndLease(token string) {
 	dm.cachedToken = token
 	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
+	if dm.inBackoffLoop {
+		dm.stopLeaseBackoff <- struct{}{} // Stop existing backoff loops
+	}
+	dm.backoff.Reset() // Reset backoff timer
 	dm.renewLeaseChan <- struct{}{}
 }
 
