@@ -102,11 +102,12 @@ func (dm *DeviceManager) renewLoop() {
 		case <-dm.renewLeaseChan:
 			logger.Info.Printf("Renewing lease for device:%s\n", dm.Name())
 			if err := dm.renewLease(); err != nil {
-				logger.Error.Printf("Cannot update lease, will retry in one sec: %s", err)
 				go func() {
 					dm.inBackoffLoop = true
+					duration := dm.backoff.Duration()
+					logger.Error.Printf("Cannot update lease, will retry in %s: %s", duration, err)
 					select {
-					case <-time.After(dm.backoff.Duration()):
+					case <-time.After(duration):
 						dm.renewLeaseChan <- struct{}{}
 					case <-dm.stopLeaseBackoff:
 						break

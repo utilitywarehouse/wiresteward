@@ -16,20 +16,20 @@ type backoff struct {
 }
 
 const (
-	maxInt64      = float64(math.MaxInt64 - 512)
-	minDuration   = 1 * time.Second
-	maxDuration   = 100 * time.Second
-	defaultFactor = 2
+	maxInt64           = float64(math.MaxInt64 - 512)
+	defaultMinDuration = 1 * time.Second
+	defaultMaxDuration = 100 * time.Second
+	defaultFactor      = 2
 )
 
 // newBackoff initialises and returns a new Backoff
 func newBackoff(min, max time.Duration, factor float64) *backoff {
 	// In case of 0 min/max values apply defaults
 	if min <= 0 {
-		min = minDuration
+		min = defaultMinDuration
 	}
 	if max <= 0 {
-		max = maxDuration
+		max = defaultMaxDuration
 	}
 	if factor <= 0 {
 		factor = defaultFactor
