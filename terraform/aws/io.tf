@@ -40,9 +40,25 @@ variable "wiresteward_endpoint" {
   description = "The endpoint for wiresteward where clients connect."
 }
 
+variable "iam_prefix" {
+  description = "prefix to be added to iam resources names"
+  default     = ""
+}
+
+variable "permissions_boundary" {
+  description = "permission_boudnary to apply to iam resources"
+  default     = ""
+}
+
+variable "bucket_prefix" {
+  description = "prefix to be added to the userdata bucket"
+  default     = ""
+}
+
 locals {
   instance_count = length(var.ignition)
   name           = var.role_name
+  iam_prefix     = "${var.iam_prefix}${var.iam_prefix == "" ? "" : "-"}"
 }
 
 output "public_ipv4_addresses" {

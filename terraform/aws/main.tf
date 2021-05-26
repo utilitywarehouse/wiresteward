@@ -87,7 +87,8 @@ resource "aws_instance" "peer" {
   vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
   subnet_id              = var.subnet_ids[count.index]
   source_dest_check      = false
-  user_data              = var.ignition[count.index]
+  user_data              = data.template_file.userdata[count.index].rendered
+  iam_instance_profile   = aws_iam_instance_profile.peer.name
 
   lifecycle {
     ignore_changes = [ami]
