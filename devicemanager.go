@@ -105,7 +105,7 @@ func (dm *DeviceManager) renewLoop() {
 				go func() {
 					dm.inBackoffLoop = true
 					duration := dm.backoff.Duration()
-					logger.Error.Printf("Cannot update lease, will retry in %s: %s", duration, err)
+					logger.Error.Printf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
 					select {
 					case <-time.After(duration):
 						dm.renewLeaseChan <- struct{}{}
