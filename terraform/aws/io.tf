@@ -46,7 +46,7 @@ variable "iam_prefix" {
 }
 
 variable "permissions_boundary" {
-  description = "permission_boudnary to apply to iam resources"
+  description = "permissions_boundary to apply to iam resources"
   default     = ""
 }
 
