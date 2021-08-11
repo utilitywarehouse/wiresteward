@@ -9,7 +9,7 @@ RUN \
   && go build -ldflags='-s -w' -o /wiresteward . \
   && upx /wiresteward
 
-FROM alpine:3.13
+FROM alpine:3.14
 RUN apk add --no-cache ca-certificates iptables
 COPY --from=build /wiresteward /wiresteward
 ENTRYPOINT [ "/wiresteward" ]
