@@ -74,7 +74,7 @@ jobs:
         with:
           registry: quay.io
           username: utilitywarehouse+drone_ci
-          password: ${{ secrets.SYSTTEM_QUAY_TOKEN }}
+          password: ${{ secrets.SYSTEM_QUAY_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
