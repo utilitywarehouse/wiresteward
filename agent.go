@@ -31,7 +31,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		}
 		dm := newDeviceManager(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout, cfg.HealthCheck)
 		if err := dm.Run(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Error starting device `%s`: %v",
 				dm.Name(),
 				err,
@@ -43,7 +43,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 	tokenDir := filepath.Dir(defaultTokenFileLoc)
 	err := os.MkdirAll(tokenDir, 0755)
 	if err != nil {
-		logger.Error.Printf("Unable to create directory=%s", tokenDir)
+		logger.Errorf("Unable to create directory=%s", tokenDir)
 	}
 	agent.oa = newOAuthTokenHandler(
 		cfg.OAuth.AuthURL,
@@ -61,17 +61,17 @@ func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/renew", a.renewHandler)
 	http.HandleFunc("/", a.mainHandler)
 
-	logger.Info.Printf("Starting agent at http://%s", *flagAgentAddress)
+	logger.Verbosef("Starting agent at http://%s", *flagAgentAddress)
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
+		logger.Errorf("cannot get a valid cached token, you need to authenticate")
 	} else {
 		a.renewAllLeases(token.AccessToken)
 	}
 
 	if err := http.ListenAndServe(*flagAgentAddress, nil); err != nil {
-		logger.Error.Println(err)
+		logger.Errorf("%v", err)
 	}
 }
 
@@ -84,7 +84,7 @@ func (a *Agent) Stop() {
 }
 
 func (a *Agent) renewAllLeases(token string) {
-	logger.Info.Println("Running renew leases loop..")
+	logger.Verbosef("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
 		dm.RenewTokenAndLease(token)
 	}
@@ -109,8 +109,7 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		logger.Error.Println(
-			"cannot get a valid cached token, need a new one")
+		logger.Errorf("cannot get a valid cached token, need a new one")
 		// Get a url for the token challenge and redirect there
 		url, err := a.oa.prepareTokenWebChalenge()
 		if err != nil {
@@ -138,7 +137,7 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" {
-		logger.Error.Println("cannot get a valid cached token, you need to authenticate")
+		logger.Errorf("cannot get a valid cached token, you need to authenticate")
 		statusHTTPWriter(w, r, a.deviceManagers, nil)
 		return
 	}

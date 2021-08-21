@@ -23,7 +23,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	if oldConfig != nil {
 		for _, r := range oldConfig.AllowedIPs {
 			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
-				logger.Error.Printf(
+				logger.Errorf(
 					"Could not remove old route (%s): %s",
 					r,
 					err,
@@ -31,7 +31,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 			}
 		}
 		if err := h.AddrDel(link, &netlink.Addr{IPNet: oldConfig.LocalAddress}); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not remove old address (%s): %s",
 				oldConfig.LocalAddress,
 				err,
@@ -43,7 +43,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	for _, r := range config.AllowedIPs {
 		if err := h.RouteReplace(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r, Gw: config.LocalAddress.IP}); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not add new route (%s): %s", r, err)
 		}
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -97,7 +98,7 @@ func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	devices, err := c.devices()
 	if err != nil {
-		logger.Error.Printf("Failed to list wg devices: %v", err)
+		logger.Errorf("Failed to list wg devices: %v", err)
 		ch <- prometheus.NewInvalidMetric(c.DeviceInfo, err)
 		return
 	}
@@ -191,8 +192,9 @@ func startMetricsServer(metricsAddr string) {
 		Addr:    metricsAddr,
 		Handler: mux,
 	}
-	logger.Info.Printf("Starting metrics server at %s\n", metricsAddr)
+	logger.Verbosef("Starting metrics server at %s\n", metricsAddr)
 	if err := server.ListenAndServe(); err != nil {
-		logger.Error.Fatal(err)
+		logger.Errorf("%v", err)
+		os.Exit(1)
 	}
 }

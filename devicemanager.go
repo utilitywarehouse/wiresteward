@@ -77,7 +77,7 @@ func (dm *DeviceManager) Run() error {
 	// the base64 value of an empty key will come as
 	// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 	if privKey == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" {
-		logger.Info.Printf(
+		logger.Verbosef(
 			"No keys found for device `%s`, generating a new pair",
 			dm.Name(),
 		)
@@ -100,12 +100,12 @@ func (dm *DeviceManager) renewLoop() {
 	for {
 		select {
 		case <-dm.renewLeaseChan:
-			logger.Info.Printf("Renewing lease for device:%s\n", dm.Name())
+			logger.Verbosef("Renewing lease for device:%s\n", dm.Name())
 			if err := dm.renewLease(); err != nil {
 				go func() {
 					dm.inBackoffLoop = true
 					duration := dm.backoff.Duration()
-					logger.Error.Printf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
+					logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
 					select {
 					case <-time.After(duration):
 						dm.renewLeaseChan <- struct{}{}
@@ -161,7 +161,7 @@ func (dm *DeviceManager) renewLease() error {
 	peers := []wgtypes.PeerConfig{}
 	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey, dm.httpClientTimeout)
 	if err != nil {
-		logger.Error.Printf(
+		logger.Errorf(
 			"Could not get wiresteward peer config from `%s`: %v",
 			serverURL,
 			err,
@@ -171,7 +171,7 @@ func (dm *DeviceManager) renewLease() error {
 	peers = append(peers, *config.PeerConfig)
 
 	dm.configMutex.Lock()
-	logger.Info.Printf(
+	logger.Verbosef(
 		"Configuring offered ip address %s on device %s",
 		config.LocalAddress,
 		dm.Name(),
@@ -180,7 +180,7 @@ func (dm *DeviceManager) renewLease() error {
 	// update fails partially, we might end up with the wrong "old" config
 	// and fail to cleanup properly when we update the next time.
 	if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
-		logger.Error.Printf(
+		logger.Errorf(
 			"Could not update peer configuration for `%s`: %v",
 			serverURL,
 			err,

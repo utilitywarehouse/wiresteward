@@ -154,13 +154,13 @@ func statusHTTPWriter(w http.ResponseWriter, r *http.Request, deviceManagers []*
 
 	tmpl, err := template.New("status").Parse(htmlStatusTemplate)
 	if err != nil {
-		logger.Error.Printf("Failed to parse template: %v\n", err)
+		logger.Errorf("Failed to parse template: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(w, status)
 	if err != nil {
-		logger.Error.Printf("Failed to write template: %v\n", err)
+		logger.Errorf("Failed to write template: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
