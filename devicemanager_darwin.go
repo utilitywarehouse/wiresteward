@@ -24,7 +24,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	defer func() {
 		if err := unix.Close(fdInet); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not close AF_INET socket: %v", err)
 		}
 	}()
@@ -34,7 +34,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	defer func() {
 		if err := unix.Close(fdRoute); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not close AF_ROUTE socket: %v", err)
 		}
 	}()
@@ -46,7 +46,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 		// routes via interfaces.
 		for _, r := range oldConfig.AllowedIPs {
 			if err := delRoute(fdRoute, oldConfig.LocalAddress.IP, r.IP, r.Mask); err != nil {
-				logger.Error.Printf(
+				logger.Errorf(
 					"Could not remove old route (%s): %s",
 					r,
 					err,
@@ -54,7 +54,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 			}
 		}
 		if err := deleteAddress(fdInet, dm.Name(), oldConfig.LocalAddress.IP); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not remove old address: (%s): %s",
 				oldConfig.LocalAddress,
 				err,
@@ -66,7 +66,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	for _, r := range config.AllowedIPs {
 		if err := addRoute(fdRoute, config.LocalAddress.IP, r.IP, r.Mask); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not add new route (%s): %s", r, err)
 		}
 	}
