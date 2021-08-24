@@ -30,6 +30,20 @@ type codeVerifier struct {
 	value []byte
 }
 
+const oauthStateCookieName = "wiresteward-state"
+
+func generateStateOauthCookie(w http.ResponseWriter) string {
+	var expiration = time.Now().Add(5 * time.Minute)
+
+	b := make([]byte, 16)
+	rand.Read(b)
+	state := base64.URLEncoding.EncodeToString(b)
+	stateCookie := &http.Cookie{Name: oauthStateCookieName, Value: state, Expires: expiration}
+	http.SetCookie(w, stateCookie)
+
+	return state
+}
+
 func createCodeVerifier() (*codeVerifier, error) {
 	// "code verifier"
 	// > cryptographically random string using the characters A-Z, a-z,
@@ -77,7 +91,7 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 }
 
 // prepareTokenWebChalenge returns a url to follow oauth
-func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
+func (oa *oauthTokenHandler) prepareTokenWebChalenge(w http.ResponseWriter) (string, error) {
 	codeVerifier, err := createCodeVerifier()
 	if err != nil {
 		return "", fmt.Errorf("Cannot create a code verifier: %v", err)
@@ -92,8 +106,9 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge() (string, error) {
 	codeChallengeOpt := oauth2.SetAuthURLParam("code_challenge", codeChallenge)
 	codeChallengeMethodOpt := oauth2.SetAuthURLParam("code_challenge_method", "S256")
 
+	stateToken := generateStateOauthCookie(w)
 	url := oa.config.AuthCodeURL(
-		"state-token",
+		stateToken,
 		oauth2.AccessTypeOnline,
 		codeChallengeOpt,
 		codeChallengeMethodOpt,
