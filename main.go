@@ -23,7 +23,7 @@ var (
 	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")
 	flagConfig       = flag.String("config", "/etc/wiresteward/config.json", "Config file")
 	flagDeviceType   = flag.String("device-type", "", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer or wireguard-dkms module + Linux headers).")
-	flagLogLevel     = flag.String("log-level", "info", "Log Level (debug|info|error)")
+	flagLogLevel     = flag.String("log-level", "error", "Log Level (debug|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
@@ -40,14 +40,15 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		logger.Info.Printf("version=%s commit=%s date=%s builtBy=%s", version, commit, date, builtBy)
+		logger.Verbosef("version=%s commit=%s date=%s builtBy=%s", version, commit, date, builtBy)
 		return
 	}
 
 	if *flagAgent && *flagServer {
-		logger.Error.Fatalln(
+		logger.Errorf(
 			"Must only set -agent or -server, not both",
 		)
+		os.Exit(1)
 	}
 
 	*flagDeviceType = strings.ToLower(*flagDeviceType)
@@ -57,11 +58,13 @@ func main() {
 		} else {
 			*flagDeviceType = "tun"
 		}
-		logger.Info.Printf("Setting default devtype=%s", *flagDeviceType)
+		logger.Verbosef("Setting default devtype=%s", *flagDeviceType)
 	} else if *flagDeviceType != "tun" && *flagDeviceType != "wireguard" {
-		logger.Error.Fatalf("Invalid device-type value `%s`", *flagDeviceType)
+		logger.Errorf("Invalid device-type value `%s`", *flagDeviceType)
+		os.Exit(1)
 	} else if *flagDeviceType == "wireguard" && !wgDevTypeSupported() {
-		logger.Error.Fatalf("Cannot use devtype=%s. Not supported by the OS.", *flagDeviceType)
+		logger.Errorf("Cannot use devtype=%s. Not supported by the OS.", *flagDeviceType)
+		os.Exit(1)
 	}
 
 	if *flagAgent {
@@ -80,20 +83,22 @@ func main() {
 func server() {
 	cfg, err := readServerConfig(*flagConfig)
 	if err != nil {
-		logger.Error.Fatalf("Cannot read server config: %v", err)
+		logger.Errorf("Cannot read server config: %v", err)
+		os.Exit(1)
 	}
 
 	wg := newServerDevice(cfg)
 	if err := wg.Start(); err != nil {
-		logger.Error.Fatalf(
+		logger.Errorf(
 			"Cannot setup wireguard device '%s': %v",
 			cfg.DeviceName,
 			err,
 		)
+		os.Exit(1)
 	}
 	defer func() {
 		if err := wg.Stop(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Cannot cleanup wireguard device '%s': %v",
 				cfg.DeviceName,
 				err,
@@ -103,17 +108,19 @@ func server() {
 
 	lm, err := newFileLeaseManager(cfg)
 	if err != nil {
-		logger.Error.Fatalf("Cannot start lease server: %v", err)
+		logger.Errorf("Cannot start lease server: %v", err)
+		os.Exit(1)
 	}
 	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
 
 	// Start metrics server
 	client, err := wgctrl.New()
 	if err != nil {
-		logger.Error.Fatalf(
+		logger.Errorf(
 			"Failed to open WireGuard control client: %v",
 			err,
 		)
+		os.Exit(1)
 	}
 	defer client.Close()
 	mc := newMetricsCollector(client.Devices, lm)
@@ -131,15 +138,15 @@ func server() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM)
 	signal.Notify(quit, os.Interrupt)
-	logger.Info.Print("Starting leaser loop")
+	logger.Verbosef("Starting leaser loop")
 	for {
 		select {
 		case <-ticker.C:
 			if err := lm.syncWgRecords(); err != nil {
-				logger.Error.Print(err)
+				logger.Errorf("%v", err)
 			}
 		case <-quit:
-			logger.Info.Print("Quitting")
+			logger.Verbosef("Quitting")
 			return
 		}
 	}
@@ -148,7 +155,8 @@ func server() {
 func agent() {
 	agentConf, err := readAgentConfig(*flagConfig)
 	if err != nil {
-		logger.Error.Fatalf("Cannot read agent config: %v", err)
+		logger.Errorf("Cannot read agent config: %v", err)
+		os.Exit(1)
 	}
 
 	term := make(chan os.Signal, 1)

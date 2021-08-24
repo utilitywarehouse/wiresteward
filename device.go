@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
@@ -81,8 +82,8 @@ func (td *TunDevice) init() error {
 		return fmt.Errorf("Cannot create tun device %v", err)
 	}
 
-	device := device.NewDevice(tunDevice, td.logger)
-	td.logger.Info.Println("Device started")
+	device := device.NewDevice(tunDevice, conn.NewDefaultBind(), td.logger)
+	td.logger.Verbosef("Device started")
 
 	uapiSocket, err := ipc.UAPIOpen(td.deviceName)
 	if err != nil {
@@ -93,7 +94,7 @@ func (td *TunDevice) init() error {
 	uapi, err := ipc.UAPIListen(td.deviceName, uapiSocket)
 	if err != nil {
 		if err := td.uapiSocket.Close(); err != nil {
-			td.logger.Error.Println(err)
+			td.logger.Errorf("%v", err)
 		}
 		device.Close()
 		return fmt.Errorf("Failed to listen on uapi socket: %v", err)
@@ -119,15 +120,15 @@ func (td *TunDevice) run() {
 			go td.device.IpcHandle(conn)
 		}
 	}()
-	td.logger.Info.Println("UAPI listener started")
+	td.logger.Verbosef("UAPI listener started")
 
 	select {
 	case <-td.stop:
-		td.logger.Info.Printf("Device stopping...")
+		td.logger.Verbosef("Device stopping...")
 	case err := <-td.errs:
-		td.logger.Error.Printf("Device error: %v", err)
+		td.logger.Errorf("Device error: %v", err)
 	case <-td.device.Wait():
-		td.logger.Info.Printf("Device stopped")
+		td.logger.Verbosef("Device stopped")
 	}
 
 	td.cleanup()
@@ -135,17 +136,17 @@ func (td *TunDevice) run() {
 }
 
 func (td *TunDevice) cleanup() {
-	td.logger.Info.Println("Shutting down")
+	td.logger.Verbosef("Shutting down")
 	if err := td.uapi.Close(); err != nil {
-		td.logger.Error.Println(err)
+		td.logger.Errorf("%v", err)
 	}
-	td.logger.Debug.Println("UAPI listener stopped")
+	td.logger.Verbosef("UAPI listener stopped")
 	if err := td.uapiSocket.Close(); err != nil {
-		td.logger.Error.Println(err)
+		td.logger.Errorf("%v", err)
 	}
-	td.logger.Debug.Println("UAPI socket stopped")
+	td.logger.Verbosef("UAPI socket stopped")
 	td.device.Close()
-	td.logger.Debug.Println("Device closed")
+	td.logger.Verbosef("Device closed")
 }
 
 // WireguardDevice represents a kernel space wireguard network device on the
@@ -195,10 +196,10 @@ func (wd *WireguardDevice) Stop() {
 	h := netlink.Handle{}
 	defer h.Delete()
 	if err := h.LinkSetDown(wd.link); err != nil {
-		wd.logger.Error.Println(err)
+		wd.logger.Errorf("%v", err)
 	}
 	if err := h.LinkDel(wd.link); err != nil {
-		wd.logger.Error.Println(err)
+		wd.logger.Errorf("%v", err)
 	}
 }
 
@@ -243,13 +244,13 @@ func (sd *ServerDevice) Start() error {
 	if err != nil {
 		return err
 	}
-	logger.Info.Printf("Adding iptables rule %v", sd.iptablesRule)
+	logger.Verbosef("Adding iptables rule %v", sd.iptablesRule)
 	if err := ipt.AppendUnique("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
 		return err
 	}
 	h := netlink.Handle{}
 	defer h.Delete()
-	logger.Info.Printf(
+	logger.Verbosef(
 		"Creating device %s with address %s",
 		sd.link.Attrs().Name,
 		sd.deviceAddress,
@@ -270,7 +271,7 @@ func (sd *ServerDevice) Start() error {
 	if mtu <= 0 {
 		defaultMTU, err := sd.defaultMTU(h)
 		if err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Could not detect default MTU, defaulting to 1500: %v",
 				err,
 			)
@@ -278,12 +279,12 @@ func (sd *ServerDevice) Start() error {
 		}
 		mtu = defaultMTU - 80
 	}
-	logger.Info.Printf(
+	logger.Verbosef(
 		"Setting MTU to %d on device %s", mtu, sd.link.Attrs().Name)
 	if err := h.LinkSetMTU(sd.link, mtu); err != nil {
 		return err
 	}
-	logger.Info.Printf("Initialised device %s", sd.link.Attrs().Name)
+	logger.Verbosef("Initialised device %s", sd.link.Attrs().Name)
 	return nil
 }
 
@@ -301,11 +302,11 @@ func (sd *ServerDevice) Stop() error {
 	if err != nil {
 		return err
 	}
-	logger.Info.Printf("Removing iptables rule %v", sd.iptablesRule)
+	logger.Verbosef("Removing iptables rule %v", sd.iptablesRule)
 	if err := ipt.Delete("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
 		return err
 	}
-	logger.Info.Printf("Cleaned up device %s", sd.link.Attrs().Name)
+	logger.Verbosef("Cleaned up device %s", sd.link.Attrs().Name)
 	return nil
 }
 
@@ -313,14 +314,14 @@ func (sd *ServerDevice) privateKey() (wgtypes.Key, error) {
 	kd, err := os.ReadFile(sd.keyFilename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Info.Printf(
+			logger.Verbosef(
 				"No key found in %s, generating a new private key",
 				sd.keyFilename,
 			)
 			keyDir := filepath.Dir(sd.keyFilename)
 			err := os.MkdirAll(keyDir, 0755)
 			if err != nil {
-				logger.Error.Printf(
+				logger.Errorf(
 					"Unable to create directory=%s",
 					keyDir,
 				)
@@ -347,7 +348,7 @@ func (sd *ServerDevice) configureWireguard() error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Failed to close wireguard client: %v",
 				err,
 			)
@@ -357,7 +358,7 @@ func (sd *ServerDevice) configureWireguard() error {
 	if err != nil {
 		return err
 	}
-	logger.Info.Printf(
+	logger.Verbosef(
 		"Configuring wireguard on port %v with public key %s",
 		sd.listenPort,
 		key.PublicKey(),
@@ -402,20 +403,20 @@ func (sd *ServerDevice) ensureLinkIsUp(h netlink.Handle) error {
 		if err != nil {
 			return err
 		}
-		logger.Info.Printf(
+		logger.Verbosef(
 			"waiting for device %s to come up, current flags: %s",
 			sd.link.Attrs().Name,
 			link.Attrs().Flags,
 		)
 		if link.Attrs().Flags&net.FlagUp != 0 {
-			logger.Info.Printf(
+			logger.Verbosef(
 				"device %s came up automatically",
 				sd.link.Attrs().Name,
 			)
 			return nil
 		}
 		if tries > 4 {
-			logger.Info.Printf(
+			logger.Verbosef(
 				"timeout waiting for device %s to come up automatically",
 				sd.link.Attrs().Name,
 			)

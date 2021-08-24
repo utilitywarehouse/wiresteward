@@ -49,11 +49,11 @@ func (hc *healthCheck) Run() {
 			if err := hc.checker.Check(); err != nil {
 				unhealthyCount = unhealthyCount + 1
 				healthSyncTicker.Reset(hc.intervalAF.Duration)
-				logger.Error.Printf("healthcheck failed for (%s): %s", hc.checker.TargetIP(), err)
+				logger.Errorf("healthcheck failed for (%s): %s", hc.checker.TargetIP(), err)
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
-					logger.Info.Printf("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
+					logger.Verbosef("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
 					hc.running = false
 					hc.healthy = false
 					hc.renew <- struct{}{}
@@ -61,7 +61,7 @@ func (hc *healthCheck) Run() {
 				}
 			} else {
 				if !hc.healthy {
-					logger.Info.Printf("server at: %s is healthy", hc.checker.TargetIP())
+					logger.Verbosef("server at: %s is healthy", hc.checker.TargetIP())
 				}
 				hc.healthy = true
 				if unhealthyCount > 0 {
@@ -70,7 +70,7 @@ func (hc *healthCheck) Run() {
 				}
 			}
 		case <-hc.stop:
-			logger.Info.Printf("stopping healthcheck for: %s", hc.checker.TargetIP())
+			logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
 			hc.running = false
 			return
 		}

@@ -40,11 +40,11 @@ func newFileLeaseManager(cfg *serverConfig) (*fileLeaseManager, error) {
 	if cfg.LeasesFilename == "" {
 		return nil, fmt.Errorf("file name cannot be empty")
 	}
-	logger.Info.Printf("leases filename: %s\n", cfg.LeasesFilename)
+	logger.Verbosef("leases filename: %s\n", cfg.LeasesFilename)
 	leaseDir := filepath.Dir(cfg.LeasesFilename)
 	err := os.MkdirAll(leaseDir, 0755)
 	if err != nil {
-		logger.Error.Printf("Unable to create directory=%s", leaseDir)
+		logger.Errorf("Unable to create directory=%s", leaseDir)
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func newFileLeaseManager(cfg *serverConfig) (*fileLeaseManager, error) {
 		return nil, err
 	}
 
-	logger.Info.Println("Init complete")
+	logger.Verbosef("Init complete")
 	return lm, nil
 }
 
@@ -74,7 +74,7 @@ func (lm *fileLeaseManager) loadWgRecords() error {
 
 	r, err := os.Open(lm.filename)
 	if err != nil {
-		logger.Error.Printf("unable to open leases file: %v", err)
+		logger.Errorf("unable to open leases file: %v", err)
 		return nil
 	}
 	defer r.Close()
@@ -109,7 +109,7 @@ func (lm *fileLeaseManager) loadWgRecords() error {
 		}
 	}
 
-	logger.Info.Println("records loaded")
+	logger.Verbosef("records loaded")
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (lm *fileLeaseManager) updateWgPeers() error {
 	for _, r := range lm.wgRecords {
 		peerConfig, err := newPeerConfig(r.PubKey, "", "", []string{fmt.Sprintf("%s/32", r.IP.String())})
 		if err != nil {
-			logger.Error.Printf("error calculating peer config %v", err)
+			logger.Errorf("error calculating peer config %v", err)
 			continue
 		}
 		peers = append(peers, *peerConfig)
@@ -212,12 +212,12 @@ func (lm *fileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time
 func (lm *fileLeaseManager) nextAvailableAddress() netaddr.IP {
 	var b netaddr.IPSetBuilder
 	b.AddPrefix(lm.ipPrefix)
-	b.Remove(lm.ipPrefix.IP)
-	b.Remove(lm.ipPrefix.Range().From)
-	b.Remove(lm.ipPrefix.Range().To)
+	b.Remove(lm.ipPrefix.IP())
+	b.Remove(lm.ipPrefix.Range().From())
+	b.Remove(lm.ipPrefix.Range().To())
 	for _, r := range lm.wgRecords {
 		b.Remove(r.IP)
 	}
-	a := b.IPSet()
-	return a.Prefixes()[0].IP
+	a, _ := b.IPSet()
+	return a.Prefixes()[0].IP()
 }

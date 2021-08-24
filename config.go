@@ -200,15 +200,15 @@ func verifyServerConfig(conf *serverConfig) error {
 	}
 	conf.WireguardIPPrefix = ipPrefix
 	if len(conf.AllowedIPs) == 0 {
-		logger.Info.Printf("config missing `allowedIPs`, this server is not exposing any networks")
+		logger.Verbosef("config missing `allowedIPs`, this server is not exposing any networks")
 	}
 	// Append the server wg /32 ip to the allowed ips in case the agent
 	// wants to ping it for health checking
-	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/%s", conf.WireguardIPPrefix.IP.String(), "32"))
+	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/%s", conf.WireguardIPPrefix.IP().String(), "32"))
 
 	if conf.DeviceName == "" {
 		conf.DeviceName = defaultWireguardDeviceName
-		logger.Info.Printf(
+		logger.Verbosef(
 			"config missing `deviceName`, using default: %s",
 			defaultWireguardDeviceName,
 		)
@@ -227,21 +227,21 @@ func verifyServerConfig(conf *serverConfig) error {
 	conf.WireguardListenPort = port
 	if conf.KeyFilename == "" {
 		conf.KeyFilename = defaultKeyFilename
-		logger.Info.Printf(
+		logger.Verbosef(
 			"config missing `keyFilename`, using default: %s",
 			defaultKeyFilename,
 		)
 	}
 	if conf.LeaserSyncInterval == 0 {
 		conf.LeaserSyncInterval = defaultLeaserSyncInterval
-		logger.Info.Printf(
+		logger.Verbosef(
 			"config missing `leaserSyncInterval`, using default: %s",
 			defaultLeaserSyncInterval,
 		)
 	}
 	if conf.LeasesFilename == "" {
 		conf.LeasesFilename = defaultLeasesFilename
-		logger.Info.Printf(
+		logger.Verbosef(
 			"config missing `leasesFilename`, using default: %s",
 			defaultLeasesFilename,
 		)
@@ -254,7 +254,7 @@ func verifyServerConfig(conf *serverConfig) error {
 	}
 	if conf.ServerListenAddress == "" {
 		conf.ServerListenAddress = defaultServerListenAddress
-		logger.Info.Printf(
+		logger.Verbosef(
 			"config missing `serverListenAddress`, using default: %s",
 			defaultServerListenAddress,
 		)

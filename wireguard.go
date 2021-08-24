@@ -51,7 +51,7 @@ func setPeers(deviceName string, peers []wgtypes.PeerConfig) error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Failed to close wireguard client: %v", err)
 		}
 	}()
@@ -85,7 +85,7 @@ func setPrivateKey(deviceName string, privKey string) error {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Failed to close wireguard client: %v", err)
 		}
 	}()
@@ -107,7 +107,7 @@ func getKeys(deviceName string) (string, string, error) {
 	}
 	defer func() {
 		if err := wg.Close(); err != nil {
-			logger.Error.Printf(
+			logger.Errorf(
 				"Failed to close wireguard client: %v", err)
 		}
 	}()

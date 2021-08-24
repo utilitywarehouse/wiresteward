@@ -131,7 +131,7 @@ func (oa *oauthTokenHandler) getTokenFromFile() (*oauth2.Token, error) {
 }
 
 func (oa *oauthTokenHandler) saveToken(token *oauth2.Token) error {
-	logger.Info.Printf("Saving credential file to: %s", oa.tokFile)
+	logger.Verbosef("Saving credential file to: %s", oa.tokFile)
 	f, err := os.OpenFile(oa.tokFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to cache oauth token: %w", err)
@@ -154,7 +154,7 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	}
 
 	if err := oa.saveToken(tok); err != nil {
-		logger.Error.Printf("failed to save token to file: %v", err)
+		logger.Errorf("failed to save token to file: %v", err)
 	}
 
 	return tok, nil

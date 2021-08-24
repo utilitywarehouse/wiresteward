@@ -1,9 +1,8 @@
-FROM golang:1.16-alpine AS build
+FROM golang:1.17-alpine AS build
 WORKDIR /go/src/github.com/utilitywarehouse/wiresteward
 COPY . /go/src/github.com/utilitywarehouse/wiresteward
 ENV CGO_ENABLED=0
-RUN \
-  apk --no-cache add git upx \
+RUN apk --no-cache add git upx \
   && go get -t ./... \
   && go test -v \
   && go build -ldflags='-s -w' -o /wiresteward . \

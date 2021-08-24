@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -52,8 +53,8 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 	case "POST":
 		token, err := extractBearerTokenFromHeader(r, "Authorization")
 		if err != nil {
-			logger.Error.Println(
-				"Cannot parse authorization token", err)
+			logger.Errorf(
+				"Cannot parse authorization token error=%v", err)
 			http.Error(
 				w,
 				fmt.Sprintf("error parsing auth token: %v", err),
@@ -63,7 +64,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		}
 		tokenInfo, err := lh.tokenValidator.validate(token, "access_token")
 		if err != nil {
-			logger.Error.Println("Cannot check token validity", err)
+			logger.Errorf("Cannot check token validity error=%v", err)
 			http.Error(
 				w,
 				fmt.Sprintf("error checking token validity: %v", err),
@@ -82,7 +83,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		decoder := json.NewDecoder(r.Body)
 		var p leaseRequest
 		if err := decoder.Decode(&p); err != nil {
-			logger.Error.Println("Cannot decode request body", err)
+			logger.Errorf("Cannot decode request body error=%v", err)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
 		}
@@ -99,7 +100,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		response := &leaseResponse{
 			Status:            "success",
 			IP:                fmt.Sprintf("%s/32", wg.IP.String()),
-			ServerWireguardIP: lh.serverConfig.WireguardIPPrefix.IP.String(),
+			ServerWireguardIP: lh.serverConfig.WireguardIPPrefix.IP().String(),
 			AllowedIPs:        lh.serverConfig.AllowedIPs,
 			PubKey:            pubKey,
 			Endpoint:          lh.serverConfig.Endpoint,
@@ -119,8 +120,9 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 func (lh *HTTPLeaseHandler) start() {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
-	logger.Info.Printf("Starting server for lease requests\n")
+	logger.Verbosef("Starting server for lease requests")
 	if err := http.ListenAndServe(lh.serverConfig.ServerListenAddress, nil); err != nil {
-		logger.Error.Fatal(err)
+		logger.Errorf("%v", err)
+		os.Exit(1)
 	}
 }
