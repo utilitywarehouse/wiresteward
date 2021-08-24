@@ -93,7 +93,7 @@ func (a *Agent) renewAllLeases(token string) {
 func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	stateCookie, _ := r.Cookie(oauthStateCookieName)
 	if r.FormValue("state") != stateCookie.Value {
-		logger.Error.Printf(
+		logger.Errorf(
 			"State token missmatch: expected=%s received=%s", stateCookie.Value, r.FormValue("state"),
 		)
 		http.Error(w, "State token missmatch", 500)
