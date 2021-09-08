@@ -1,3 +1,9 @@
+variable "container_linux_image" {
+  type        = string
+  default     = "projects/kinvolk-public/global/images/family/flatcar-stable"
+  description = "The image from which to initialize the boot disk"
+}
+
 variable "role_name" {
   type        = string
   default     = "wiresteward"

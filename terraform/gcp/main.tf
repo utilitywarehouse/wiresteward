@@ -23,8 +23,12 @@ resource "google_compute_instance" "wiresteward" {
 
   boot_disk {
     initialize_params {
-      image = "flatcar-stable"
+      image = var.container_linux_image
     }
+  }
+
+  lifecycle {
+    ignore_changes = [boot_disk.0.initialize_params.0.image]
   }
 
   network_interface {
