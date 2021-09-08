@@ -82,7 +82,7 @@ resource "aws_eip_association" "peer" {
 
 resource "aws_instance" "peer" {
   count                  = local.instance_count
-  ami                    = data.aws_ami.flatcar_stable.id
+  ami                    = var.ami_id != "" ? var.ami_id : data.aws_ami.flatcar_stable.id
   instance_type          = "t2.micro"
   vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
   subnet_id              = var.subnet_ids[count.index]
