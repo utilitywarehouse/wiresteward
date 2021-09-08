@@ -23,7 +23,7 @@ resource "google_compute_instance" "wiresteward" {
 
   boot_disk {
     initialize_params {
-      image = "flatcar-stable"
+      image = var.container_linux_image
     }
   }
 
