@@ -27,6 +27,10 @@ resource "google_compute_instance" "wiresteward" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [boot_disk.0.initialize_params.0.image]
+  }
+
   network_interface {
     subnetwork = var.subnet_link
 
