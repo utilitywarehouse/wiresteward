@@ -4,6 +4,12 @@ variable "additional_security_group_ids" {
   default     = []
 }
 
+variable "ami_id" {
+  type        = string
+  default     = ""
+  description = "The id of the AMI. Defaults to the latest stable release of Flatcar Container Linux."
+}
+
 variable "role_name" {
   type        = string
   default     = "wiresteward"
