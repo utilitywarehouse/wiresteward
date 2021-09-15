@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -59,6 +61,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/renew", a.renewHandler)
+	http.HandleFunc("/forceRenew", a.forceRenewTokenHandler)
 	http.HandleFunc("/", a.mainHandler)
 
 	logger.Verbosef("Starting agent at http://%s", *flagAgentAddress)
@@ -108,12 +111,10 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	a.renewAllLeases(token.AccessToken)
-	// Redirect to / after renewing leases
-	rootURL := fmt.Sprintf("http://%s/", r.Host)
-	http.Redirect(w, r, rootURL, 302)
+	a.renewAndRedirectToRoot(token, w, r)
 }
 
+// renewHandler checks for a valid token and renews leases
 func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
@@ -131,6 +132,23 @@ func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, 302)
 		return
 	}
+	a.renewAndRedirectToRoot(token, w, r)
+}
+
+// forceRenewTokenHandler forces fetching a new oauth token. The callback
+// handler should take care of renewing the leases
+func (a *Agent) forceRenewTokenHandler(w http.ResponseWriter, r *http.Request) {
+	url, err := a.oa.prepareTokenWebChalenge(w)
+	if err != nil {
+		fmt.Fprintf(w, "error creating web url to get token: %v", err)
+		return
+	}
+	http.Redirect(w, r, url, 302)
+}
+
+// renewAndRedirectToRoot calls renewAllLeases function to trigger the agent to
+// refresh the leases and redirects to the main page /
+func (a *Agent) renewAndRedirectToRoot(token *oauth2.Token, w http.ResponseWriter, r *http.Request) {
 	a.renewAllLeases(token.AccessToken)
 	// Redirect to / after renewing leases
 	rootURL := fmt.Sprintf("http://%s/", r.Host)

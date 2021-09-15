@@ -60,11 +60,16 @@ var htmlStatusTemplate = `
           <p><b style="color:green;">Active</b><b> until: {{.TokenExpiry}}</b></p>
 	{{else}}
           <p><b style="color:red;">Expired</b><b> since: {{.TokenExpiry}}</b></p>
-	  <p>Please use renew button bellow.</p>
+	  <p>Please renew using one of the options bellow.</p>
 	{{end}}
       {{end}}
+      <i>Renew leases the existing token if active or get a new one</i>
       <form action="/renew" method="get">
         <button type="submit">Renew Leases</button>
+      </form>
+      <i>Force fetching a new token and renew leases</i>
+      <form action="/forceRenew" method="get">
+        <button type="submit">Renew Token And Leases</button>
       </form>
     </div>
     <div>
