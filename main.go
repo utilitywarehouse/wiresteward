@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -40,7 +41,7 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		logger.Verbosef("version=%s commit=%s date=%s builtBy=%s", version, commit, date, builtBy)
+		fmt.Printf("version=%s commit=%s date=%s builtBy=%s\n", version, commit, date, builtBy)
 		return
 	}
 
