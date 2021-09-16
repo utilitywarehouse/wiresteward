@@ -19,17 +19,17 @@ needed to enable access to a private network.
 
 <!-- vim-markdown-toc GFM -->
 
-* [Installation](#installation)
-* [Usage](#usage)
-* [Agent](#agent)
-	* [Configuration](#configuration)
-		* [MTU](#mtu)
-	* [Running as systemd service (Linux)](#running-as-systemd-service-linux)
-	* [Running as launchd service (OSX)](#running-as-launchd-service-osx)
-	* [Authentication](#authentication)
-* [Server](#server)
-	* [Configuration](#configuration-1)
-	* [Running](#running)
+-   [Installation](#installation)
+-   [Usage](#usage)
+-   [Agent](#agent)
+    -   [Configuration](#configuration)
+        -   [MTU](#mtu)
+    -   [Running as systemd service (Linux)](#running-as-systemd-service-linux)
+    -   [Running as launchd service (OSX)](#running-as-launchd-service-osx)
+    -   [Authentication](#authentication)
+-   [Server](#server)
+    -   [Configuration](#configuration-1)
+    -   [Running](#running)
 
 <!-- vim-markdown-toc -->
 
@@ -38,10 +38,10 @@ needed to enable access to a private network.
 Binaries found under wiresteward releases include the agent and server modes:
 https://github.com/utilitywarehouse/wiresteward/releases
 
-To install on linux:
+To install on AMD64:
 
 ```
-wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.2/wiresteward_0.2.2_linux_amd64
+p=`uname|awk '{print tolower($0)}'` && wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${p}_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
@@ -64,15 +64,15 @@ as root with `sudo`.
 See [`examples/server.json`](./examples/server.json) and
 [`examples/agent.json`](./examples/agent.json) for example configuration.
 
-
 ## Agent
+
 The wiresteward agent is responsible for:
 
-- creating new network tun devices
-- fetching oauth tokens to pass server authentication
-- registering wireguard keys with the wiresteward server and retrieving configuration
-- configuring wireguard peers
-- configuring routes for the subnets allowed by the server
+-   creating new network tun devices
+-   fetching oauth tokens to pass server authentication
+-   registering wireguard keys with the wiresteward server and retrieving configuration
+-   configuring wireguard peers
+-   configuring routes for the subnets allowed by the server
 
 It is recommended that the agent is run as a system service.
 
@@ -93,6 +93,7 @@ Optionally, the mtu can be set explicitly per wg device created by the agent via
 the configuration file (using the "mtu" key under device config)
 
 ### Running as systemd service (Linux)
+
 The agent is designed to run as a systemd service. An example working service
 is described in [`examples/wiresteward.service`](./examples/wiresteward.service).
 
@@ -107,6 +108,7 @@ systemctl start wiresteward.service
 ```
 
 To look at its logs:
+
 ```
 journalctl -u  wiresteward.service
 ```
@@ -118,11 +120,13 @@ An example working service for launchd is described in
 
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
+
 ```
 chown root:admin /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
 Finally, you need to load the service:
+
 ```
 sudo launchctl load /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
@@ -132,6 +136,7 @@ network devices and routing table.
 
 Logs are stored in `/var/log/wirestward.log` as defined in the service file. To
 view the logs you can simply:
+
 ```
 tail -f /var/log/wiresteward.log
 ```
@@ -151,12 +156,13 @@ the local wireguard devices. If it already has a valid token, it will not prompt
 the user to re-authenticate but it will re-configure the system.
 
 ## Server
+
 The wiresteward server is responsible for:
 
-- creating new network wireguard device
-- registering new peers and allocating ip addresses for them
-- configuring wireguard peers
-- revoking access for expired address leases
+-   creating new network wireguard device
+-   registering new peers and allocating ip addresses for them
+-   configuring wireguard peers
+-   revoking access for expired address leases
 
 It is recommended that the agent is run as a systemd service.
 
