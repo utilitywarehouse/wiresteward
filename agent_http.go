@@ -54,7 +54,7 @@ var htmlStatusTemplate = `
     <div>
       <h3 class="text-left">Token Info</h2>
       {{ if .TokenMissing }}
-        <p>No token found, please hit Renew Leases button bellow.</p>
+        <p>No token found, please hit Renew button below.</p>
       {{else}}
         {{ if .TokenActive }}
           <p><b style="color:green;">Active</b><b> until: {{.TokenExpiry}}</b></p>
@@ -63,8 +63,9 @@ var htmlStatusTemplate = `
 	  <p>Please use renew button bellow.</p>
 	{{end}}
       {{end}}
+      <i>Fetches a new token before renewing leases.</i>
       <form action="/renew" method="get">
-        <button type="submit">Renew Leases</button>
+        <button type="submit">Renew</button>
       </form>
     </div>
     <div>
