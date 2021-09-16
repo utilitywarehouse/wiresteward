@@ -114,27 +114,15 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, rootURL, 302)
 }
 
+// renewHandler will initiate the auth challenge. Leases renewal will be handled
+// in the callback handler.
 func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
-	token, err := a.oa.getTokenFromFile()
-	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		logger.Errorf("cannot get a valid cached token, need a new one")
-		// Get a url for the token challenge and redirect there
-		url, err := a.oa.prepareTokenWebChalenge(w)
-		if err != nil {
-			fmt.Fprintf(
-				w,
-				"error creating web url to get token: %v",
-				err,
-			)
-			return
-		}
-		http.Redirect(w, r, url, 302)
+	url, err := a.oa.prepareTokenWebChalenge(w)
+	if err != nil {
+		fmt.Fprintf(w, "error creating web url to get token: %v", err)
 		return
 	}
-	a.renewAllLeases(token.AccessToken)
-	// Redirect to / after renewing leases
-	rootURL := fmt.Sprintf("http://%s/", r.Host)
-	http.Redirect(w, r, rootURL, 302)
+	http.Redirect(w, r, url, 302)
 }
 
 func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
