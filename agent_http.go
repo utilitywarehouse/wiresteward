@@ -54,7 +54,7 @@ var htmlStatusTemplate = `
     <div>
       <h3 class="text-left">Token Info</h2>
       {{ if .TokenMissing }}
-        <p>No token found, please hit Renew button bellow.</p>
+        <p>No token found, please hit Renew button below.</p>
       {{else}}
         {{ if .TokenActive }}
           <p><b style="color:green;">Active</b><b> until: {{.TokenExpiry}}</b></p>
