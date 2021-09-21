@@ -1,4 +1,4 @@
-# wiresteward
+# Wiresteward
 
 [![Build Status](https://drone.prod.merit.uw.systems/api/badges/utilitywarehouse/wiresteward/status.svg)](https://drone.prod.merit.uw.systems/utilitywarehouse/wiresteward)
 
@@ -15,24 +15,6 @@ the server and retrieving wireguard configuration.
 Both components will configure their local wireguard devices and route tables as
 needed to enable access to a private network.
 
-# Table of Contents
-
-<!-- vim-markdown-toc GFM -->
-
--   [Installation](#installation)
--   [Usage](#usage)
--   [Agent](#agent)
-    -   [Configuration](#configuration)
-        -   [MTU](#mtu)
-    -   [Running as systemd service (Linux)](#running-as-systemd-service-linux)
-    -   [Running as launchd service (OSX)](#running-as-launchd-service-osx)
-    -   [Authentication](#authentication)
--   [Server](#server)
-    -   [Configuration](#configuration-1)
-    -   [Running](#running)
-
-<!-- vim-markdown-toc -->
-
 ## Installation
 
 Binaries found under wiresteward releases include the agent and server modes:
@@ -41,7 +23,7 @@ https://github.com/utilitywarehouse/wiresteward/releases
 To install on AMD64:
 
 ```
-p=`uname|awk '{print tolower($0)}'` && wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${p}_amd64
+p=$(uname | awk '{print tolower($0)}') && wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${p}_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
@@ -68,11 +50,11 @@ See [`examples/server.json`](./examples/server.json) and
 
 The wiresteward agent is responsible for:
 
--   creating new network tun devices
--   fetching oauth tokens to pass server authentication
--   registering wireguard keys with the wiresteward server and retrieving configuration
--   configuring wireguard peers
--   configuring routes for the subnets allowed by the server
+- creating new network tun devices
+- fetching oauth tokens to pass server authentication
+- registering wireguard keys with the wiresteward server and retrieving configuration
+- configuring wireguard peers
+- configuring routes for the subnets allowed by the server
 
 It is recommended that the agent is run as a system service.
 
@@ -113,7 +95,7 @@ To look at its logs:
 journalctl -u  wiresteward.service
 ```
 
-### Running as launchd service (OSX)
+### Running as launchd service (macOS)
 
 An example working service for launchd is described in
 [`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist).
@@ -159,10 +141,10 @@ the user to re-authenticate but it will re-configure the system.
 
 The wiresteward server is responsible for:
 
--   creating new network wireguard device
--   registering new peers and allocating ip addresses for them
--   configuring wireguard peers
--   revoking access for expired address leases
+- creating new network wireguard device
+- registering new peers and allocating ip addresses for them
+- configuring wireguard peers
+- revoking access for expired address leases
 
 It is recommended that the agent is run as a systemd service.
 
