@@ -62,6 +62,27 @@ data "ignition_systemd_unit" "traefik" {
   })
 }
 
+data "ignition_systemd_unit" "locksmithd" {
+  count = local.instance_count
+
+  name = "locksmithd.service"
+
+  dropin {
+    name = "10-custom-options.conf"
+    # Daily update windows, with a 1h buffer to prevent overlaps
+    # and give time to react to any problems.
+    #   wiresteward-0: 10:00-11:00
+    #   < 1h free >
+    #   wiresteward-1: 12:00-13:00
+    #   < 1h free >
+    content = <<-EOF
+[Service]
+Environment=LOCKSMITHD_REBOOT_WINDOW_START=${formatdate("hh:mm", timeadd("0000-01-01T10:00:00Z", "${count.index * 2}h"))}
+Environment=LOCKSMITHD_REBOOT_WINDOW_LENGTH=1h
+EOF
+  }
+}
+
 data "ignition_config" "wiresteward" {
   count = local.instance_count
 
@@ -71,6 +92,7 @@ data "ignition_config" "wiresteward" {
   ], var.additional_ignition_files)
 
   systemd = concat([
+    data.ignition_systemd_unit.locksmithd[count.index].rendered,
     data.ignition_systemd_unit.s3fs[count.index].rendered,
     data.ignition_systemd_unit.traefik.rendered,
     data.ignition_systemd_unit.wiresteward_service.rendered,
