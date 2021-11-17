@@ -14,7 +14,6 @@ variable "flatcar_initrd_addresses" {
   description = "List of http endpoint locations the serve the flatcar initrd assets"
 }
 
-
 variable "ignition_files" {
   type        = list(list(string))
   description = "The ignition files configuration for the wiresteward instances. Output of the ignition module."
@@ -27,10 +26,6 @@ variable "ignition_systemd" {
 
 variable "matchbox_http_endpoint" {
   description = "http endpoint of matchbox server"
-}
-
-variable "private_vlan_id" {
-  description = "Vlan id of the wireguard instances' public network interfaces"
 }
 
 variable "private_vlan_gw" {
@@ -57,12 +52,20 @@ variable "wireguard_exposed_subnets" {
 
 variable "wiresteward_server_peers" {
   type = list(object({
+    disk_type          = string
     private_ip_address = string
     public_ip_address  = string
     wireguard_cidr     = string
     mac_addresses      = list(string)
   }))
   description = "The list of the wiresteweard server peers to create."
+
+  validation {
+    condition = alltrue([
+      for w in var.wiresteward_server_peers : contains(["sata", "nvme"], w.disk_type)
+    ])
+    error_message = "All wiresteward members must specify a disk type of either sata or nvme."
+  }
 }
 
 variable "ssh_address_range" {
