@@ -24,20 +24,6 @@ Mode=802.3ad
 EOS
 }
 
-data "ignition_networkd_unit" "bond_private_vlan_netdev" {
-  count = length(var.wiresteward_server_peers)
-
-  name    = "11-bond-private-vlan.netdev"
-  content = <<EOS
-[NetDev]
-Name=bond0.${var.private_vlan_id}
-Kind=vlan
-
-[VLAN]
-Id=${var.private_vlan_id}
-EOS
-}
-
 data "ignition_networkd_unit" "bond_public_vlan_netdev" {
   count = length(var.wiresteward_server_peers)
 
@@ -64,21 +50,7 @@ MTUBytes=9000
 MACAddress=${var.wiresteward_server_peers[count.index].mac_addresses[0]}
 [Network]
 DHCP=no
-VLAN=bond0.${var.private_vlan_id}
 VLAN=bond0.${var.public_vlan_id}
-EOS
-}
-
-data "ignition_networkd_unit" "bond0_private_vlan" {
-  count = length(var.wiresteward_server_peers)
-
-  name = "21-bond0-private-vlan.network"
-
-  content = <<EOS
-[Match]
-Name=bond0.${var.private_vlan_id}
-[Network]
-DHCP=no
 [Address]
 Address=${var.wiresteward_server_peers[count.index].private_ip_address}/24
 [Route]

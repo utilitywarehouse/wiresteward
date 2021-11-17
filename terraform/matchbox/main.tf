@@ -8,6 +8,16 @@ data "ignition_disk" "sda" {
   }
 }
 
+data "ignition_disk" "nvme" {
+  device     = "/dev/nvme0n1"
+  wipe_table = true
+
+  partition {
+    label  = "ROOT"
+    number = 1
+  }
+}
+
 data "ignition_filesystem" "root" {
   name = "ROOT"
 
@@ -36,7 +46,7 @@ data "ignition_config" "wiresteward" {
   count = length(var.wiresteward_server_peers)
 
   disks = [
-    data.ignition_disk.sda.rendered,
+    var.wiresteward_server_peers[count.index].disk_type == "nvme" ? data.ignition_disk.nvme.rendered : data.ignition_disk.sda.rendered,
   ]
 
   filesystems = [
@@ -46,10 +56,8 @@ data "ignition_config" "wiresteward" {
   networkd = [
     data.ignition_networkd_unit.bond_net_eno.rendered,
     data.ignition_networkd_unit.bond_netdev.rendered,
-    data.ignition_networkd_unit.bond_private_vlan_netdev[count.index].rendered,
     data.ignition_networkd_unit.bond_public_vlan_netdev[count.index].rendered,
     data.ignition_networkd_unit.bond0[count.index].rendered,
-    data.ignition_networkd_unit.bond0_private_vlan[count.index].rendered,
     data.ignition_networkd_unit.bond0_public_vlan[count.index].rendered,
 
   ]
