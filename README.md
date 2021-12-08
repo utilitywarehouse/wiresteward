@@ -160,6 +160,6 @@ An example, where the config format can be found in
 
 ### Running
 
-There are terroform modules defined under [`terraform/`](./terraform) which
+There are Terraform modules defined under [`terraform/`](./terraform) which
 describe the recommended deployment method in AWS and GCP. See the more specific
 [README](./terraform/README.md) file for details.
