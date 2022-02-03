@@ -41,7 +41,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		agent.deviceManagers = append(agent.deviceManagers, dm)
 	}
 	tokenDir := filepath.Dir(defaultTokenFileLoc)
-	err := os.MkdirAll(tokenDir, 0755)
+	err := os.MkdirAll(tokenDir, 0750)
 	if err != nil {
 		logger.Errorf("Unable to create directory=%s", tokenDir)
 	}
