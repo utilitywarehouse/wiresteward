@@ -12,7 +12,7 @@ import (
 
 func TestHealthcheck_NewHealthCheck(t *testing.T) {
 	hc, err := newHealthCheck(
-    "test-dev",
+		"test-dev",
 		"10.0.0.0",
 		Duration{10 * time.Second},
 		Duration{time.Second},
@@ -34,7 +34,7 @@ func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
 
 	renewNotify := make(chan struct{})
 	hc, err := newHealthCheck(
-    "test-dev",
+		"test-dev",
 		"10.0.0.0",
 		Duration{100 * time.Millisecond},
 		Duration{10 * time.Millisecond},
@@ -72,7 +72,7 @@ func TestHealthcheck_RunHealthyCheckResets(t *testing.T) {
 
 	renewNotify := make(chan struct{})
 	hc, err := newHealthCheck(
-    "test-dev",
+		"test-dev",
 		"10.0.0.0",
 		Duration{100 * time.Millisecond},
 		Duration{10 * time.Millisecond},
