@@ -27,7 +27,7 @@ type checker interface {
 	TargetIP() string
 }
 
-func newPingChecker(address string, timeout Duration) (*pingChecker, error) {
+func newPingChecker(device string, address string, timeout Duration) (*pingChecker, error) {
 	ip, err := netaddr.ParseIP(address)
 	if err != nil {
 		return nil, fmt.Errorf("No valid ip for %s", address)
