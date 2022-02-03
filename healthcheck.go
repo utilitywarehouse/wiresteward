@@ -16,7 +16,7 @@ type healthCheck struct {
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
-func newHealthCheck(device string, address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
+func newHealthCheck(device, address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
 	pc, err := newPingChecker(device, address, timeout)
 	if err != nil {
 		return &healthCheck{}, err
