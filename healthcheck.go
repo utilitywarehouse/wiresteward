@@ -51,7 +51,7 @@ func (hc *healthCheck) Run() {
 			if err := hc.checker.Check(); err != nil {
 				unhealthyCount = unhealthyCount + 1
 				healthSyncTicker.Reset(hc.intervalAF.Duration)
-				logger.Errorf("healthcheck failed for (%s %s): %s", hc.device, hc.checker.TargetIP(), err)
+				logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
