@@ -198,6 +198,7 @@ func (dm *DeviceManager) renewLease() error {
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
 		hc, err := newHealthCheck(
+			dm.Name(),
 			wgServerAddr,
 			dm.healthCheckConf.Interval,
 			dm.healthCheckConf.IntervalAfterFailure,
