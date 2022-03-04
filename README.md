@@ -1,7 +1,5 @@
 # Wiresteward
 
-[![Build Status](https://drone.prod.merit.uw.systems/api/badges/utilitywarehouse/wiresteward/status.svg)](https://drone.prod.merit.uw.systems/utilitywarehouse/wiresteward)
-
 Wiresteward is a wireguard peer manager with oauth2 authentication. It is
 comprised of two components: server and agent.
 
@@ -23,7 +21,8 @@ https://github.com/utilitywarehouse/wiresteward/releases
 To install on AMD64:
 
 ```
-p=$(uname | awk '{print tolower($0)}') && wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${p}_amd64
+os=$(uname | awk '{print tolower($0)}')
+wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${os}_amd64
 chmod +x /usr/local/bin/wiresteward
 ```
 
