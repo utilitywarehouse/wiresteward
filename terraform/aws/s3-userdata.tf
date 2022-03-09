@@ -3,11 +3,14 @@
 resource "aws_s3_bucket" "userdata" {
   bucket = "${var.bucket_prefix}-ignition-userdata-wiresteward"
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "userdata" {
+  bucket = aws_s3_bucket.userdata.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -19,7 +22,7 @@ resource "aws_s3_bucket_public_access_block" "userdata" {
   block_public_policy = true
 }
 
-resource "aws_s3_bucket_object" "userdata" {
+resource "aws_s3_object" "userdata" {
   count   = local.instance_count
   bucket  = aws_s3_bucket.userdata.id
   key     = "wiresteward-config-${count.index}-${sha1(var.ignition[count.index])}.json"
@@ -27,7 +30,7 @@ resource "aws_s3_bucket_object" "userdata" {
 }
 
 data "template_file" "userdata" {
-  count   = local.instance_count
+  count = local.instance_count
   template = jsonencode(
     {
       ignition = {
