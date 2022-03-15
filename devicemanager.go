@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func init() {
@@ -102,6 +103,11 @@ func (dm *DeviceManager) renewLoop() {
 		case <-dm.renewLeaseChan:
 			logger.Verbosef("Renewing lease for device:%s\n", dm.Name())
 			if err := dm.renewLease(); err != nil {
+				if err == jwt.ErrExpired {
+					// stop retrying - token is expired, it will need manual refresh
+					logger.Errorf("%v", err)
+					break
+				}
 				go func() {
 					dm.inBackoffLoop = true
 					duration := dm.backoff.Duration()
@@ -137,7 +143,7 @@ func (dm *DeviceManager) RenewTokenAndLease(token string) {
 	dm.renewLeaseChan <- struct{}{}
 }
 
-// RenewLease uses the provided oauth2 token to retrieve a new leases from one
+// renewLease uses the provided oauth2 token to retrieve a new leases from one
 // of the healthy wiresteward servers associated with the underlying device. If
 // healthchecks are disabled then all serveres would be considered healthy. The
 // received configuration is then applied to the device.
@@ -146,7 +152,7 @@ func (dm *DeviceManager) renewLease() error {
 		return fmt.Errorf("Empty cached token")
 	}
 	if err := validateJWTToken(dm.cachedToken); err != nil {
-		return fmt.Errorf("Validation failed: %v", err)
+		return err
 	}
 	publicKey, _, err := getKeys(dm.Name())
 	if err != nil {

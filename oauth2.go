@@ -234,12 +234,12 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 func validateJWTToken(t string) error {
 	tok, err := jwt.ParseSigned(t)
 	if err != nil {
-		return fmt.Errorf("Cannot parse JWT token: %v", err)
+		return err
 	}
 
 	cl := jwt.Claims{}
 	if err := tok.UnsafeClaimsWithoutVerification(&cl); err != nil {
-		return fmt.Errorf("Cannot unmarshal claims: %v", err)
+		return err
 	}
 
 	if cl.Expiry == nil {
@@ -249,7 +249,7 @@ func validateJWTToken(t string) error {
 	if err := cl.ValidateWithLeeway(jwt.Expected{
 		Time: time.Now(),
 	}, 0); err != nil {
-		return fmt.Errorf("Cannot validate JWT token: %v", err)
+		return err
 	}
 	return nil
 }
