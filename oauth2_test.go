@@ -30,7 +30,7 @@ func TestValidateJWTToken(t *testing.T) {
 	}
 
 	err = validateJWTToken(tok)
-	expectedErr := fmt.Errorf("Cannot validate JWT token: %v", jwt.ErrExpired)
+	expectedErr := fmt.Errorf("%v", jwt.ErrExpired)
 	if err == nil {
 		t.Fatal("Validation of expired token did not fail")
 	}
