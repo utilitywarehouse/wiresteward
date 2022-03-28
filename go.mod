@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.1
 	github.com/vishvananda/netlink v1.1.1-0.20200802231818-98629f7ffc4b
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 // indirect
