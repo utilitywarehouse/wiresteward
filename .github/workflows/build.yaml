@@ -69,6 +69,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Login to Quay.io Container Registry
+        if: github.actor != "dependabot[bot]"
         uses: docker/login-action@v1
         with:
           registry: quay.io
@@ -80,7 +81,9 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
       - name: Build and push Docker image
+        if: github.actor != "dependabot[bot]"
         uses: docker/build-push-action@v2
         with:
           context: .
