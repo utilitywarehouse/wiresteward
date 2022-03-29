@@ -44,6 +44,7 @@ jobs:
           # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
   docker:
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -69,7 +70,6 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Login to Quay.io Container Registry
-        if: github.actor != "dependabot[bot]"
         uses: docker/login-action@v1
         with:
           registry: quay.io
@@ -83,7 +83,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Build and push Docker image
-        if: github.actor != "dependabot[bot]"
         uses: docker/build-push-action@v2
         with:
           context: .
