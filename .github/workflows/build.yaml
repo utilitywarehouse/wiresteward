@@ -70,7 +70,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Login to Quay.io Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: quay.io
           username: utilitywarehouse+drone_ci
