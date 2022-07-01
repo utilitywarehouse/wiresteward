@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/common v0.35.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.8.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
@@ -41,5 +41,5 @@ require (
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.zx2c4.com/wintun v0.0.0-20211104114900-415007cec224 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
