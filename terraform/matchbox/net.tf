@@ -1,6 +1,9 @@
-data "ignition_networkd_unit" "bond_net_eno" {
-  name    = "00-eno.network"
-  content = <<EOS
+data "ignition_file" "bond_net_eno" {
+  path = "/etc/systemd/network/00-eno.network"
+  mode = 420
+
+  content {
+    content = <<EOS
 [Match]
 Name=eno*
 
@@ -10,11 +13,15 @@ MTUBytes=9000
 [Network]
 Bond=bond0
 EOS
+  }
 }
 
-data "ignition_networkd_unit" "bond_netdev" {
-  name    = "10-bond0.netdev"
-  content = <<EOS
+data "ignition_file" "bond_netdev" {
+  path = "/etc/systemd/network/10-bond0.netdev"
+  mode = 420
+
+  content {
+    content = <<EOS
 [NetDev]
 Name=bond0
 Kind=bond
@@ -22,13 +29,17 @@ Kind=bond
 [Bond]
 Mode=802.3ad
 EOS
+  }
 }
 
-data "ignition_networkd_unit" "bond_public_vlan_netdev" {
+data "ignition_file" "bond_public_vlan_netdev" {
   count = length(var.wiresteward_server_peers)
 
-  name    = "12-bond-public-vlan.netdev"
-  content = <<EOS
+  path = "/etc/systemd/network/12-bond-public-vlan.netdev"
+  mode = 420
+
+  content {
+    content = <<EOS
 [NetDev]
 Name=bond0.${var.public_vlan_id}
 Kind=vlan
@@ -36,13 +47,17 @@ Kind=vlan
 [VLAN]
 Id=${var.public_vlan_id}
 EOS
+  }
 }
 
-data "ignition_networkd_unit" "bond0" {
+data "ignition_file" "bond0" {
   count = length(var.wiresteward_server_peers)
 
-  name    = "20-bond0.network"
-  content = <<EOS
+  path = "/etc/systemd/network/20-bond0.network"
+  mode = 420
+
+  content {
+    content = <<EOS
 [Match]
 Name=bond0
 [Link]
@@ -57,14 +72,17 @@ Address=${var.wiresteward_server_peers[count.index].private_ip_address}/24
 Destination=10.0.0.0/8
 Gateway=${var.private_vlan_gw}
 EOS
+  }
 }
 
-data "ignition_networkd_unit" "bond0_public_vlan" {
+data "ignition_file" "bond0_public_vlan" {
   count = length(var.wiresteward_server_peers)
 
-  name = "22-bond0-public-vlan.network"
+  path = "/etc/systemd/network/22-bond0-public-vlan.network"
+  mode = 420
 
-  content = <<EOS
+  content {
+    content = <<EOS
 [Match]
 Name=bond0.${var.public_vlan_id}
 [Network]
@@ -75,4 +93,5 @@ Address=${var.wiresteward_server_peers[count.index].public_ip_address}/28
 Destination=0.0.0.0/0
 Gateway=${var.public_vlan_gw}
 EOS
+  }
 }

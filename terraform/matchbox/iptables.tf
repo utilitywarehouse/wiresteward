@@ -17,9 +17,8 @@ EOS
 data "ignition_file" "iptables_rules" {
   count = length(var.wiresteward_server_peers)
 
-  filesystem = "root"
-  path       = "/var/lib/iptables/rules-save"
-  mode       = 420
+  path = "/var/lib/iptables/rules-save"
+  mode = 420
 
   content {
     content = <<EOS

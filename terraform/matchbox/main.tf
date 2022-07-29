@@ -30,10 +30,9 @@ data "ignition_filesystem" "root" {
 }
 
 data "ignition_file" "hostname" {
-  count      = length(var.wiresteward_server_peers)
-  filesystem = "root"
-  path       = "/etc/hostname"
-  mode       = 420
+  count = length(var.wiresteward_server_peers)
+  path  = "/etc/hostname"
+  mode  = 420
 
   content {
     content = <<EOS
@@ -53,15 +52,6 @@ data "ignition_config" "wiresteward" {
     data.ignition_filesystem.root.rendered,
   ]
 
-  networkd = [
-    data.ignition_networkd_unit.bond_net_eno.rendered,
-    data.ignition_networkd_unit.bond_netdev.rendered,
-    data.ignition_networkd_unit.bond_public_vlan_netdev[count.index].rendered,
-    data.ignition_networkd_unit.bond0[count.index].rendered,
-    data.ignition_networkd_unit.bond0_public_vlan[count.index].rendered,
-
-  ]
-
   systemd = concat(
     tolist([
       data.ignition_systemd_unit.iptables-rule-load.rendered,
@@ -71,6 +61,11 @@ data "ignition_config" "wiresteward" {
 
   files = concat(
     tolist([
+      data.ignition_file.bond_net_eno.rendered,
+      data.ignition_file.bond_netdev.rendered,
+      data.ignition_file.bond_public_vlan_netdev[count.index].rendered,
+      data.ignition_file.bond0[count.index].rendered,
+      data.ignition_file.bond0_public_vlan[count.index].rendered,
       data.ignition_file.hostname[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
       data.ignition_file.resolved_conf.rendered,
