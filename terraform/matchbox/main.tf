@@ -19,14 +19,10 @@ data "ignition_disk" "nvme" {
 }
 
 data "ignition_filesystem" "root" {
-  name = "ROOT"
-
-  mount {
-    device          = "/dev/disk/by-partlabel/ROOT"
-    format          = "ext4"
-    wipe_filesystem = true
-    label           = "ROOT"
-  }
+  device          = "/dev/disk/by-partlabel/ROOT"
+  format          = "ext4"
+  wipe_filesystem = true
+  label           = "ROOT"
 }
 
 data "ignition_file" "hostname" {
