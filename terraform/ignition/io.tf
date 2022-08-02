@@ -10,6 +10,11 @@ variable "additional_systemd_units" {
   default     = []
 }
 
+variable "omit_locksmithd_service" {
+  description = "Whether to omit locksmithd service from ignition. It should be used when passing locksmithd service as additional config to avoid ignition failures"
+  default     = false
+}
+
 variable "oauth2_introspect_url" {
   type        = string
   description = "Introspection url to validate access tokens"
