@@ -90,9 +90,9 @@ data "ignition_config" "wiresteward" {
   ], var.additional_ignition_files)
 
   systemd = concat([
-    data.ignition_systemd_unit.locksmithd[count.index].rendered,
     data.ignition_systemd_unit.s3fs[count.index].rendered,
     data.ignition_systemd_unit.traefik.rendered,
     data.ignition_systemd_unit.wiresteward_service.rendered,
+    !var.omit_locksmithd_service ? data.ignition_systemd_unit.locksmithd[count.index].rendered : "",
   ], var.additional_systemd_units)
 }
