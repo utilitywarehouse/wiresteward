@@ -1,6 +1,6 @@
 # Wiresteward
 
-Wiresteward is a wireguard peer manager with oauth2 authentication. It is
+Wiresteward is a WireGuard peer manager with oauth2 authentication. It is
 comprised of two components: server and agent.
 
 The design is for wiresteward server to run on a remote machine in a private
@@ -22,8 +22,9 @@ To install on AMD64:
 
 ```
 os=$(uname | awk '{print tolower($0)}')
-wget -O /usr/local/bin/wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.3/wiresteward_0.2.3_${os}_amd64
-chmod +x /usr/local/bin/wiresteward
+curl -o wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.4/wiresteward_0.2.4_${os}_amd64
+chmod +x wiresteward
+mv wiresteward /usr/local/bin/
 ```
 
 ## Usage
@@ -59,16 +60,22 @@ It is recommended that the agent is run as a system service.
 
 ### Configuration
 
-The agent can take a config file as an argument or look for it under the default
-location `/etc/wiresteward/config.json`. The config contains details about the
-oauth server and the local devices that we need the agent to manage.
+The agent can take a config file as an argument or look for it under the
+default location:
+
+```
+/etc/wiresteward/config.json
+```
+
+The config contains details about the oauth server and the local devices that
+we need the agent to manage.
 
 An example, where the config format can be found in
 [`examples/agent.json`](./examples/agent.json).
 
 #### MTU
 
-The default mtu for the interfaces created via the agent is `1420` and it comes
+The default MTU for the interfaces created via the agent is `1420` and it comes
 from the [default value of wireguard-go package](https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14).
 Optionally, the mtu can be set explicitly per wg device created by the agent via
 the configuration file (using the "mtu" key under device config)
@@ -84,14 +91,13 @@ to that location and then:
 
 ```
 systemctl daemon-reload
-systemctl enable wiresteward.service
-systemctl start wiresteward.service
+systemctl enable --now wiresteward.service
 ```
 
 To look at its logs:
 
 ```
-journalctl -u  wiresteward.service
+journalctl -u wiresteward.service
 ```
 
 ### Running as launchd service (macOS)
