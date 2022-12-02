@@ -7,7 +7,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/mdlayher/netlink v1.6.0 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/stretchr/testify v1.8.1
@@ -35,7 +35,7 @@ require (
 	github.com/mdlayher/genetlink v1.2.0 // indirect
 	github.com/mdlayher/socket v0.2.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
 	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
