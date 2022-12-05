@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine AS build
+FROM golang:1.19-alpine AS build
 WORKDIR /go/src/github.com/utilitywarehouse/wiresteward
 COPY . /go/src/github.com/utilitywarehouse/wiresteward
 ENV CGO_ENABLED=0
@@ -8,7 +8,7 @@ RUN apk --no-cache add git upx \
       && go build -ldflags='-s -w' -o /wiresteward . \
       && upx /wiresteward
 
-FROM alpine:3.16
+FROM alpine:3.17
 RUN apk add --no-cache ca-certificates iptables
 COPY --from=build /wiresteward /wiresteward
 ENTRYPOINT [ "/wiresteward" ]
