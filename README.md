@@ -22,7 +22,7 @@ To install on AMD64:
 
 ```
 os=$(uname | awk '{print tolower($0)}')
-curl -L -o wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.4/wiresteward_0.2.4_${os}_amd64
+curl -L -o wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.5/wiresteward_0.2.5_${os}_amd64
 chmod +x wiresteward
 mv wiresteward /usr/local/bin/
 ```
