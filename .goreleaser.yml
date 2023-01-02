@@ -33,6 +33,22 @@ brews:
     tap:
       owner: utilitywarehouse
       name: homebrew-tap
+    caveats: |
+      *********************
+      When running the agent via `brew services` place your config file at `/etc/wiresteward/config.json`
+      *********************
+      To start the agent run:
+        brew services start utilitywarehouse/tap/wiresteward
+      To stop the agent run:
+        brew services stop utilitywarehouse/tap/wiresteward
+      To restart the agent run:
+        brew services restart utilitywarehouse/tap/wiresteward
+      *********************
+      To uninstall the agent run the following commands:
+        brew services stop utilitywarehouse/tap/wiresteward
+        brew uninstall utilitywarehouse/tap/wiresteward
+        launchctl remove uk.co.uw.wiresteward
+      *********************
     plist: |
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-/Apple/DTD PLIST 1.0/EN" "http:/www.apple.com/DTDs/PropertyList-1.0.dtd">
