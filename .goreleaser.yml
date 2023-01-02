@@ -26,14 +26,43 @@ archives:
       - none*
 
 brews:
-  - name: wiresteward
-    description: Wireguard peer manager
+  - name: wiresteward-agent
+    description: Wireguard peer manager, agent
     license: MIT
     folder: Formula
     tap:
       owner: utilitywarehouse
       name: homebrew-tap
-    test:
+    plist: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-/Apple/DTD PLIST 1.0/EN" "http:/www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+        <dict>
+          <key>Label</key>
+          <string>uk.co.uw.wiresteward</string>
+
+          <key>KeepAlive</key>
+          <true/>
+
+          <key>RunAtLoad</key>
+          <true/>
+
+          <key>ProgramArguments</key>
+          <array>
+            <string>#{bin}/wiresteward</string>
+            <string>-agent</string>
+          </array>
+
+          <key>StandardErrorPath</key>
+          <string>/var/log/wiresteward.err.log</string>
+
+          <key>StandardOutPath</key>
+          <string>/var/log/wiresteward.log</string>
+        </dict>
+      </plist>
+    service: |
+      run "#{bin}/wiresteward", "-agent"
+    test: |
       system "#{bin}/wiresteward", "-version"
-    install: |-
+    install: |
       bin.install "wiresteward"
