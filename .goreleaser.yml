@@ -12,13 +12,28 @@ builds:
       - mips
     gomips:
       - softfloat
+
 release:
   github:
     owner: utilitywarehouse
     name: wiresteward
+
 archives:
   - builds:
       - main
     format: binary
     files:
       - none*
+
+brews:
+  - name: wiresteward
+    description: Wireguard peer manager
+    license: MIT
+    folder: Formula
+    tap:
+      owner: utilitywarehouse
+      name: homebrew-tap
+    test:
+      system "#{bin}/wiresteward", "-version"
+    install: |-
+      bin.install "wiresteward"
