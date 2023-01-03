@@ -28,6 +28,7 @@ archives:
 brews:
   - name: wiresteward
     description: Wireguard peer manager
+    homepage: https://github.com/utilitywarehouse/wiresteward
     license: MIT
     folder: Formula
     tap:
@@ -80,5 +81,3 @@ brews:
       run "#{bin}/wiresteward", "-agent"
     test: |
       system "#{bin}/wiresteward", "-version"
-    install: |
-      bin.install "wiresteward"
