@@ -77,7 +77,3 @@ brews:
           <string>/var/log/wiresteward.log</string>
         </dict>
       </plist>
-    service: |
-      run "#{bin}/wiresteward", "-agent"
-    test: |
-      system "#{bin}/wiresteward", "-version"
