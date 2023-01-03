@@ -27,6 +27,14 @@ chmod +x wiresteward
 mv wiresteward /usr/local/bin/
 ```
 
+### Homebrew
+
+If you're on macOS or Linux and have [Homebrew](https://brew.sh/) installed, getting Wiresteward is as simple as running:
+
+```
+brew install utilitywarehouse/tap/wiresteward
+```
+
 ## Usage
 
 You can simply run wiresteward on your terminal:
