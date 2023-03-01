@@ -16,7 +16,7 @@ require (
 	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.5.0
 	golang.org/x/oauth2 v0.4.0
-	golang.org/x/sys v0.4.0
+	golang.org/x/sys v0.5.0
 	golang.zx2c4.com/wireguard v0.0.0-20220920152132-bb719d3a6e2c
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20221104135756-97bc4ad4a1cb
 	google.golang.org/appengine v1.6.7 // indirect
