@@ -62,8 +62,8 @@ resource "aws_security_group" "wiresteward" {
 }
 
 resource "aws_eip" "peer" {
-  count = local.instance_count
-  vpc   = true
+  count  = local.instance_count
+  domain = "vpc"
 
   tags = {
     Name = local.name
