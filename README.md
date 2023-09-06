@@ -15,17 +15,8 @@ needed to enable access to a private network.
 
 ## Installation
 
-Binaries found under wiresteward releases include the agent and server modes:
+Download the latest binary from:
 https://github.com/utilitywarehouse/wiresteward/releases
-
-To install on AMD64:
-
-```
-os=$(uname | awk '{print tolower($0)}')
-curl -L -o wiresteward https://github.com/utilitywarehouse/wiresteward/releases/download/v0.2.5/wiresteward_0.2.5_${os}_amd64
-chmod +x wiresteward
-mv wiresteward /usr/local/bin/
-```
 
 ### Homebrew
 
