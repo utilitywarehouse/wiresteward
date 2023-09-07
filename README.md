@@ -44,7 +44,7 @@ service.
 
 But you can also run the executable directly:
 
-```sh
+```console
 # wiresteward -agent -config=path-to-config.json
 ```
 
@@ -89,14 +89,14 @@ A typical location for user defined systemd service is
 `/etc/systemd/system/wiresteward.service` so you'll need to copy the unit file
 to that location and then run:
 
-```sh
+```console
 # systemctl daemon-reload
 # systemctl enable --now wiresteward.service
 ```
 
 To look at its logs:
 
-```sh
+```console
 $ journalctl -u wiresteward.service
 ```
 
@@ -108,13 +108,13 @@ An example working service for launchd is described in
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
 
-```sh
+```console
 # chown root:admin /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
 Then need to load the service:
 
-```sh
+```console
 # sudo launchctl load /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
@@ -124,7 +124,7 @@ network devices and routing table.
 Logs are stored in `/var/log/wirestward.log` as defined in the service file. To
 view the logs you can:
 
-```sh
+```console
 $ tail -f /var/log/wiresteward.log
 ```
 
