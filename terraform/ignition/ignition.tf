@@ -1,8 +1,9 @@
 # wiresteward
 data "ignition_file" "wiresteward_config" {
-  count = local.instance_count
-  path  = "/etc/wiresteward/config.json"
-  mode  = 256
+  count     = local.instance_count
+  path      = "/etc/wiresteward/config.json"
+  mode      = 256
+  overwrite = true
 
   content {
     content = templatefile("${path.module}/resources/wiresteward-config.json.tmpl", {
@@ -41,9 +42,10 @@ data "ignition_systemd_unit" "s3fs" {
 
 # traefik
 data "ignition_file" "traefik_config" {
-  count = local.instance_count
-  path  = "/etc/traefik/wiresteward-proxy.toml"
-  mode  = 256
+  count     = local.instance_count
+  path      = "/etc/traefik/wiresteward-proxy.toml"
+  mode      = 256
+  overwrite = true
 
   content {
     content = templatefile("${path.module}/resources/wiresteward-proxy.toml.tmpl", {

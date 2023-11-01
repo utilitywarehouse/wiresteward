@@ -26,9 +26,10 @@ data "ignition_filesystem" "root" {
 }
 
 data "ignition_file" "hostname" {
-  count = length(var.wiresteward_server_peers)
-  path  = "/etc/hostname"
-  mode  = 420
+  count     = length(var.wiresteward_server_peers)
+  path      = "/etc/hostname"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS

@@ -1,6 +1,7 @@
 data "ignition_file" "resolved_conf" {
-  path = "/etc/systemd/resolved.conf"
-  mode = 420
+  path      = "/etc/systemd/resolved.conf"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<-EOF

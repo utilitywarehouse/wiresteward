@@ -1,6 +1,7 @@
 data "ignition_file" "bond_net_eno" {
-  path = "/etc/systemd/network/00-eno.network"
-  mode = 420
+  path      = "/etc/systemd/network/00-eno.network"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS
@@ -17,8 +18,9 @@ EOS
 }
 
 data "ignition_file" "bond_netdev" {
-  path = "/etc/systemd/network/10-bond0.netdev"
-  mode = 420
+  path      = "/etc/systemd/network/10-bond0.netdev"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS
@@ -35,8 +37,9 @@ EOS
 data "ignition_file" "bond_public_vlan_netdev" {
   count = length(var.wiresteward_server_peers)
 
-  path = "/etc/systemd/network/12-bond-public-vlan.netdev"
-  mode = 420
+  path      = "/etc/systemd/network/12-bond-public-vlan.netdev"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS
@@ -53,8 +56,9 @@ EOS
 data "ignition_file" "bond0" {
   count = length(var.wiresteward_server_peers)
 
-  path = "/etc/systemd/network/20-bond0.network"
-  mode = 420
+  path      = "/etc/systemd/network/20-bond0.network"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS
@@ -78,8 +82,9 @@ EOS
 data "ignition_file" "bond0_public_vlan" {
   count = length(var.wiresteward_server_peers)
 
-  path = "/etc/systemd/network/22-bond0-public-vlan.network"
-  mode = 420
+  path      = "/etc/systemd/network/22-bond0-public-vlan.network"
+  mode      = 420
+  overwrite = true
 
   content {
     content = <<EOS
