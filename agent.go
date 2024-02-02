@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -91,7 +92,18 @@ func (a *Agent) renewAllLeases(token string) {
 }
 
 func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
-	stateCookie, _ := r.Cookie(oauthStateCookieName)
+	stateCookie, err := r.Cookie(oauthStateCookieName)
+	if errors.Is(err, http.ErrNoCookie) {
+		logger.Errorf("State cookie missing: %s", err)
+		http.Error(w, "State cookie missing", 500)
+		return
+	}
+	if err != nil {
+		logger.Errorf("Failed to retrieve state cookie: %s", err)
+		http.Error(w, "Failed to retrieve state cookie", 500)
+		return
+	}
+
 	if r.FormValue("state") != stateCookie.Value {
 		logger.Errorf(
 			"State token missmatch: expected=%s received=%s", stateCookie.Value, r.FormValue("state"),
