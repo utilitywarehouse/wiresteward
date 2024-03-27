@@ -1,6 +1,6 @@
 # Wiresteward
 
-<img src="./logo.jpeg" width="100"/>
+<img src="./logo.png" width="200"/>
 
 ---
 
