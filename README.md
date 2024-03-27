@@ -1,5 +1,9 @@
 # Wiresteward
 
+<img src="./logo.png" width="200"/>
+
+---
+
 Wiresteward is a WireGuard peer manager with oauth2 authentication. It is
 comprised of two components: server and agent.
 
