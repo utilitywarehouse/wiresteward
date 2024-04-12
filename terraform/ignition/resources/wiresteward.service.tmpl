@@ -1,16 +1,9 @@
 [Unit]
 Description=wiresteward server
-After=docker.service network-online.target nss-lookup.target
-Requires=docker.service
+After=network-online.target nss-lookup.target
 Wants=network-online.target nss-lookup.target
 [Service]
 Restart=on-failure
-ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
- --net=host \
- --cap-add=NET_ADMIN \
- -v /etc/wiresteward/:/etc/wiresteward/:rw \
- -v /var/lib/wiresteward/:/var/lib/wiresteward/:rw \
- quay.io/utilitywarehouse/wiresteward:${wiresteward_version} -server'
-ExecStop=/bin/sh -c 'docker stop -t 3 "$(docker ps -q --filter=name=%p_)"'
+ExecStart=/opt/bin/wiresteward -server
 [Install]
 WantedBy=multi-user.target
