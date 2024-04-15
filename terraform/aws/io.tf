@@ -26,6 +26,12 @@ variable "ignition" {
   description = "The ignition configuration for the wiresteward instances. The length of this list determines the number of instances launched. Output of the ignition module."
 }
 
+variable "instance_type" {
+  type        = string
+  description = "Instance type for wiresteward service nodes"
+  default     = "t4g.micro"
+}
+
 variable "subnet_ids" {
   type        = list(string)
   description = "AWS VPC subnet IDs in which the wiresteward instances will be deployed"
