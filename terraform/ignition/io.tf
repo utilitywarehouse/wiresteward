@@ -1,3 +1,23 @@
+variable "arch" {
+  type        = string
+  description = "Wiresteward binary arch to fetch"
+  default     = "arm64"
+  validation {
+    condition     = contains(["386", "amd64", "arm64", "armv6", "mips_softfloat"], var.arch)
+    error_message = "Arch should be one of: 386, amd64, arm64, armv6, mips_softfloat"
+  }
+}
+
+variable "os" {
+  type        = string
+  description = "Wiresteward binary os to fetch"
+  default     = "linux"
+  validation {
+    condition     = contains(["darwin", "linux"], var.os)
+    error_message = "OS should be darwin or linux"
+  }
+}
+
 variable "additional_ignition_files" {
   type        = list(string)
   description = "Additional ignition files to include in the ignition config"
