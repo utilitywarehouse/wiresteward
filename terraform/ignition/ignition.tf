@@ -1,4 +1,13 @@
 # wiresteward
+data "ignition_file" "wiresteward_bin" {
+  mode = 493
+  path = "/opt/bin/wiresteward"
+
+  source {
+    source = "https://github.com/utilitywarehouse/wiresteward/releases/download/${var.wiresteward_version}/wiresteward_${var.wiresteward_version}_${var.arch}_${var.os}"
+  }
+}
+
 data "ignition_file" "wiresteward_config" {
   count     = local.instance_count
   path      = "/etc/wiresteward/config.json"
@@ -88,6 +97,7 @@ data "ignition_config" "wiresteward" {
 
   files = concat([
     data.ignition_file.traefik_config[count.index].rendered,
+    data.ignition_file.wiresteward_bin.rendered,
     data.ignition_file.wiresteward_config[count.index].rendered,
   ], var.additional_ignition_files)
 
