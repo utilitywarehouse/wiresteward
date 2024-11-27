@@ -29,25 +29,6 @@ resource "aws_s3_object" "userdata" {
   content = var.ignition[count.index]
 }
 
-data "template_file" "userdata" {
-  count = local.instance_count
-  template = jsonencode(
-    {
-      ignition = {
-        version = "2.2.0",
-        config = {
-          replace = {
-            source = "s3://${aws_s3_bucket.userdata.id}/wiresteward-config-${count.index}-${sha1(var.ignition[count.index])}.json",
-            aws = {
-              region = "eu-west-1"
-            }
-          }
-        }
-      }
-    }
-  )
-}
-
 # Instance profile to allow fetching the userdata
 
 data "aws_iam_policy_document" "peer_auth" {

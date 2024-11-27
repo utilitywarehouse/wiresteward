@@ -1,0 +1,13 @@
+{
+  "ignition": {
+    "version": "2.2.0",
+    "config": {
+      "replace": {
+        "source": "s3://${bucket_id}/wiresteward-config-${index}-${sha1_hash}.json",
+        "aws": {
+          "region": "eu-west-1"
+        }
+      }
+    }
+  }
+}
