@@ -69,7 +69,7 @@ variable "s3fs_bucket" {
 
 variable "s3fs_image" {
   type    = string
-  default = "quay.io/utilitywarehouse/sys-s3fs:v1.93-1"
+  default = "quay.io/utilitywarehouse/sys-s3fs:v1.95-1"
 }
 
 locals {
