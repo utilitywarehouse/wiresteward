@@ -81,13 +81,20 @@ resource "aws_eip_association" "peer" {
 }
 
 resource "aws_instance" "peer" {
-  count                       = local.instance_count
-  ami                         = var.ami_id != "" ? var.ami_id : data.aws_ami.flatcar_stable.id
-  instance_type               = "t3a.micro"
-  vpc_security_group_ids      = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
-  subnet_id                   = var.subnet_ids[count.index]
-  source_dest_check           = false
-  user_data                   = data.template_file.userdata[count.index].rendered
+  count                  = local.instance_count
+  ami                    = var.ami_id != "" ? var.ami_id : data.aws_ami.flatcar_stable.id
+  instance_type          = "t3a.micro"
+  vpc_security_group_ids = concat([aws_security_group.wiresteward.id], var.additional_security_group_ids)
+  subnet_id              = var.subnet_ids[count.index]
+  source_dest_check      = false
+  user_data = templatefile(
+    "${path.module}/ignition_config.json",
+    {
+      index     = count.index
+      bucket_id = aws_s3_bucket.userdata.id
+      sha1_hash = sha1(var.ignition[count.index])
+    }
+  )
   user_data_replace_on_change = true
   iam_instance_profile        = aws_iam_instance_profile.peer.name
 
