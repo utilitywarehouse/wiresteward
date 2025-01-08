@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"inet.af/netaddr"
 )
 
 func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
-	ipPrefix := netaddr.MustParseIPPrefix("10.90.0.1/20")
+	ipPrefix := netip.MustParsePrefix("10.90.0.1/20")
 	lm := &fileLeaseManager{
 		wgRecords: map[string]WGRecord{},
 		ipPrefix:  ipPrefix,
@@ -25,7 +25,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if record.IP.Compare(netaddr.MustParseIP("10.90.0.2")) != 0 {
+	if record.IP != netip.MustParseAddr("10.90.0.2") {
 		t.Fatalf("Unexpected IP returned %s", record.IP.String())
 	}
 	assert.Equal(t, 1, len(lm.wgRecords))
@@ -47,15 +47,15 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 }
 
 func TestGetAvailableIPAddresses(t *testing.T) {
-	ipPrefix := netaddr.MustParseIPPrefix("10.90.0.1/20")
+	ipPrefix := netip.MustParsePrefix("10.90.0.1/20")
 	r1 := WGRecord{
 		PubKey:  "k1a1fEw+lqB/JR1pKjI597R54xzfP9Kxv4M7hufyNAY=",
-		IP:      netaddr.MustParseIP("10.90.0.2"),
+		IP:      netip.MustParseAddr("10.90.0.2"),
 		expires: time.Unix(0, 0)}
 
 	r2 := WGRecord{
 		PubKey:  "E1gSkv2jS/P+p8YYmvm7ByEvwpLPqQBdx70SPtNSwCo=",
-		IP:      netaddr.MustParseIP("10.90.0.4"),
+		IP:      netip.MustParseAddr("10.90.0.4"),
 		expires: time.Unix(0, 0)}
 
 	lm := &fileLeaseManager{
@@ -65,11 +65,11 @@ func TestGetAvailableIPAddresses(t *testing.T) {
 
 	testCases := []struct {
 		t fileLeaseManager
-		e netaddr.IP
+		e netip.Addr
 	}{
 		{
 			t: *lm,
-			e: netaddr.IPv4(10, 90, 0, 3),
+			e: netip.MustParseAddr("10.90.0.3"),
 		},
 	}
 	for _, test := range testCases {

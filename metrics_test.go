@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/mdlayher/promtest"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"inet.af/netaddr"
 )
 
 func TestCollector(t *testing.T) {
@@ -87,12 +87,12 @@ func TestCollector(t *testing.T) {
 				wgRecords: map[string]WGRecord{
 					userA: WGRecord{
 						PubKey:  pubPeerA.String(),
-						IP:      netaddr.MustParseIP("10.0.0.1"),
+						IP:      netip.MustParseAddr("10.0.0.1"),
 						expires: time.Unix(100, 0),
 					},
 					userB: WGRecord{
 						PubKey: pubPeerB.String(),
-						IP:     netaddr.MustParseIP("10.0.0.3"),
+						IP:     netip.MustParseAddr("10.0.0.3"),
 					},
 				},
 			},

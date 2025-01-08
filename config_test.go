@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"inet.af/netaddr"
 )
 
 func TestAgentConfigFmt(t *testing.T) {
@@ -137,7 +137,7 @@ func TestAgentConfigFmt(t *testing.T) {
 func TestServerConfig(t *testing.T) {
 	setLogLevel("error")
 	logger = newLogger("wiresteward-test")
-	ipPrefix := netaddr.MustParseIPPrefix("10.0.0.1/24")
+	ipPrefix := netip.MustParsePrefix("10.0.0.1/24")
 	testCases := []struct {
 		input []byte
 		cfg   *serverConfig
