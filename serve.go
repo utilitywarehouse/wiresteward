@@ -100,7 +100,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 		response := &leaseResponse{
 			Status:            "success",
 			IP:                fmt.Sprintf("%s/32", wg.IP.String()),
-			ServerWireguardIP: lh.serverConfig.WireguardIPPrefix.IP().String(),
+			ServerWireguardIP: lh.serverConfig.WireguardIPPrefix.Addr().String(),
 			AllowedIPs:        lh.serverConfig.AllowedIPs,
 			PubKey:            pubKey,
 			Endpoint:          lh.serverConfig.Endpoint,

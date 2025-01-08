@@ -5,20 +5,21 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"go4.org/netipx"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"inet.af/netaddr"
 )
 
 // WGRecord describes a lease entry for a peer.
 type WGRecord struct {
 	PubKey  string
-	IP      netaddr.IP
+	IP      netip.Addr
 	expires time.Time
 }
 
@@ -31,7 +32,7 @@ func (wgr WGRecord) String() string {
 type fileLeaseManager struct {
 	deviceName     string
 	filename       string
-	ipPrefix       netaddr.IPPrefix
+	ipPrefix       netip.Prefix
 	wgRecords      map[string]WGRecord
 	wgRecordsMutex sync.Mutex
 }
@@ -92,10 +93,7 @@ func (lm *fileLeaseManager) loadWgRecords() error {
 
 		username := tokens[0]
 		pubKey := tokens[1]
-		ipaddr, err := netaddr.ParseIP(tokens[2])
-		if err != nil {
-			return err
-		}
+		ipaddr := netip.MustParseAddr(tokens[2])
 		expires, err := time.Parse(time.RFC3339, tokens[3])
 		if err != nil {
 			return fmt.Errorf("expected time of exipry in RFC3339 format, got: %v", tokens[2])
@@ -208,16 +206,17 @@ func (lm *fileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time
 //   - remove the *first* and *last* address (reserved)
 //     https://en.wikipedia.org/wiki/IPv4#First_and_last_subnet_addresses
 //   - remove all already leased addresses
+//
 // Remaining IPs are "available", get the first one
-func (lm *fileLeaseManager) nextAvailableAddress() netaddr.IP {
-	var b netaddr.IPSetBuilder
+func (lm *fileLeaseManager) nextAvailableAddress() netip.Addr {
+	var b netipx.IPSetBuilder
 	b.AddPrefix(lm.ipPrefix)
-	b.Remove(lm.ipPrefix.IP())
-	b.Remove(lm.ipPrefix.Range().From())
-	b.Remove(lm.ipPrefix.Range().To())
+	b.Remove(lm.ipPrefix.Addr())
+	b.Remove(lm.ipPrefix.Masked().Addr())
+	b.Remove(netipx.PrefixLastIP(lm.ipPrefix))
 	for _, r := range lm.wgRecords {
 		b.Remove(r.IP)
 	}
 	a, _ := b.IPSet()
-	return a.Prefixes()[0].IP()
+	return a.Prefixes()[0].Addr()
 }

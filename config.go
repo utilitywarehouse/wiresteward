@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"inet.af/netaddr"
 )
 
 const (
@@ -146,7 +145,7 @@ type serverConfig struct {
 	KeyFilename         string
 	LeaserSyncInterval  time.Duration
 	LeasesFilename      string
-	WireguardIPPrefix   netaddr.IPPrefix
+	WireguardIPPrefix   netip.Prefix
 	WireguardListenPort int
 	OauthIntrospectURL  string
 	OauthClientID       string
@@ -194,17 +193,13 @@ func verifyServerConfig(conf *serverConfig) error {
 	if conf.Address == "" {
 		return fmt.Errorf("config missing `address`")
 	}
-	ipPrefix, err := netaddr.ParseIPPrefix(conf.Address)
-	if err != nil {
-		return fmt.Errorf("could not parse address as a CIDR: %w", err)
-	}
-	conf.WireguardIPPrefix = ipPrefix
+	conf.WireguardIPPrefix = netip.MustParsePrefix(conf.Address)
 	if len(conf.AllowedIPs) == 0 {
 		logger.Verbosef("config missing `allowedIPs`, this server is not exposing any networks")
 	}
 	// Append the server wg /32 ip to the allowed ips in case the agent
 	// wants to ping it for health checking
-	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/%s", conf.WireguardIPPrefix.IP().String(), "32"))
+	conf.AllowedIPs = append(conf.AllowedIPs, conf.WireguardIPPrefix.String())
 
 	if conf.DeviceName == "" {
 		conf.DeviceName = defaultWireguardDeviceName

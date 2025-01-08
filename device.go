@@ -11,6 +11,7 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
+	"go4.org/netipx"
 	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
@@ -224,7 +225,7 @@ func newServerDevice(cfg *serverConfig) *ServerDevice {
 	}
 	return &ServerDevice{
 		deviceAddress: netlink.Addr{
-			IPNet: cfg.WireguardIPPrefix.IPNet(),
+			IPNet: netipx.PrefixIPNet(cfg.WireguardIPPrefix),
 		},
 		deviceMTU: cfg.DeviceMTU,
 		iptablesRule: []string{
