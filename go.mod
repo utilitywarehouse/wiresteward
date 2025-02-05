@@ -6,6 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/coreos/go-iptables v0.8.0
+	github.com/go-jose/go-jose/v4 v4.0.4
 	github.com/golang/mock v1.6.0
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
@@ -15,16 +16,14 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vishvananda/netlink v1.3.0
 	github.com/vishvananda/netns v0.0.5 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.25.0
 	golang.org/x/sys v0.29.0
 	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
-	gopkg.in/square/go-jose.v2 v2.6.0
 )
-
-require go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

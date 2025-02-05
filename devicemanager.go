@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-jose/go-jose/v4/jwt"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func init() {
