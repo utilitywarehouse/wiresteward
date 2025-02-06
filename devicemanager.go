@@ -11,13 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-jose/go-jose/v4/jwt"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
-
-func init() {
-	rand.Seed(time.Now().Unix())
-}
 
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from

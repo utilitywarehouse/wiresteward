@@ -15,8 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"golang.org/x/oauth2"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // https://www.oauth.com/oauth2-servers/pkce/authorization-request/
@@ -24,6 +25,13 @@ var (
 	codeVerifierCharSet = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~")
 	codeVerifierLength  = 43
 	codeVerifierRandMax = big.NewInt(int64(len(codeVerifierCharSet)))
+
+	// access token is parsed to only to discard expired tokens and action
+	// validation is done by IDP, its ok to use multiple supported alg values.
+	// make sure `none` is not used as one of the `alg` value in token
+	supportedAlgValues = []jose.SignatureAlgorithm{
+		jose.HS256, jose.RS256, jose.RS384, jose.RS512, jose.ES256, jose.ES384, jose.ES512,
+	}
 )
 
 type codeVerifier struct {
@@ -232,7 +240,7 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 // validateJWTToken takes a string and tries to validate it as jwt token. It
 // returns an error if parsing and validation fails or nil otherwise
 func validateJWTToken(t string) error {
-	tok, err := jwt.ParseSigned(t)
+	tok, err := jwt.ParseSigned(t, supportedAlgValues)
 	if err != nil {
 		return err
 	}
