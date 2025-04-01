@@ -1,7 +1,7 @@
 module github.com/utilitywarehouse/wiresteward
 
 go 1.21
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
 	github.com/coreos/go-iptables v0.8.0
@@ -9,7 +9,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/stretchr/testify v1.10.0
