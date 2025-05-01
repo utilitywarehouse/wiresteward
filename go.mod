@@ -1,12 +1,11 @@
 module github.com/utilitywarehouse/wiresteward
 
 go 1.23.0
-
 toolchain go1.24.1
 
 require (
 	github.com/coreos/go-iptables v0.8.0
-	github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 v4.1.0
 	github.com/golang/mock v1.6.0
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
