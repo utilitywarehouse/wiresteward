@@ -49,7 +49,7 @@ variable "wiresteward_version" {
 variable "traefik_image" {
   type        = string
   description = "Traefik image for the proxy service to wiresteward"
-  default     = "traefik:v2.11.18"
+  default     = "traefik:v3.3.6"
 }
 
 variable "s3fs_access_key" {
