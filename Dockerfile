@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS build
+FROM golang:1.24-alpine AS build
 WORKDIR /go/src/github.com/utilitywarehouse/wiresteward
 COPY . /go/src/github.com/utilitywarehouse/wiresteward
 ENV CGO_ENABLED=0
