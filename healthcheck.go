@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,12 @@ func (hc *healthCheck) Run() {
 			if err := hc.checker.Check(); err != nil {
 				unhealthyCount = unhealthyCount + 1
 				healthSyncTicker.Reset(hc.intervalAF.Duration)
-				logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				errStr := err.Error()
+				if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "network is unreachable") || strings.Contains(errStr, "token is expired") {
+					logger.Verbosef("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				} else {
+					logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				}
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
