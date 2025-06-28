@@ -94,31 +94,28 @@ func (dm *DeviceManager) Run() error {
 }
 
 func (dm *DeviceManager) renewLoop() {
-	for {
-		select {
-		case <-dm.renewLeaseChan:
-			logger.Verbosef("Renewing lease for device:%s\n", dm.Name())
-			if err := dm.renewLease(); err != nil {
-				if err == jwt.ErrExpired {
-					// stop retrying - token is expired, it will need manual refresh
-					logger.Errorf("%v", err)
-					break
-				}
-				go func() {
-					dm.inBackoffLoop = true
-					duration := dm.backoff.Duration()
-					logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
-					select {
-					case <-time.After(duration):
-						dm.renewLeaseChan <- struct{}{}
-					case <-dm.stopLeaseBackoff:
-						break
-					}
-					dm.inBackoffLoop = false
-				}()
-			} else {
-				dm.backoff.Reset()
+	for range dm.renewLeaseChan {
+		logger.Verbosef("Renewing lease for device:%s\n", dm.Name())
+		if err := dm.renewLease(); err != nil {
+			if err == jwt.ErrExpired {
+				// stop retrying - token is expired, it will need manual refresh
+				logger.Verbosef("%v", err)
+				break
 			}
+			go func() {
+				dm.inBackoffLoop = true
+				duration := dm.backoff.Duration()
+				logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
+				select {
+				case <-time.After(duration):
+					dm.renewLeaseChan <- struct{}{}
+				case <-dm.stopLeaseBackoff:
+					// exit backoff loop
+				}
+				dm.inBackoffLoop = false
+			}()
+		} else {
+			dm.backoff.Reset()
 		}
 	}
 }
@@ -146,6 +143,22 @@ func (dm *DeviceManager) RenewTokenAndLease(token string) {
 func (dm *DeviceManager) renewLease() error {
 	if dm.cachedToken == "" {
 		return fmt.Errorf("Empty cached token")
+	}
+	// Parse JWT to check iat claim
+	tok, err := jwt.ParseSigned(dm.cachedToken, supportedAlgValues)
+	if err == nil {
+		cl := jwt.Claims{}
+		if err := tok.UnsafeClaimsWithoutVerification(&cl); err == nil {
+			if cl.IssuedAt != nil {
+				now := time.Now()
+				iat := cl.IssuedAt.Time()
+				if now.Before(iat) {
+					delta := iat.Sub(now)
+					logger.Verbosef("Token issued in the future (iat), waiting %s before using", delta)
+					time.Sleep(delta)
+				}
+			}
+		}
 	}
 	if err := validateJWTToken(dm.cachedToken); err != nil {
 		return err
@@ -200,7 +213,6 @@ func (dm *DeviceManager) renewLease() error {
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
 		hc, err := newHealthCheck(
-			dm.Name(),
 			wgServerAddr,
 			dm.healthCheckConf.Interval,
 			dm.healthCheckConf.IntervalAfterFailure,
@@ -248,7 +260,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout Du
 	}
 
 	// Prepare the request
-	req, err := http.NewRequest(
+	req, _ := http.NewRequest(
 		"POST",
 		fmt.Sprintf("%s/newPeerLease", serverURL),
 		bytes.NewBuffer(r),

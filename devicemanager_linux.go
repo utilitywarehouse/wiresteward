@@ -1,4 +1,4 @@
-// +build linux
+//go:build linux
 
 package main
 
@@ -22,8 +22,8 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 	}
 	if oldConfig != nil {
 		for _, r := range oldConfig.AllowedIPs {
-			if h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
-				logger.Errorf(
+			if err := h.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &r}); err != nil {
+				logger.Verbosef(
 					"Could not remove old route (%s): %s",
 					r,
 					err,
@@ -59,23 +59,6 @@ func (dm *DeviceManager) ensureLinkUp() error {
 		return err
 	}
 	return h.LinkSetUp(link)
-}
-
-func (dm *DeviceManager) flushAddresses() error {
-	h := netlink.Handle{}
-	defer h.Delete()
-	link, err := h.LinkByName(dm.Name())
-	if err != nil {
-		return err
-	}
-
-	ips, err := h.AddrList(link, 2)
-	for _, ip := range ips {
-		if err := h.AddrDel(link, &ip); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func wgDevTypeSupported() bool {

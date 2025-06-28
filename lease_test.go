@@ -64,11 +64,11 @@ func TestGetAvailableIPAddresses(t *testing.T) {
 	}
 
 	testCases := []struct {
-		t fileLeaseManager
+		t *fileLeaseManager
 		e netip.Addr
 	}{
 		{
-			t: *lm,
+			t: lm,
 			e: netip.MustParseAddr("10.90.0.3"),
 		},
 	}

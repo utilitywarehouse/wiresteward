@@ -170,8 +170,6 @@ func agent() {
 		close(term)
 	}()
 
-	select {
-	case <-term:
-	}
+	<-term
 	agent.Stop()
 }

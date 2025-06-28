@@ -27,7 +27,7 @@ type checker interface {
 	TargetIP() string
 }
 
-func newPingChecker(device, address string, timeout Duration) (*pingChecker, error) {
+func newPingChecker(address string, timeout Duration) (*pingChecker, error) {
 	ip := netip.MustParseAddr(address)
 	id := nextPingCheckerID
 	nextPingCheckerID++

@@ -46,11 +46,11 @@ func TestCollector(t *testing.T) {
 							ReceiveBytes:      1,
 							TransmitBytes:     2,
 							AllowedIPs: []net.IPNet{
-								net.IPNet{
+								{
 									IP:   net.ParseIP("10.0.0.1"),
 									Mask: net.CIDRMask(32, 32),
 								},
-								net.IPNet{
+								{
 									IP:   net.ParseIP("10.0.0.2"),
 									Mask: net.CIDRMask(32, 32),
 								},
@@ -64,7 +64,7 @@ func TestCollector(t *testing.T) {
 							{
 								PublicKey: pubPeerB,
 								AllowedIPs: []net.IPNet{
-									net.IPNet{
+									{
 										IP:   net.ParseIP("10.0.0.3"),
 										Mask: net.CIDRMask(32, 32),
 									},
@@ -73,7 +73,7 @@ func TestCollector(t *testing.T) {
 							{
 								PublicKey: pubPeerC, // Not in the leases
 								AllowedIPs: []net.IPNet{
-									net.IPNet{
+									{
 										IP:   net.ParseIP("10.0.0.4"),
 										Mask: net.CIDRMask(32, 32),
 									},
@@ -85,12 +85,12 @@ func TestCollector(t *testing.T) {
 			},
 			leaseManager: &fileLeaseManager{
 				wgRecords: map[string]WGRecord{
-					userA: WGRecord{
+					userA: {
 						PubKey:  pubPeerA.String(),
 						IP:      netip.MustParseAddr("10.0.0.1"),
 						expires: time.Unix(100, 0),
 					},
-					userB: WGRecord{
+					userB: {
 						PubKey: pubPeerB.String(),
 						IP:     netip.MustParseAddr("10.0.0.3"),
 					},

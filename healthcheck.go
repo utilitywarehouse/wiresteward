@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 )
 
@@ -16,13 +17,12 @@ type healthCheck struct {
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
-func newHealthCheck(device, address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
-	pc, err := newPingChecker(device, address, timeout)
+func newHealthCheck(address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
+	pc, err := newPingChecker(address, timeout)
 	if err != nil {
 		return &healthCheck{}, err
 	}
 	return &healthCheck{
-		device:     device,
 		checker:    pc,
 		interval:   interval,
 		intervalAF: intervalAF,
@@ -51,7 +51,12 @@ func (hc *healthCheck) Run() {
 			if err := hc.checker.Check(); err != nil {
 				unhealthyCount = unhealthyCount + 1
 				healthSyncTicker.Reset(hc.intervalAF.Duration)
-				logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				errStr := err.Error()
+				if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "network is unreachable") {
+					logger.Verbosef("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				} else {
+					logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
+				}
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
