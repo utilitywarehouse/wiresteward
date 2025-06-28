@@ -121,7 +121,7 @@ type httpStatus struct {
 	Routes            []httpRoute
 }
 
-func statusHTTPWriter(w http.ResponseWriter, r *http.Request, deviceManagers []*DeviceManager, token *oauth2.Token) {
+func statusHTTPWriter(w http.ResponseWriter, deviceManagers []*DeviceManager, token *oauth2.Token) {
 	status := httpStatus{
 		Time:         time.Now().Format(timeFmt),
 		TokenMissing: true,

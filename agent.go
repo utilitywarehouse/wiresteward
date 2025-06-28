@@ -66,7 +66,7 @@ func (a *Agent) ListenAndServe() {
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		logger.Errorf("cannot get a valid cached token, you need to authenticate")
+		logger.Verbosef("cannot get a valid cached token, you need to authenticate")
 	} else {
 		a.renewAllLeases(token.AccessToken)
 	}
@@ -123,7 +123,7 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	a.renewAllLeases(token.AccessToken)
 	// Redirect to / after renewing leases
 	rootURL := fmt.Sprintf("http://%s/", r.Host)
-	http.Redirect(w, r, rootURL, 302)
+	http.Redirect(w, r, rootURL, http.StatusFound)
 }
 
 // renewHandler will initiate the auth challenge. Leases renewal will be handled
@@ -134,7 +134,7 @@ func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "error creating web url to get token: %v", err)
 		return
 	}
-	http.Redirect(w, r, url, 302)
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
@@ -145,9 +145,9 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, err := a.oa.getTokenFromFile()
 	if err != nil || token.AccessToken == "" {
-		logger.Errorf("cannot get a valid cached token, you need to authenticate")
-		statusHTTPWriter(w, r, a.deviceManagers, nil)
+		logger.Verbosef("cannot get a valid cached token, you need to authenticate")
+		statusHTTPWriter(w, a.deviceManagers, nil)
 		return
 	}
-	statusHTTPWriter(w, r, a.deviceManagers, token)
+	statusHTTPWriter(w, a.deviceManagers, token)
 }

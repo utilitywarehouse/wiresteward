@@ -17,13 +17,12 @@ type healthCheck struct {
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
-func newHealthCheck(device, address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
-	pc, err := newPingChecker(device, address, timeout)
+func newHealthCheck(address string, interval, intervalAF, timeout Duration, threshold int, renew chan struct{}) (*healthCheck, error) {
+	pc, err := newPingChecker(address, timeout)
 	if err != nil {
 		return &healthCheck{}, err
 	}
 	return &healthCheck{
-		device:     device,
 		checker:    pc,
 		interval:   interval,
 		intervalAF: intervalAF,
@@ -53,7 +52,7 @@ func (hc *healthCheck) Run() {
 				unhealthyCount = unhealthyCount + 1
 				healthSyncTicker.Reset(hc.intervalAF.Duration)
 				errStr := err.Error()
-				if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "network is unreachable") || strings.Contains(errStr, "token is expired") {
+				if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "network is unreachable") {
 					logger.Verbosef("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)
 				} else {
 					logger.Errorf("healthcheck failed for peer %s@%s (%s)", hc.checker.TargetIP(), hc.device, err)

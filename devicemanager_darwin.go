@@ -1,4 +1,4 @@
-// +build darwin
+//go:build darwin
 
 package main
 
@@ -46,7 +46,7 @@ func (dm *DeviceManager) updateDeviceConfig(oldConfig, config *WirestewardPeerCo
 		// routes via interfaces.
 		for _, r := range oldConfig.AllowedIPs {
 			if err := delRoute(fdRoute, oldConfig.LocalAddress.IP, r.IP, r.Mask); err != nil {
-				logger.Errorf(
+				logger.Verbosef(
 					"Could not remove old route (%s): %s",
 					r,
 					err,

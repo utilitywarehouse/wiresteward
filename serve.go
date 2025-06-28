@@ -110,7 +110,7 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "cannot encode response", http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprint(w, string(r))
+		w.Write(r)
 
 	default:
 		fmt.Fprint(w, "only POST method is supported.")
