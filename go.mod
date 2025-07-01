@@ -15,8 +15,8 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/net v0.40.0
+	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/net v0.41.0
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sys v0.33.0
 	golang.zx2c4.com/wireguard v0.0.0-20250505131008-436f7fdc1670
