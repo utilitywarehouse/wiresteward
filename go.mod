@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/coreos/go-iptables v0.8.0
-	github.com/go-jose/go-jose/v4 v4.1.0
+	github.com/go-jose/go-jose/v4 v4.1.1
 	github.com/golang/mock v1.6.0
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/promtest v0.0.0-20200528141414-3c8577d47d5c
@@ -15,7 +15,7 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/net v0.40.0
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sys v0.33.0
