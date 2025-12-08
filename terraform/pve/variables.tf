@@ -32,8 +32,16 @@ variable "matchbox_http_endpoint" {
   description = "http endpoint of matchbox server"
 }
 
+variable "private_vlan_gw" {
+  description = "Gateway ip for the public vlan"
+}
+
 variable "public_vlan_id" {
   description = "Vlan id of the wireguard instances' public network interfaces"
+}
+
+variable "public_vlan_gw" {
+  description = "Gateway ip for the public vlan"
 }
 
 variable "wireguard_endpoints" {
