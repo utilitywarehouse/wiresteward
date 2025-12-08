@@ -14,9 +14,8 @@ DHCP=no
 
 [Address]
 Address=${var.wiresteward_server_peers[count.index].private_ip_address}/22
-
 [Route]
-Destination=10.0.0.0/8
+Destination=0.0.0.0/0
 Gateway=${var.private_vlan_gw}
 EOS
   }
@@ -38,10 +37,6 @@ DHCP=no
 
 [Address]
 Address=${var.wiresteward_server_peers[count.index].public_ip_address}/28
-
-[Route]
-Destination=0.0.0.0/0
-Gateway=${var.public_vlan_gw}
 EOS
   }
 }
