@@ -18,6 +18,7 @@ data "ignition_config" "wiresteward" {
 
   files = concat(
     tolist([
+      data.ignition_file.eth0_private_network[count.index].rendered,
       data.ignition_file.eth1_public_network[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
     ]),
