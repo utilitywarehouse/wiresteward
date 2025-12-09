@@ -56,11 +56,12 @@ variable "wireguard_exposed_subnets" {
 
 variable "wiresteward_server_peers" {
   type = list(object({
-    private_ip_address = string
-    public_ip_address  = string
-    wireguard_cidr     = string
-    mac_address        = string
-    pve_host           = string
+    private_ip_address        = string
+    public_ip_address         = string
+    wireguard_cidr            = string
+    private_iface_mac_address = string
+    public_iface_mac_address  = string
+    pve_host                  = string
   }))
   description = "The list of the wiresteweard server peers to create."
 }
@@ -84,5 +85,6 @@ variable "dns_nameservers" {
   default = [
     "1.1.1.1",
     "1.0.0.1",
+    "8.8.8.8",
   ]
 }

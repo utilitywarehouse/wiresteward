@@ -1,3 +1,16 @@
+data "ignition_file" "hostname" {
+  count     = length(var.wiresteward_server_peers)
+  path      = "/etc/hostname"
+  mode      = 420
+  overwrite = true
+
+  content {
+    content = <<EOS
+${var.wireguard_endpoints[count.index]}
+EOS
+  }
+}
+
 data "ignition_config" "wiresteward" {
   count = length(var.wiresteward_server_peers)
 
@@ -20,7 +33,9 @@ data "ignition_config" "wiresteward" {
     tolist([
       data.ignition_file.eth0_private_network[count.index].rendered,
       data.ignition_file.eth1_public_network[count.index].rendered,
+      data.ignition_file.hostname[count.index].rendered,
       data.ignition_file.iptables_rules[count.index].rendered,
+      data.ignition_file.resolved_conf.rendered,
     ]),
     var.ignition_files[count.index],
   )
@@ -47,7 +62,7 @@ resource "matchbox_group" "wiresteward" {
   profile = matchbox_profile.wiresteward[count.index].name
 
   selector = {
-    mac = var.wiresteward_server_peers[count.index].mac_address
+    mac = var.wiresteward_server_peers[count.index].private_iface_mac_address
   }
 
   metadata = {
@@ -87,7 +102,7 @@ resource "proxmox_vm_qemu" "wiresteward" {
   network {
     id      = 0
     bridge  = "vmbr0"
-    macaddr = var.wiresteward_server_peers[count.index].mac_address
+    macaddr = var.wiresteward_server_peers[count.index].private_iface_mac_address
     model   = "virtio"
     mtu     = 9000
   }
@@ -95,7 +110,7 @@ resource "proxmox_vm_qemu" "wiresteward" {
   network {
     id      = 1
     bridge  = "vmbr0"
-    macaddr = var.wiresteward_server_peers[count.index].mac_address
+    macaddr = var.wiresteward_server_peers[count.index].public_iface_mac_address
     model   = "virtio"
     mtu     = 9000
     tag     = var.public_vlan_id
