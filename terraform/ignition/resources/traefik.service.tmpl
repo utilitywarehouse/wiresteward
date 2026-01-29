@@ -3,8 +3,7 @@ Description=traefik to wiresteward server
 After=s3fs.service
 Requires=s3fs.service
 [Service]
-Restart=always
-RuntimeMaxSec=7d # Restart the service weekly to refresh aws credentials and avoid expiring after 45 days of inactivity
+Restart=on-failure
 ExecStartPre=-/bin/mkdir -p /etc/traefik
 ExecStartPre=-/bin/mkdir -p /var/lib/traefik/ssl
 ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
