@@ -194,6 +194,21 @@ func verifyServerConfig(conf *serverConfig, allowPublicRoutes bool) error {
 		return fmt.Errorf("config missing `address`")
 	}
 	conf.WireguardIPPrefix = netip.MustParsePrefix(conf.Address)
+	if !allowPublicRoutes {
+		ok, err := isPrivateCIDR(conf.Address)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf(
+				"address %q is not a private CIDR: refusing to "+
+					"configure a public range as the WireGuard "+
+					"interface address; use -allow-public-routes "+
+					"to override",
+				conf.Address,
+			)
+		}
+	}
 	if len(conf.AllowedIPs) == 0 {
 		logger.Verbosef("config missing `allowedIPs`, this server is not exposing any networks")
 	}
@@ -205,9 +220,9 @@ func verifyServerConfig(conf *serverConfig, allowPublicRoutes bool) error {
 			}
 			if !ok {
 				return fmt.Errorf(
-					"allowedIPs contains non-private CIDR %q: refusing "+
-						"to route public ranges; use -allow-public-routes "+
-						"to override",
+					"allowedIPs contains non-private CIDR %q: "+
+						"refusing to route public ranges; use "+
+						"-allow-public-routes to override",
 					cidr,
 				)
 			}

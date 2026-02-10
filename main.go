@@ -19,7 +19,7 @@ var (
 	date                  = "unknown"
 	builtBy               = "unknown"
 	flagAgent             = flag.Bool("agent", false, "Run application in \"agent\" mode")
-	flagAllowPublicRoutes = flag.Bool("allow-public-routes", false, "Allow non-RFC1918/RFC4193 CIDRs in allowedIPs (use with caution)")
+	flagAllowPublicRoutes = flag.Bool("allow-public-routes", false, "Allow non-RFC1918/RFC4193 CIDRs in address and allowedIPs (use with caution)")
 	// By default the agent runs at a high obscure port. 7773 is chosen by
 	// looking wiresteward initials hex on ascii table (w = 0x77 and s = 0x73)
 	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")

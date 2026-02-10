@@ -253,6 +253,45 @@ func TestServerConfig(t *testing.T) {
 			false,
 		},
 		{
+			// Public address without override flag — should fail
+			[]byte(`{
+				"address": "1.2.3.4/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			nil,
+			false,
+			true,
+		},
+		{
+			// Public address with override flag — should succeed
+			[]byte(`{
+				"address": "1.2.3.4/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			&serverConfig{
+				Address:             "1.2.3.4/24",
+				AllowedIPs:          []string{"192.168.1.0/24", "1.2.3.4/32"},
+				DeviceName:          "wg0",
+				Endpoint:            "1.2.3.4:1234",
+				KeyFilename:         defaultKeyFilename,
+				LeaserSyncInterval:  defaultLeaserSyncInterval,
+				LeasesFilename:      defaultLeasesFilename,
+				WireguardIPPrefix:   netip.MustParsePrefix("1.2.3.4/24"),
+				WireguardListenPort: 1234,
+				OauthIntrospectURL:  "example.com",
+				OauthClientID:       "client_id",
+				ServerListenAddress: "0.0.0.0:8080",
+			},
+			true,
+			false,
+		},
+		{
 			[]byte(`{
 				"endpoint": ""
 			}`),
