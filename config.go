@@ -189,13 +189,29 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func verifyServerConfig(conf *serverConfig) error {
+func verifyServerConfig(conf *serverConfig, allowPublicRoutes bool) error {
 	if conf.Address == "" {
 		return fmt.Errorf("config missing `address`")
 	}
 	conf.WireguardIPPrefix = netip.MustParsePrefix(conf.Address)
 	if len(conf.AllowedIPs) == 0 {
 		logger.Verbosef("config missing `allowedIPs`, this server is not exposing any networks")
+	}
+	if !allowPublicRoutes {
+		for _, cidr := range conf.AllowedIPs {
+			ok, err := isPrivateCIDR(cidr)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf(
+					"allowedIPs contains non-private CIDR %q: refusing "+
+						"to route public ranges; use -allow-public-routes "+
+						"to override",
+					cidr,
+				)
+			}
+		}
 	}
 	// Append the server wg /32 ip to the allowed ips in case the agent
 	// wants to ping it for health checking
@@ -257,7 +273,7 @@ func verifyServerConfig(conf *serverConfig) error {
 	return nil
 }
 
-func readServerConfig(path string) (*serverConfig, error) {
+func readServerConfig(path string, allowPublicRoutes bool) (*serverConfig, error) {
 	conf := &serverConfig{}
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
@@ -266,7 +282,7 @@ func readServerConfig(path string) (*serverConfig, error) {
 	if err = json.Unmarshal(fileContent, conf); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
-	if err = verifyServerConfig(conf); err != nil {
+	if err = verifyServerConfig(conf, allowPublicRoutes); err != nil {
 		return nil, err
 	}
 	return conf, nil
