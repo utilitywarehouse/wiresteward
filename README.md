@@ -167,6 +167,22 @@ as the network subnet from which peer addresses are leased to agents.
 An example, where the config format can be found in
 [`examples/server.json`](./examples/server.json).
 
+#### Private address validation
+
+The server will refuse to start if `address` or any entry in `allowedIPs` is
+not fully contained within a private address range (RFC 1918: `10.0.0.0/8`,
+`172.16.0.0/12`, `192.168.0.0/16`; or RFC 4193 IPv6 ULA: `fc00::/7`). This
+prevents accidentally configuring a public IP as the WireGuard interface
+address, or advertising overly broad routes that could hijack public internet
+traffic on connected agents.
+
+If you intentionally need to use public CIDRs, start the server with the
+`-allow-public-routes` flag to bypass this check:
+
+```console
+# wiresteward -server -allow-public-routes -config=path-to-config.json
+```
+
 ### Operating
 
 There are Terraform modules defined under [`terraform/`](./terraform) which

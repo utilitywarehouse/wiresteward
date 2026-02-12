@@ -139,21 +139,22 @@ func TestServerConfig(t *testing.T) {
 	logger = newLogger("wiresteward-test")
 	ipPrefix := netip.MustParsePrefix("10.0.0.1/24")
 	testCases := []struct {
-		input []byte
-		cfg   *serverConfig
-		err   bool
+		input             []byte
+		cfg               *serverConfig
+		allowPublicRoutes bool
+		err               bool
 	}{
 		{
 			[]byte(`{
 				"address": "10.0.0.1/24",
-				"allowedIPs": ["1.2.3.4/8"],
+				"allowedIPs": ["192.168.1.0/24"],
 				"endpoint": "1.2.3.4:1234",
 				"oauthIntrospectURL": "example.com",
 				"oauthClientID": "client_id"
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
-				AllowedIPs:          []string{"1.2.3.4/8", "10.0.0.1/32"},
+				AllowedIPs:          []string{"192.168.1.0/24", "10.0.0.1/32"},
 				DeviceName:          "wg0",
 				Endpoint:            "1.2.3.4:1234",
 				KeyFilename:         defaultKeyFilename,
@@ -165,6 +166,7 @@ func TestServerConfig(t *testing.T) {
 				OauthClientID:       "client_id",
 				ServerListenAddress: "0.0.0.0:8080",
 			},
+			false,
 			false,
 		},
 		{
@@ -195,12 +197,106 @@ func TestServerConfig(t *testing.T) {
 				ServerListenAddress: "0.0.0.0:8080",
 			},
 			false,
+			false,
+		},
+		{
+			// Public CIDR without override flag — should fail
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["1.2.3.4/8"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			nil,
+			false,
+			true,
+		},
+		{
+			// Broad CIDR spanning public space without override — should
+			// fail even though the network address is private
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["10.0.0.0/2"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			nil,
+			false,
+			true,
+		},
+		{
+			// Public CIDR with override flag — should succeed
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["1.2.3.4/8"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			&serverConfig{
+				Address:             "10.0.0.1/24",
+				AllowedIPs:          []string{"1.2.3.4/8", "10.0.0.1/32"},
+				DeviceName:          "wg0",
+				Endpoint:            "1.2.3.4:1234",
+				KeyFilename:         defaultKeyFilename,
+				LeaserSyncInterval:  defaultLeaserSyncInterval,
+				LeasesFilename:      defaultLeasesFilename,
+				WireguardIPPrefix:   ipPrefix,
+				WireguardListenPort: 1234,
+				OauthIntrospectURL:  "example.com",
+				OauthClientID:       "client_id",
+				ServerListenAddress: "0.0.0.0:8080",
+			},
+			true,
+			false,
+		},
+		{
+			// Public address without override flag — should fail
+			[]byte(`{
+				"address": "1.2.3.4/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			nil,
+			false,
+			true,
+		},
+		{
+			// Public address with override flag — should succeed
+			[]byte(`{
+				"address": "1.2.3.4/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthIntrospectURL": "example.com",
+				"oauthClientID": "client_id"
+			}`),
+			&serverConfig{
+				Address:             "1.2.3.4/24",
+				AllowedIPs:          []string{"192.168.1.0/24", "1.2.3.4/32"},
+				DeviceName:          "wg0",
+				Endpoint:            "1.2.3.4:1234",
+				KeyFilename:         defaultKeyFilename,
+				LeaserSyncInterval:  defaultLeaserSyncInterval,
+				LeasesFilename:      defaultLeasesFilename,
+				WireguardIPPrefix:   netip.MustParsePrefix("1.2.3.4/24"),
+				WireguardListenPort: 1234,
+				OauthIntrospectURL:  "example.com",
+				OauthClientID:       "client_id",
+				ServerListenAddress: "0.0.0.0:8080",
+			},
+			true,
+			false,
 		},
 		{
 			[]byte(`{
 				"endpoint": ""
 			}`),
 			&serverConfig{},
+			false,
 			true,
 		},
 	}
@@ -211,7 +307,7 @@ func TestServerConfig(t *testing.T) {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
 		}
-		if err := verifyServerConfig(cfg); err != nil && !tc.err {
+		if err := verifyServerConfig(cfg, tc.allowPublicRoutes); err != nil && !tc.err {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
 		}
