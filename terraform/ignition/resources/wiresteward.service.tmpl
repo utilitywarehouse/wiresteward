@@ -5,6 +5,8 @@ Requires=docker.service
 Wants=network-online.target nss-lookup.target
 [Service]
 Restart=on-failure
+ExecStartPre=-/usr/sbin/iptables -D FORWARD -i wg0 -o wg0 -s ${wireguard_network} -d ${wireguard_network} -j DROP
+ExecStartPre=/usr/sbin/iptables -A FORWARD -i wg0 -o wg0 -s ${wireguard_network} -d ${wireguard_network} -j DROP
 ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
  --net=host \
  --cap-add=NET_ADMIN \
@@ -12,5 +14,6 @@ ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
  -v /var/lib/wiresteward/:/var/lib/wiresteward/:rw \
  quay.io/utilitywarehouse/wiresteward:${wiresteward_version} -server'
 ExecStop=/bin/sh -c 'docker stop -t 3 "$(docker ps -q --filter=name=%p_)"'
+ExecStopPost=-/usr/sbin/iptables -D FORWARD -i wg0 -o wg0 -s ${wireguard_network} -d ${wireguard_network} -j DROP
 [Install]
 WantedBy=multi-user.target
