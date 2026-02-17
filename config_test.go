@@ -139,9 +139,9 @@ func TestServerConfig(t *testing.T) {
 	logger = newLogger("wiresteward-test")
 	ipPrefix := netip.MustParsePrefix("10.0.0.1/24")
 	testCases := []struct {
-		input []byte
-		cfg   *serverConfig
-		err   bool
+		input    []byte
+		expected *serverConfig
+		err      bool
 	}{
 		{
 			[]byte(`{
@@ -215,5 +215,6 @@ func TestServerConfig(t *testing.T) {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
 		}
+		assert.Equal(t, tc.expected, cfg)
 	}
 }
