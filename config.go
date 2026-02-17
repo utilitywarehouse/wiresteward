@@ -230,7 +230,7 @@ func verifyServerConfig(conf *serverConfig, allowPublicRoutes bool) error {
 	}
 	// Append the server wg /32 ip to the allowed ips in case the agent
 	// wants to ping it for health checking
-	conf.AllowedIPs = append(conf.AllowedIPs, conf.WireguardIPPrefix.String())
+	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/32", conf.WireguardIPPrefix.Addr().String()))
 
 	if conf.DeviceName == "" {
 		conf.DeviceName = defaultWireguardDeviceName

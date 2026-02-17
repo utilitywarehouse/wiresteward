@@ -140,7 +140,7 @@ func TestServerConfig(t *testing.T) {
 	ipPrefix := netip.MustParsePrefix("10.0.0.1/24")
 	testCases := []struct {
 		input             []byte
-		cfg               *serverConfig
+		expected          *serverConfig
 		allowPublicRoutes bool
 		err               bool
 	}{
@@ -311,5 +311,9 @@ func TestServerConfig(t *testing.T) {
 			t.Errorf("TestServerConfigFmt: test case %d produced an unexpected error, got %v, expected %v", i, err, tc.err)
 			continue
 		}
+		if tc.err {
+			continue
+		}
+		assert.Equal(t, tc.expected, cfg)
 	}
 }
