@@ -17,12 +17,10 @@ data "ignition_file" "wiresteward_config" {
 }
 
 data "ignition_systemd_unit" "wiresteward_service" {
-  count = local.instance_count
-  name  = "wiresteward.service"
+  name = "wiresteward.service"
 
   content = templatefile("${path.module}/resources/wiresteward.service.tmpl", {
     wiresteward_version = var.wiresteward_version
-    wireguard_network   = cidrsubnet(var.wireguard_cidrs[count.index], 0, 0)
   })
 }
 
@@ -96,7 +94,7 @@ data "ignition_config" "wiresteward" {
   systemd = concat([
     data.ignition_systemd_unit.s3fs[count.index].rendered,
     data.ignition_systemd_unit.traefik.rendered,
-    data.ignition_systemd_unit.wiresteward_service[count.index].rendered,
+    data.ignition_systemd_unit.wiresteward_service.rendered,
     !var.omit_locksmithd_service ? data.ignition_systemd_unit.locksmithd[count.index].rendered : "",
   ], var.additional_systemd_units)
 }
