@@ -1,6 +1,6 @@
 module github.com/utilitywarehouse/wiresteward
 
-go 1.24.3
+go 1.25.0
 
 require (
 	github.com/coreos/go-iptables v0.8.0
@@ -15,8 +15,8 @@ require (
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/net v0.49.0
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/net v0.51.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sys v0.41.0
 	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb
