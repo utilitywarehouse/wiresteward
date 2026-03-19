@@ -123,8 +123,9 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge(w http.ResponseWriter) (str
 	return url, nil
 }
 
-// GetToken returns a valid token. If the cached token is expired,
-// it uses the refresh token to get a new one.
+// GetToken returns a valid token and a bool to express if this was refreshed.
+// If the cached token is near expiry, it uses the refresh token to get a new
+// one.
 func (oa *oauthTokenHandler) GetToken() (*oauth2.Token, bool, error) {
 	tok, err := oa.getTokenFromFile()
 	if err != nil {
@@ -133,27 +134,21 @@ func (oa *oauthTokenHandler) GetToken() (*oauth2.Token, bool, error) {
 
 	// Hard coded refresh 15 mins before token expiry by clearing
 	// the AccessToken before passing it to the TokenSource.
-	wasRefreshed := false
-	if time.Until(tok.Expiry) < 15*time.Minute {
-		logger.Errorf("Token near expiry (%v), forcing refresh...", tok.Expiry)
-		tok.AccessToken = ""
+	if time.Until(tok.Expiry) > 15*time.Minute {
+		return tok, false, nil
 	}
 
+	logger.Errorf("Token near expiry (%v), forcing refresh...", tok.Expiry)
+	tok.AccessToken = ""
 	ts := oa.config.TokenSource(oa.ctx, tok)
 	newTok, err := ts.Token()
 	if err != nil {
 		return nil, false, fmt.Errorf("token refresh failed: %w", err)
 	}
-
-	// Save only if the token actually changed
-	if newTok.AccessToken != tok.AccessToken {
-		if err := oa.saveToken(newTok); err != nil {
-			logger.Errorf("failed to save token: %v", err)
-		}
-		wasRefreshed = true
+	if err := oa.saveToken(newTok); err != nil {
+		logger.Errorf("failed to save token: %v", err)
 	}
-
-	return newTok, wasRefreshed, nil
+	return newTok, true, nil
 }
 
 func (oa *oauthTokenHandler) getTokenFromFile() (*oauth2.Token, error) {
