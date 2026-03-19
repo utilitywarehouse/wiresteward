@@ -84,7 +84,7 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 		config: &oauth2.Config{
 			ClientID: clientID,
 			//ClientSecret: clientSecret,
-			Scopes:      []string{"openid", "email"},
+			Scopes:      []string{"openid", "email", "offline_access"},
 			RedirectURL: fmt.Sprintf("http://%s/oauth2/callback", *flagAgentAddress),
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  authURL,
@@ -94,7 +94,6 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 		t:       make(chan *oauth2.Token),
 		tokFile: tokFile,
 	}
-
 	return oa
 }
 
@@ -117,11 +116,44 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge(w http.ResponseWriter) (str
 	stateToken := generateStateOauthCookie(w)
 	url := oa.config.AuthCodeURL(
 		stateToken,
-		oauth2.AccessTypeOnline,
+		oauth2.AccessTypeOffline,
 		codeChallengeOpt,
 		codeChallengeMethodOpt,
 	)
 	return url, nil
+}
+
+// GetToken returns a valid token. If the cached token is expired,
+// it uses the refresh token to get a new one.
+func (oa *oauthTokenHandler) GetToken() (*oauth2.Token, bool, error) {
+	tok, err := oa.getTokenFromFile()
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Hard coded refresh 15 mins before token expiry by clearing
+	// the AccessToken before passing it to the TokenSource.
+	wasRefreshed := false
+	if time.Until(tok.Expiry) < 15*time.Minute {
+		logger.Errorf("Token near expiry (%v), forcing refresh...", tok.Expiry)
+		tok.AccessToken = ""
+	}
+
+	ts := oa.config.TokenSource(oa.ctx, tok)
+	newTok, err := ts.Token()
+	if err != nil {
+		return nil, false, fmt.Errorf("token refresh failed: %w", err)
+	}
+
+	// Save only if the token actually changed
+	if newTok.AccessToken != tok.AccessToken {
+		if err := oa.saveToken(newTok); err != nil {
+			logger.Errorf("failed to save token: %v", err)
+		}
+		wasRefreshed = true
+	}
+
+	return newTok, wasRefreshed, nil
 }
 
 func (oa *oauthTokenHandler) getTokenFromFile() (*oauth2.Token, error) {

@@ -32,11 +32,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		}
 		dm := newDeviceManager(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout, cfg.HealthCheck)
 		if err := dm.Run(); err != nil {
-			logger.Errorf(
-				"Error starting device `%s`: %v",
-				dm.Name(),
-				err,
-			)
+			logger.Errorf("Error starting device `%s`: %v", dm.Name(), err)
 			continue
 		}
 		agent.deviceManagers = append(agent.deviceManagers, dm)
@@ -55,8 +51,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 	return agent
 }
 
-// ListenAndServe sets up and starts an http server, to allow for the OAuth2
-// exchange and token renewal.
+// ListenAndServe sets up and starts and the background token refresh loop.
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/renew", a.renewHandler)
@@ -64,15 +59,34 @@ func (a *Agent) ListenAndServe() {
 
 	logger.Verbosef("Starting agent at http://%s", *flagAgentAddress)
 
-	token, err := a.oa.getTokenFromFile()
-	if err != nil || token.AccessToken == "" || token.Expiry.Before(time.Now()) {
-		logger.Errorf("cannot get a valid cached token, you need to authenticate")
-	} else {
-		a.renewAllLeases(token.AccessToken)
-	}
+	go a.tokenRefreshLoop()
 
 	if err := http.ListenAndServe(*flagAgentAddress, nil); err != nil {
 		logger.Errorf("%v", err)
+	}
+}
+
+// tokenRefreshLoop proactively checks the token status every minute.
+func (a *Agent) tokenRefreshLoop() {
+	a.checkAndRefresh()
+
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		a.checkAndRefresh()
+	}
+}
+
+func (a *Agent) checkAndRefresh() {
+	token, refreshed, err := a.oa.GetToken()
+	if err != nil {
+		logger.Errorf("Could not fetch oauth token %v", err)
+	}
+
+	if refreshed {
+		logger.Verbosef("Token refreshed. Syncing new %v lease with remote server.", time.Until(token.Expiry).Round(time.Second))
+		a.renewAllLeases(token.AccessToken)
 	}
 }
 
@@ -105,19 +119,13 @@ func (a *Agent) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.FormValue("state") != stateCookie.Value {
-		logger.Errorf(
-			"State token missmatch: expected=%s received=%s", stateCookie.Value, r.FormValue("state"),
-		)
-		http.Error(w, "State token missmatch", 500)
+		logger.Errorf("State token mismatch: expected=%s received=%s", stateCookie.Value, r.FormValue("state"))
+		http.Error(w, "State token mismatch", 500)
 		return
 	}
 	token, err := a.oa.ExchangeToken(r.FormValue("code"))
 	if err != nil {
-		fmt.Fprintf(
-			w,
-			"error fetching token from web: %v",
-			err,
-		)
+		fmt.Fprintf(w, "error fetching token from web: %v", err)
 		return
 	}
 	a.renewAllLeases(token.AccessToken)
@@ -143,9 +151,9 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := a.oa.getTokenFromFile()
-	if err != nil || token.AccessToken == "" {
-		logger.Errorf("cannot get a valid cached token, you need to authenticate")
+	token, _, err := a.oa.GetToken()
+	if err != nil {
+		logger.Errorf("cannot get a valid token: %v", err)
 		statusHTTPWriter(w, r, a.deviceManagers, nil)
 		return
 	}
