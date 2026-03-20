@@ -51,7 +51,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 	return agent
 }
 
-// ListenAndServe sets up and starts and the background token refresh loop.
+// ListenAndServe sets up and starts the background token refresh loop.
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/renew", a.renewHandler)
@@ -82,6 +82,7 @@ func (a *Agent) checkAndRefresh() {
 	token, refreshed, err := a.oa.GetToken()
 	if err != nil {
 		logger.Errorf("Could not fetch oauth token %v", err)
+		return
 	}
 
 	if refreshed {

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
@@ -76,6 +77,7 @@ type oauthTokenHandler struct {
 	tokFile      string             // File path to cache the token
 	t            chan *oauth2.Token // to feed the token from the redirect uri
 	codeVerifier *codeVerifier
+	mu           sync.Mutex // protects token file reads and writes
 }
 
 func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
@@ -127,18 +129,22 @@ func (oa *oauthTokenHandler) prepareTokenWebChalenge(w http.ResponseWriter) (str
 // If the cached token is near expiry, it uses the refresh token to get a new
 // one.
 func (oa *oauthTokenHandler) GetToken() (*oauth2.Token, bool, error) {
+	oa.mu.Lock()
+	defer oa.mu.Unlock()
+
 	tok, err := oa.getTokenFromFile()
 	if err != nil {
 		return nil, false, err
 	}
 
-	// Hard coded refresh 15 mins before token expiry by clearing
-	// the AccessToken before passing it to the TokenSource.
+	// Refresh 15 mins before token expiry. Clearing AccessToken forces
+	// golang.org/x/oauth2's TokenSource to use the refresh token rather
+	// than returning the (near-expired) cached access token.
 	if time.Until(tok.Expiry) > 15*time.Minute {
 		return tok, false, nil
 	}
 
-	logger.Errorf("Token near expiry (%v), forcing refresh...", tok.Expiry)
+	logger.Verbosef("Token near expiry (%v), forcing refresh...", tok.Expiry)
 	tok.AccessToken = ""
 	ts := oa.config.TokenSource(oa.ctx, tok)
 	newTok, err := ts.Token()
