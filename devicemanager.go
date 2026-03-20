@@ -20,17 +20,19 @@ import (
 // wiresteward servers.
 type DeviceManager struct {
 	agentDevice
-	cachedToken       string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
-	configMutex       sync.Mutex
-	config            *WirestewardPeerConfig // To keep the current config
-	serverURLs        []string
-	backoff           *backoff     // backoff timer for retries to get a new lease
-	healthCheck       *healthCheck // Pointer to the device manager running healthchek
-	healthCheckConf   agentHealthCheckConfig
-	renewLeaseChan    chan struct{}
-	stopLeaseBackoff  chan struct{}
-	inBackoffLoop     bool // bool to signal if there is a backoff loop in progress
-	httpClientTimeout Duration
+	cachedToken          string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
+	configMutex          sync.Mutex
+	config               *WirestewardPeerConfig // To keep the current config
+	currentServerURL     string                 // URL of the server that last successfully provided a lease
+	serverURLs           []string
+	backoff              *backoff     // backoff timer for retries to get a new lease
+	healthCheck          *healthCheck // Pointer to the device manager running healthchek
+	healthCheckConf      agentHealthCheckConfig
+	renewLeaseChan       chan struct{}
+	healthCheckRenewChan chan struct{} // signals a health-check-triggered renewal; currentServerURL is cleared before renewing
+	stopLeaseBackoff     chan struct{}
+	inBackoffLoop        bool // bool to signal if there is a backoff loop in progress
+	httpClientTimeout    Duration
 }
 
 func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout Duration, hcc agentHealthCheckConfig) *DeviceManager {
@@ -41,15 +43,16 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		device = newTunDevice(deviceName, mtu)
 	}
 	return &DeviceManager{
-		agentDevice:       device,
-		serverURLs:        wirestewardURLs,
-		backoff:           newBackoff(1*time.Second, 64*time.Second, 2),
-		healthCheck:       &healthCheck{running: false},
-		healthCheckConf:   hcc,
-		renewLeaseChan:    make(chan struct{}),
-		stopLeaseBackoff:  make(chan struct{}),
-		inBackoffLoop:     false,
-		httpClientTimeout: httpClientTimeout,
+		agentDevice:          device,
+		serverURLs:           wirestewardURLs,
+		backoff:              newBackoff(1*time.Second, 64*time.Second, 2),
+		healthCheck:          &healthCheck{running: false},
+		healthCheckConf:      hcc,
+		renewLeaseChan:       make(chan struct{}),
+		healthCheckRenewChan: make(chan struct{}),
+		stopLeaseBackoff:     make(chan struct{}),
+		inBackoffLoop:        false,
+		httpClientTimeout:    httpClientTimeout,
 	}
 }
 
@@ -98,32 +101,41 @@ func (dm *DeviceManager) renewLoop() {
 		select {
 		case <-dm.renewLeaseChan:
 			logger.Verbosef("Renewing lease for device:%s\n", dm.Name())
-			if err := dm.renewLease(); err != nil {
-				if err == jwt.ErrExpired {
-					// stop retrying - token is expired, it will need manual refresh
-					logger.Errorf("%v", err)
+		case <-dm.healthCheckRenewChan:
+			logger.Verbosef("Health check triggered lease renewal for device:%s, clearing current server\n", dm.Name())
+			dm.currentServerURL = ""
+		}
+		if err := dm.renewLease(); err != nil {
+			if err == jwt.ErrExpired {
+				// stop retrying - token is expired, it will need manual refresh
+				logger.Errorf("%v", err)
+				continue
+			}
+			go func() {
+				dm.inBackoffLoop = true
+				duration := dm.backoff.Duration()
+				logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
+				select {
+				case <-time.After(duration):
+					dm.renewLeaseChan <- struct{}{}
+				case <-dm.stopLeaseBackoff:
 					break
 				}
-				go func() {
-					dm.inBackoffLoop = true
-					duration := dm.backoff.Duration()
-					logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
-					select {
-					case <-time.After(duration):
-						dm.renewLeaseChan <- struct{}{}
-					case <-dm.stopLeaseBackoff:
-						break
-					}
-					dm.inBackoffLoop = false
-				}()
-			} else {
-				dm.backoff.Reset()
-			}
+				dm.inBackoffLoop = false
+			}()
+		} else {
+			dm.backoff.Reset()
 		}
 	}
 }
 
+// nextServer returns the server URL to use for lease renewal. It prefers the
+// server that last successfully provided a lease, falling back to a random
+// selection when no current server is recorded.
 func (dm *DeviceManager) nextServer() string {
+	if dm.currentServerURL != "" {
+		return dm.currentServerURL
+	}
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 
@@ -142,7 +154,8 @@ func (dm *DeviceManager) RenewTokenAndLease(token string) {
 // renewLease uses the provided oauth2 token to retrieve a new leases from one
 // of the healthy wiresteward servers associated with the underlying device. If
 // healthchecks are disabled then all serveres would be considered healthy. The
-// received configuration is then applied to the device.
+// received configuration is then applied to the device only if it differs from
+// the current configuration.
 func (dm *DeviceManager) renewLease() error {
 	if dm.cachedToken == "" {
 		return fmt.Errorf("Empty cached token")
@@ -159,8 +172,6 @@ func (dm *DeviceManager) renewLease() error {
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
-	oldConfig := dm.config
-	peers := []wgtypes.PeerConfig{}
 	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey, dm.httpClientTimeout)
 	if err != nil {
 		logger.Errorf(
@@ -168,35 +179,46 @@ func (dm *DeviceManager) renewLease() error {
 			serverURL,
 			err,
 		)
+		// Clear current server so the next retry picks a random one.
+		dm.currentServerURL = ""
 		return err
 	}
-	peers = append(peers, *config.PeerConfig)
+	dm.currentServerURL = serverURL
 
-	dm.configMutex.Lock()
-	logger.Verbosef(
-		"Configuring offered ip address %s on device %s",
-		config.LocalAddress,
-		dm.Name(),
-	)
-	// TODO: Depending on the implementation of updateDeviceConfig, if the
-	// update fails partially, we might end up with the wrong "old" config
-	// and fail to cleanup properly when we update the next time.
-	if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
-		logger.Errorf(
-			"Could not update peer configuration for `%s`: %v",
-			serverURL,
-			err,
+	if !wirestewardPeerConfigsEqual(dm.config, config) {
+		oldConfig := dm.config
+		dm.configMutex.Lock()
+		logger.Verbosef(
+			"Configuring offered ip address %s on device %s",
+			config.LocalAddress,
+			dm.Name(),
 		)
+		// TODO: Depending on the implementation of updateDeviceConfig, if the
+		// update fails partially, we might end up with the wrong "old" config
+		// and fail to cleanup properly when we update the next time.
+		if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
+			logger.Errorf(
+				"Could not update peer configuration for `%s`: %v",
+				serverURL,
+				err,
+			)
+		} else {
+			dm.config = config
+		}
+		dm.configMutex.Unlock()
+		if err := setPeers(dm.Name(), []wgtypes.PeerConfig{*config.PeerConfig}); err != nil {
+			return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
+		}
 	} else {
-		dm.config = config
-	}
-	dm.configMutex.Unlock()
-	if err := setPeers(dm.Name(), peers); err != nil {
-		return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
+		logger.Verbosef(
+			"Received unchanged config from `%s`, skipping device update",
+			serverURL,
+		)
 	}
 
-	// Start health checking if we have an address for the server wg client
-	// and more servers to potentially fell over.
+	// (Re)start health checking if we have an address for the server wg
+	// client and more servers to potentially fail over to. The health check
+	// self-terminates when it fires a renewal, so we always restart it here.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
 		dm.healthCheck.Stop()
 		hc, err := newHealthCheck(
@@ -206,15 +228,49 @@ func (dm *DeviceManager) renewLease() error {
 			dm.healthCheckConf.IntervalAfterFailure,
 			dm.healthCheckConf.Timeout,
 			dm.healthCheckConf.Threshold,
-			dm.renewLeaseChan,
+			dm.healthCheckRenewChan,
 		)
 		if err != nil {
-			return fmt.Errorf("Cannot create healthchek: %v", err)
+			return fmt.Errorf("Cannot create healthcheck: %v", err)
 		}
 		dm.healthCheck = hc
 		go dm.healthCheck.Run()
 	}
 	return nil
+}
+
+// wirestewardPeerConfigsEqual returns true if both configs represent the same
+// network configuration (local address, peer public key, endpoint, and allowed
+// IPs). A nil config is only equal to another nil config.
+func wirestewardPeerConfigsEqual(a, b *WirestewardPeerConfig) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.LocalAddress.String() != b.LocalAddress.String() {
+		return false
+	}
+	if a.PublicKey != b.PublicKey {
+		return false
+	}
+	endpointA, endpointB := "", ""
+	if a.Endpoint != nil {
+		endpointA = a.Endpoint.String()
+	}
+	if b.Endpoint != nil {
+		endpointB = b.Endpoint.String()
+	}
+	if endpointA != endpointB {
+		return false
+	}
+	if len(a.AllowedIPs) != len(b.AllowedIPs) {
+		return false
+	}
+	for i := range a.AllowedIPs {
+		if a.AllowedIPs[i].String() != b.AllowedIPs[i].String() {
+			return false
+		}
+	}
+	return true
 }
 
 // WirestewardPeerConfig embeds wgtypes.PeerConfig and additional configuration
