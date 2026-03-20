@@ -68,7 +68,14 @@ func (a *Agent) ListenAndServe() {
 
 // tokenRefreshLoop proactively checks the token status every minute.
 func (a *Agent) tokenRefreshLoop() {
-	a.checkAndRefresh()
+	// On startup, immediately renew leases if a valid cached token exists,
+	// without waiting for the first refresh tick.
+	token, _, err := a.oa.GetToken()
+	if err != nil {
+		logger.Verbosef("Could not fetch oauth token on startup %v", err)
+	} else {
+		a.renewAllLeases(token.AccessToken)
+	}
 
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
