@@ -10,7 +10,7 @@ ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
  --cap-add=NET_ADMIN \
  -v /etc/wiresteward/:/etc/wiresteward/:rw \
  -v /var/lib/wiresteward/:/var/lib/wiresteward/:rw \
- quay.io/utilitywarehouse/wiresteward:${wiresteward_version} -server'
+ quay.io/utilitywarehouse/wiresteward:${wiresteward_version} -server -log-level=debug'
 ExecStop=/bin/sh -c 'docker stop -t 3 "$(docker ps -q --filter=name=%p_)"'
 [Install]
 WantedBy=multi-user.target
