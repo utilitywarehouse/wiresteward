@@ -203,9 +203,12 @@ func (lm *fileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time
 		return WGRecord{}, err
 	}
 	if needToUpdateWGPeers {
+		logger.Verbosef("Updating WireGuard peer for user %s (new peer or public key change)", username)
 		if err := lm.updateWgPeers(); err != nil {
 			return WGRecord{}, err
 		}
+	} else {
+		logger.Verbosef("Extending lease expiry for user %s, skipping WireGuard reconfiguration", username)
 	}
 	if err := lm.saveWgRecords(); err != nil {
 		return WGRecord{}, err
