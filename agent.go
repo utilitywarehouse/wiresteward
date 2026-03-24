@@ -55,6 +55,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 func (a *Agent) ListenAndServe() {
 	http.HandleFunc("/oauth2/callback", a.callbackHandler)
 	http.HandleFunc("/renew", a.renewHandler)
+	http.HandleFunc("/api/status", a.apiStatusHandler)
 	http.HandleFunc("/", a.mainHandler)
 
 	logger.Verbosef("Starting agent at http://%s", *flagAgentAddress)
@@ -151,6 +152,10 @@ func (a *Agent) renewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, url, 302)
+}
+
+func (a *Agent) apiStatusHandler(w http.ResponseWriter, r *http.Request) {
+	statusJSONWriter(w, a.deviceManagers)
 }
 
 func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
