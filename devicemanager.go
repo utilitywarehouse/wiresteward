@@ -174,14 +174,9 @@ func (dm *DeviceManager) renewLease() error {
 	}
 	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey, dm.httpClientTimeout)
 	if err != nil {
-		logger.Errorf(
-			"Could not get wiresteward peer config from `%s`: %v",
-			serverURL,
-			err,
-		)
 		// Clear current server so the next retry picks a random one.
 		dm.currentServerURL = ""
-		return err
+		return fmt.Errorf("requestWirestewardPeerConfig: %w", err)
 	}
 	dm.currentServerURL = serverURL
 
@@ -300,7 +295,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout Du
 	// Marshal key into json
 	r, err := json.Marshal(&leaseRequest{PubKey: publicKey})
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): marshal request: %w", serverURL, err)
 	}
 
 	// Prepare the request
@@ -315,21 +310,25 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout Du
 	client := &http.Client{Timeout: timeout.Duration}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): do request: %w", serverURL, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("Response status: %s", resp.Status)
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): response status: %s", serverURL, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, "", fmt.Errorf("error reading response body: %w,", err)
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): read response body: %w", serverURL, err)
 	}
 
 	response := &leaseResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): unmarshal response: %w", serverURL, err)
 	}
-	return newWirestewardPeerConfigFromLeaseResponse(response)
+	config, wgIP, err := newWirestewardPeerConfigFromLeaseResponse(response)
+	if err != nil {
+		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): parse peer config: %w", serverURL, err)
+	}
+	return config, wgIP, nil
 }
