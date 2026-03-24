@@ -163,36 +163,49 @@ func (lm *fileLeaseManager) updateWgPeers() error {
 	return setPeers(lm.deviceName, peers)
 }
 
-func (lm *fileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WGRecord, error) {
+// createOrUpdatePeer creates or updates the WGRecord for the given user and
+// returns the record, a bool needToUpdateWGPeers indicating whether the
+// WireGuard interface configuration must be updated, and any error.
+// needToUpdateWGPeers is false when an existing record already holds the same
+// public key, meaning only the lease expiry changed and no interface
+// reconfiguration is required.
+func (lm *fileLeaseManager) createOrUpdatePeer(username, pubKey string, expiry time.Time) (WGRecord, bool, error) {
 	if username == "" {
-		return WGRecord{}, fmt.Errorf("Cannot add peer for empty username")
+		return WGRecord{}, false, fmt.Errorf("Cannot add peer for empty username")
 	}
 	if pubKey == "" {
-		return WGRecord{}, fmt.Errorf("Cannot add peer for empty public key")
+		return WGRecord{}, false, fmt.Errorf("Cannot add peer for empty public key")
 	}
 	lm.wgRecordsMutex.Lock()
 	defer lm.wgRecordsMutex.Unlock()
 	if record, ok := lm.wgRecords[username]; ok {
+		if record.PubKey == pubKey {
+			record.expires = expiry
+			lm.wgRecords[username] = record
+			return lm.wgRecords[username], false, nil
+		}
 		record.PubKey = pubKey
 		record.expires = expiry
 		lm.wgRecords[username] = record
-		return lm.wgRecords[username], nil
+		return lm.wgRecords[username], true, nil
 	}
 	lm.wgRecords[username] = WGRecord{
 		PubKey:  pubKey,
 		IP:      lm.nextAvailableAddress(),
 		expires: expiry,
 	}
-	return lm.wgRecords[username], nil
+	return lm.wgRecords[username], true, nil
 }
 
 func (lm *fileLeaseManager) addNewPeer(username, pubKey string, expiry time.Time) (WGRecord, error) {
-	record, err := lm.createOrUpdatePeer(username, pubKey, expiry)
+	record, needToUpdateWGPeers, err := lm.createOrUpdatePeer(username, pubKey, expiry)
 	if err != nil {
 		return WGRecord{}, err
 	}
-	if err := lm.updateWgPeers(); err != nil {
-		return WGRecord{}, err
+	if needToUpdateWGPeers {
+		if err := lm.updateWgPeers(); err != nil {
+			return WGRecord{}, err
+		}
 	}
 	if err := lm.saveWgRecords(); err != nil {
 		return WGRecord{}, err
