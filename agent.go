@@ -159,11 +159,15 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, _, err := a.oa.GetToken()
+	token, refreshed, err := a.oa.GetToken()
 	if err != nil {
 		logger.Errorf("cannot get a valid token: %v", err)
 		statusHTTPWriter(w, r, a.deviceManagers, nil)
 		return
+	}
+	if refreshed {
+		logger.Verbosef("Token refreshed. Syncing new %v lease with remote server.", time.Until(token.Expiry).Round(time.Second))
+		a.renewAllLeases(token.AccessToken)
 	}
 	statusHTTPWriter(w, r, a.deviceManagers, token)
 }
