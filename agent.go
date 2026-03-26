@@ -161,7 +161,7 @@ func (a *Agent) mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, refreshed, err := a.oa.GetToken()
 	if err != nil {
-		logger.Errorf("cannot get a valid token: %v", err)
+		logger.Verbosef("cannot get a valid token: %v", err)
 		statusHTTPWriter(w, r, a.deviceManagers, nil)
 		return
 	}
