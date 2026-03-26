@@ -38,6 +38,7 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, defaultAgentHealthCheckInterval, conf.HealthCheck.Interval)
 	assert.Equal(t, defaultAgentHealthCheckTimeout, conf.HealthCheck.Timeout)
 	assert.Equal(t, defaultAgentHealthCheckThreshold, conf.HealthCheck.Threshold)
+	assert.Equal(t, Duration{defaultRefreshBeforeExpiry}, conf.OAuth.RefreshBeforeExpiry)
 
 	devicesOnly := []byte(`
 {
@@ -77,13 +78,15 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, defaultAgentHealthCheckInterval, conf.HealthCheck.Interval)
 	assert.Equal(t, defaultAgentHealthCheckTimeout, conf.HealthCheck.Timeout)
 	assert.Equal(t, defaultAgentHealthCheckThreshold, conf.HealthCheck.Threshold)
+	assert.Equal(t, Duration{defaultRefreshBeforeExpiry}, conf.OAuth.RefreshBeforeExpiry)
 
 	full := []byte(`
 {
   "oauth": {
     "clientID": "xxxxx",
     "authUrl": "example.com/auth",
-    "tokenUrl": "example.com/token"
+    "tokenUrl": "example.com/token",
+    "refreshBeforeExpiry": "5m"
   },
   "devices": [
     {
@@ -132,6 +135,7 @@ func TestAgentConfigFmt(t *testing.T) {
 	assert.Equal(t, Duration{5 * time.Second}, conf.HealthCheck.Interval)
 	assert.Equal(t, Duration{5 * time.Second}, conf.HealthCheck.Timeout)
 	assert.Equal(t, 5, conf.HealthCheck.Threshold)
+	assert.Equal(t, Duration{5 * time.Minute}, conf.OAuth.RefreshBeforeExpiry)
 }
 
 func TestServerConfig(t *testing.T) {

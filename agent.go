@@ -47,6 +47,7 @@ func NewAgent(cfg *agentConfig) *Agent {
 		cfg.OAuth.TokenURL,
 		cfg.OAuth.ClientID,
 		defaultTokenFileLoc,
+		cfg.OAuth.RefreshBeforeExpiry.Duration,
 	)
 	return agent
 }
