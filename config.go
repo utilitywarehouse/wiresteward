@@ -16,6 +16,7 @@ const (
 	defaultLeasesFilename            = "/var/lib/wiresteward/leases"
 	defaultServerListenAddress       = "0.0.0.0:8080"
 	defaultAgentHealthCheckThreshold = 3
+	defaultRefreshBeforeExpiry       = 15 * time.Minute
 )
 
 var (
@@ -27,9 +28,14 @@ var (
 
 // agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
 type agentOAuthConfig struct {
-	ClientID string `json:"clientID"`
-	AuthURL  string `json:"authUrl"`
-	TokenURL string `json:"tokenUrl"`
+	ClientID            string   `json:"clientID"`
+	AuthURL             string   `json:"authUrl"`
+	TokenURL            string   `json:"tokenUrl"`
+	RefreshBeforeExpiry Duration `json:"refreshBeforeExpiry"`
+}
+
+var defaultAgentOAuthConfig = agentOAuthConfig{
+	RefreshBeforeExpiry: Duration{defaultRefreshBeforeExpiry},
 }
 
 // agentPeerConfig contains the agent-side configuration for a wiresteward
@@ -113,6 +119,7 @@ func verifyAgentDevicesConfig(conf *agentConfig) error {
 // Add a var of the default interface used to read agent config, so that changes
 // here can take effect on both this code and the tests.
 var agentConfRead = &agentConfig{
+	OAuth:       defaultAgentOAuthConfig,
 	HTTPClient:  defaultAgentHTTPClientConfig,
 	HealthCheck: dedfaultAgentHealthCheckConfig,
 }

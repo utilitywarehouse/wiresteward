@@ -72,15 +72,16 @@ func createCodeVerifier() (*codeVerifier, error) {
 
 // oauthTokenHandler implements functionality for the oauth2 flow.
 type oauthTokenHandler struct {
-	ctx          context.Context
-	config       *oauth2.Config
-	tokFile      string             // File path to cache the token
-	t            chan *oauth2.Token // to feed the token from the redirect uri
-	codeVerifier *codeVerifier
-	mu           sync.Mutex // protects token file reads and writes
+	ctx                 context.Context
+	config              *oauth2.Config
+	tokFile             string             // File path to cache the token
+	t                   chan *oauth2.Token // to feed the token from the redirect uri
+	codeVerifier        *codeVerifier
+	mu                  sync.Mutex    // protects token file reads and writes
+	refreshBeforeExpiry time.Duration // how long before expiry to refresh the token
 }
 
-func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTokenHandler {
+func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string, refreshBeforeExpiry time.Duration) *oauthTokenHandler {
 	oa := &oauthTokenHandler{
 		ctx: context.Background(),
 		config: &oauth2.Config{
@@ -93,8 +94,9 @@ func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string) *oauthTok
 				TokenURL: tokenURL,
 			},
 		},
-		t:       make(chan *oauth2.Token),
-		tokFile: tokFile,
+		t:                   make(chan *oauth2.Token),
+		tokFile:             tokFile,
+		refreshBeforeExpiry: refreshBeforeExpiry,
 	}
 	return oa
 }
@@ -137,10 +139,10 @@ func (oa *oauthTokenHandler) GetToken() (*oauth2.Token, bool, error) {
 		return nil, false, err
 	}
 
-	// Refresh 15 mins before token expiry. Clearing AccessToken forces
+	// Refresh before token expiry. Clearing AccessToken forces
 	// golang.org/x/oauth2's TokenSource to use the refresh token rather
 	// than returning the (near-expired) cached access token.
-	if time.Until(tok.Expiry) > 15*time.Minute {
+	if time.Until(tok.Expiry) > oa.refreshBeforeExpiry {
 		return tok, false, nil
 	}
 
