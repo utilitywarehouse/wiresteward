@@ -36,7 +36,7 @@ jobs:
           load: true
 
       - name: Login to Quay.io Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: quay.io
           username: utilitywarehouse+drone_ci
