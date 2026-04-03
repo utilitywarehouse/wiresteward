@@ -114,7 +114,10 @@ func (a *Agent) renewAllLeases(token string) {
 	defer a.renewMu.Unlock()
 	logger.Verbosef("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
-		dm.RenewTokenAndLease(token)
+		dm.setCachedToken(token)
+	}
+	for _, dm := range a.deviceManagers {
+		dm.triggerLeaseRenewal()
 	}
 }
 
