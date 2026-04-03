@@ -21,6 +21,7 @@ import (
 type DeviceManager struct {
 	agentDevice
 	cachedToken          string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
+	tokenMutex           sync.RWMutex
 	configMutex          sync.Mutex
 	config               *WirestewardPeerConfig // To keep the current config
 	currentServerURL     string                 // URL of the server that last successfully provided a lease
@@ -54,6 +55,18 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		inBackoffLoop:        false,
 		httpClientTimeout:    httpClientTimeout,
 	}
+}
+
+func (dm *DeviceManager) setCachedToken(token string) {
+	dm.tokenMutex.Lock()
+	dm.cachedToken = token
+	dm.tokenMutex.Unlock()
+}
+
+func (dm *DeviceManager) getCachedToken() string {
+	dm.tokenMutex.RLock()
+	defer dm.tokenMutex.RUnlock()
+	return dm.cachedToken
 }
 
 func (dm *DeviceManager) isHealthChecked() bool {
@@ -142,7 +155,7 @@ func (dm *DeviceManager) nextServer() string {
 // RenewTokenAndLease is called via the agent to renew the cached token data and
 // trigger a lease renewal
 func (dm *DeviceManager) RenewTokenAndLease(token string) {
-	dm.cachedToken = token
+	dm.setCachedToken(token)
 	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
 	if dm.inBackoffLoop {
 		dm.stopLeaseBackoff <- struct{}{} // Stop existing backoff loops
@@ -157,10 +170,11 @@ func (dm *DeviceManager) RenewTokenAndLease(token string) {
 // received configuration is then applied to the device only if it differs from
 // the current configuration.
 func (dm *DeviceManager) renewLease() error {
-	if dm.cachedToken == "" {
+	token := dm.getCachedToken()
+	if token == "" {
 		return fmt.Errorf("Empty cached token")
 	}
-	if err := validateJWTToken(dm.cachedToken); err != nil {
+	if err := validateJWTToken(token); err != nil {
 		return err
 	}
 	publicKey, _, err := getKeys(dm.Name())
@@ -172,7 +186,7 @@ func (dm *DeviceManager) renewLease() error {
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
-	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, dm.cachedToken, publicKey, dm.httpClientTimeout)
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey, dm.httpClientTimeout)
 	if err != nil {
 		// Clear current server so the next retry picks a random one.
 		dm.currentServerURL = ""
