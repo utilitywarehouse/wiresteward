@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ const (
 type Agent struct {
 	deviceManagers []*DeviceManager
 	oa             *oauthTokenHandler
+	renewMu        sync.Mutex // serializes renewAllLeases calls
 }
 
 // NewAgent creates an Agent from an AgentConfig. It generates a DeviceManager
@@ -108,6 +110,8 @@ func (a *Agent) Stop() {
 }
 
 func (a *Agent) renewAllLeases(token string) {
+	a.renewMu.Lock()
+	defer a.renewMu.Unlock()
 	logger.Verbosef("Running renew leases loop..")
 	for _, dm := range a.deviceManagers {
 		dm.RenewTokenAndLease(token)
