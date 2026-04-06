@@ -152,10 +152,10 @@ func (dm *DeviceManager) nextServer() string {
 	return dm.serverURLs[rand.Intn(len(dm.serverURLs))]
 }
 
-// RenewTokenAndLease is called via the agent to renew the cached token data and
-// trigger a lease renewal
-func (dm *DeviceManager) RenewTokenAndLease(token string) {
-	dm.setCachedToken(token)
+// triggerLeaseRenewal stops any running healthcheck and backoff loop, resets
+// the backoff timer, and signals the renewLoop to perform a lease renewal.
+// The caller must ensure cachedToken is up to date before calling this.
+func (dm *DeviceManager) triggerLeaseRenewal() {
 	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
 	if dm.inBackoffLoop {
 		dm.stopLeaseBackoff <- struct{}{} // Stop existing backoff loops
