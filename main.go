@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -14,10 +15,6 @@ import (
 )
 
 var (
-	version               = "dev"
-	commit                = "none"
-	date                  = "unknown"
-	builtBy               = "unknown"
 	flagAgent             = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagAllowPublicRoutes = flag.Bool("allow-public-routes", false, "Allow non-RFC1918/RFC4193 CIDRs in address and allowedIPs (use with caution)")
 	// By default the agent runs at a high obscure port. 7773 is chosen by
@@ -34,6 +31,8 @@ var (
 func main() {
 	flag.Parse()
 
+	buildInfo, _ := debug.ReadBuildInfo()
+
 	if len(os.Args) < 2 {
 		flag.PrintDefaults()
 		return
@@ -42,7 +41,7 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		fmt.Printf("version=%s commit=%s date=%s builtBy=%s\n", version, commit, date, builtBy)
+		fmt.Printf("version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
 		return
 	}
 
@@ -70,11 +69,13 @@ func main() {
 	}
 
 	if *flagAgent {
+		logger.Verbosef("running as agent version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
 		agent()
 		return
 	}
 
 	if *flagServer {
+		logger.Verbosef("running as server version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
 		server()
 		return
 	}
