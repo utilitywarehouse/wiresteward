@@ -35,3 +35,6 @@ brews:
     repository:
       owner: utilitywarehouse
       name: homebrew-tap
+      git:
+        url: git@github.com:utilitywarehouse/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
