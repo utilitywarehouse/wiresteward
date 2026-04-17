@@ -188,3 +188,56 @@ If you intentionally need to use public CIDRs, start the server with the
 There are Terraform modules defined under [`terraform/`](./terraform) which
 describe the recommended deployment method in AWS and GCP. See the more specific
 [README](./terraform/README.md) file for details.
+
+### Flow Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent as Wiresteward Agent
+    participant IdP as OAuth2 Provider
+    participant Server as Wiresteward Server
+    
+    %% Phase 1: Authentication
+    Note over User, IdP: Phase 1: Initial Authentication
+    User->>Agent: Visits http://localhost:7773
+    Agent->>User: Redirects to OAuth2 Provider
+    User->>IdP: Logs in / Grants Access
+    IdP->>Agent: Returns OAuth2 Access Token & Refresh Token
+    
+    %% Phase 2: Registration & Server-Side WireGuard Setup
+    Note over Agent, Server: Phase 2: Registration & Allocation
+    Agent->>Agent: Generates local WireGuard Keypair (Pub/Priv)
+    Agent->>Server: HTTP POST /register (Access Token + Local PubKey)
+    Server->>IdP: Validates Access Token
+    Server->>Server: Allocates Private Leased IP (e.g., 10.8.0.5)
+    Server->>Server: Injects Agent's PubKey & strict AllowedIPs into WG config
+    Server-->>Agent: HTTP 200 OK (Server PubKey, Endpoint, Leased IP, Subnets)
+    
+    %% Phase 3: Tunnel Establishment & Local Routing
+    Note over Agent, Server: Phase 3: Local Routing & Tunnel Establishment
+    Agent->>Agent: Configures local wg interface & OS routing table
+    Agent->>Server: WireGuard Handshake (UDP)
+    Note over Agent, Server: Encrypted Tunnel Active!
+    
+    %% Phase 4: Token & Lease Renewal (Agent Side)
+    Note over Agent, IdP: Phase 4: Agent Background Renewal Loop
+    loop Before Token Expires
+        Agent->>IdP: Uses Refresh Token to request new Access Token
+        IdP-->>Agent: Returns fresh Access Token
+        Agent->>Server: HTTP POST /renew (Extends lease)
+        Server->>IdP: Validates new Access Token
+        Server->>Server: Updates internal lease expiration timer
+        Server-->>Agent: HTTP 200 OK
+    end
+
+    %% Phase 5: Lease Expiration (Server Side)
+    Note over Server: Phase 5: Server Background Expiration Loop
+    loop Continuous Audit
+        Server->>Server: Checks all active peer leases against current time
+        alt Lease is Expired (e.g., Agent offline or refresh failed)
+            Server->>Server: Removes Agent's PubKey from WG interface
+            Server->>Server: Releases Private IP back to the available pool
+            Note over Agent, Server: Tunnel instantly collapses. Traffic dropped.
+        end
+    end
+```
