@@ -203,10 +203,23 @@ func (oa *oauthTokenHandler) ExchangeToken(code string) (*oauth2.Token, error) {
 	return tok, nil
 }
 
+// oauthServer holds the data needed to introspect tokens for a single
+// OAuth server, after discovery has been performed at startup.
+type oauthServer struct {
+	IntrospectionURL string
+	ClientID         string
+}
+
+// oidcDiscoveryDoc is the subset of fields we read from the OIDC discovery
+// document at `<server>/.well-known/openid-configuration`.
+type oidcDiscoveryDoc struct {
+	Issuer                string `json:"issuer"`
+	IntrospectionEndpoint string `json:"introspection_endpoint"`
+}
+
 type tokenValidator struct {
-	httpClient         *http.Client
-	oauthClientID      string
-	oauthIntrospectURL string
+	httpClient *http.Client
+	servers    map[string]oauthServer // keyed by issuer (matches JWT `iss`)
 }
 
 type introspectionResponse struct {
@@ -215,22 +228,63 @@ type introspectionResponse struct {
 	UserName string `json:"username"`
 }
 
-func newTokenValidator(clientID, introspectURL string) *tokenValidator {
-	return &tokenValidator{
-		httpClient:         &http.Client{},
-		oauthClientID:      clientID,
-		oauthIntrospectURL: introspectURL,
+// newTokenValidator builds a tokenValidator by performing OIDC discovery
+// against each configured OAuth server. It returns an error if any discovery
+// request fails, returns an `issuer` that does not match the configured
+// server URL, or omits the `introspection_endpoint` field.
+func newTokenValidator(servers []oauthServerConfig) (*tokenValidator, error) {
+	tv := &tokenValidator{
+		httpClient: &http.Client{},
+		servers:    make(map[string]oauthServer, len(servers)),
 	}
+	for _, s := range servers {
+		doc, err := fetchOIDCDiscovery(tv.httpClient, s.Server)
+		if err != nil {
+			return nil, fmt.Errorf("oauth server %q: discovery failed: %w", s.Server, err)
+		}
+		if doc.Issuer != s.Server {
+			return nil, fmt.Errorf("oauth server %q: discovery returned mismatched issuer %q", s.Server, doc.Issuer)
+		}
+		if doc.IntrospectionEndpoint == "" {
+			return nil, fmt.Errorf("oauth server %q: discovery missing `introspection_endpoint`", s.Server)
+		}
+		tv.servers[doc.Issuer] = oauthServer{
+			IntrospectionURL: doc.IntrospectionEndpoint,
+			ClientID:         s.ClientID,
+		}
+	}
+	return tv, nil
 }
 
-func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]byte, error) {
+func fetchOIDCDiscovery(client *http.Client, server string) (*oidcDiscoveryDoc, error) {
+	url := strings.TrimRight(server, "/") + "/.well-known/openid-configuration"
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %s", resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	doc := &oidcDiscoveryDoc{}
+	if err := json.Unmarshal(body, doc); err != nil {
+		return nil, fmt.Errorf("decode discovery doc: %w", err)
+	}
+	return doc, nil
+}
+
+func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string, s oauthServer) ([]byte, error) {
 	data := url.Values{}
 	data.Set("token", token)
 	data.Set("token_type_hint", tokenTypeHint)
-	data.Set("client_id", tv.oauthClientID)
+	data.Set("client_id", s.ClientID)
 	req, err := http.NewRequest(
 		"POST",
-		tv.oauthIntrospectURL,
+		s.IntrospectionURL,
 		strings.NewReader(data.Encode()),
 	)
 	if err != nil {
@@ -254,13 +308,21 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string) ([]by
 	return body, nil
 }
 
-// validate takes a token and queries the introspection endpoint with it.
+// validate takes a token, parses its issuer from the JWT, and queries the
+// matching introspection endpoint.
 // https://tools.ietf.org/html/rfc7662#section-2.2
 func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionResponse, error) {
-	if err := validateJWTToken(token); err != nil {
+	issuer, err := validateJWTToken(token)
+	if err != nil {
 		return nil, fmt.Errorf("Validation failed: %v", err)
 	}
-	body, err := tv.requestIntospection(token, tokenTypeHint)
+	s, ok := tv.servers[issuer]
+	if !ok {
+		logger.Errorf("No oauth server configured for issuer %q", issuer)
+		return nil, fmt.Errorf("no oauth server configured for issuer %q", issuer)
+	}
+	logger.Verbosef("Token matched oauth server for issuer %q", issuer)
+	body, err := tv.requestIntospection(token, tokenTypeHint, s)
 	if err != nil {
 		return nil, err
 	}
@@ -272,27 +334,28 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 	return response, nil
 }
 
-// validateJWTToken takes a string and tries to validate it as jwt token. It
-// returns an error if parsing and validation fails or nil otherwise
-func validateJWTToken(t string) error {
+// validateJWTToken takes a string and tries to validate it as a jwt token. On
+// success it returns the issuer (`iss` claim) found in the token. It returns
+// an error if parsing or validation fails.
+func validateJWTToken(t string) (string, error) {
 	tok, err := jwt.ParseSigned(t, supportedAlgValues)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	cl := jwt.Claims{}
 	if err := tok.UnsafeClaimsWithoutVerification(&cl); err != nil {
-		return err
+		return "", err
 	}
 
 	if cl.Expiry == nil {
-		return fmt.Errorf("JWT token does not have exp field")
+		return "", fmt.Errorf("JWT token does not have exp field")
 	}
 	// Validate Claims
 	if err := cl.ValidateWithLeeway(jwt.Expected{
 		Time: time.Now(),
 	}, 0); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return cl.Issuer, nil
 }

@@ -114,7 +114,11 @@ func server() {
 		logger.Errorf("Cannot start lease server: %v", err)
 		os.Exit(1)
 	}
-	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
+	tv, err := newTokenValidator(cfg.OauthServers)
+	if err != nil {
+		logger.Errorf("Cannot initialise token validator: %v", err)
+		os.Exit(1)
+	}
 
 	// Start metrics server
 	client, err := wgctrl.New()

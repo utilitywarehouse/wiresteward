@@ -42,8 +42,7 @@ variable "wiresteward_server_peers" {
 module "wiresteward_ignition" {
   source = "github.com/utilitywarehouse/wiresteward//terraform/ignition?ref=master"
 
-  oauth2_client_id           = "xxxxxxxxxxxxxxxxxxxxx"
-  oauth2_introspect_url      = "https://login.uw.systems/oauth2/default/v1/introspect"
+  oauth_servers              = [{ server = "https://login.uw.systems/oauth2/default", client_id = "xxxxxxxxxxxxxxxxxxxxx" }]
   wireguard_cidrs            = var.wiresteward_server_peers.*.wireguard_cidr
   wireguard_endpoint_base    = local.hostname_base
   wireguard_exposed_subnets  = ["10.20.0.0/16"]
