@@ -12,7 +12,7 @@ type healthCheck struct {
 	threshold  int
 	healthy    bool
 	running    bool          // bool to help us identify running healthchecks and stop them if needed
-	stop       chan struct{} // Chan to signal hc to stop
+	stop       chan struct{} // Buffered(1) chan to signal hc to stop; buffered so Stop() never blocks if the goroutine already exited
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
@@ -29,14 +29,17 @@ func newHealthCheck(device, address string, interval, intervalAF, timeout Durati
 		threshold:  threshold,
 		healthy:    false, // assume target is not healthy when starting until we make a successful check
 		running:    false,
-		stop:       make(chan struct{}),
+		stop:       make(chan struct{}, 1),
 		renew:      renew,
 	}, nil
 }
 
 func (hc *healthCheck) Stop() {
 	if hc.running {
-		hc.stop <- struct{}{}
+		select {
+		case hc.stop <- struct{}{}:
+		default:
+		}
 	}
 }
 
