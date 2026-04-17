@@ -174,7 +174,7 @@ func (dm *DeviceManager) renewLease() error {
 	if token == "" {
 		return fmt.Errorf("Empty cached token")
 	}
-	if err := validateJWTToken(token); err != nil {
+	if _, err := validateJWTToken(token); err != nil {
 		return err
 	}
 	publicKey, _, err := getKeys(dm.Name())

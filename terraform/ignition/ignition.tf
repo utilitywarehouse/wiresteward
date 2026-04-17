@@ -10,8 +10,7 @@ data "ignition_file" "wiresteward_config" {
       wireguard_cidr            = var.wireguard_cidrs[count.index]
       wireguard_endpoint        = local.wireguard_endpoints[count.index]
       wireguard_exposed_subnets = var.wireguard_exposed_subnets
-      oauth2_introspect_url     = var.oauth2_introspect_url
-      oauth2_client_id          = var.oauth2_client_id
+      oauth_servers             = var.oauth_servers
     })
   }
 }
