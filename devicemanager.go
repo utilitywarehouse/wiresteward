@@ -47,7 +47,7 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		agentDevice:          device,
 		serverURLs:           wirestewardURLs,
 		backoff:              newBackoff(1*time.Second, 64*time.Second, 2),
-		healthCheck:          &healthCheck{running: false},
+		healthCheck:          &healthCheck{},
 		healthCheckConf:      hcc,
 		renewLeaseChan:       make(chan struct{}, 1),
 		healthCheckRenewChan: make(chan struct{}, 1),

@@ -23,8 +23,8 @@ func TestHealthcheck_NewHealthCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Assert init healthcheck conditions
-	assert.Equal(t, hc.healthy, false)
-	assert.Equal(t, hc.running, false)
+	assert.Equal(t, hc.healthy.Load(), false)
+	assert.Equal(t, hc.running.Load(), false)
 }
 
 func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
