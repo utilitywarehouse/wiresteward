@@ -49,9 +49,9 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		backoff:              newBackoff(1*time.Second, 64*time.Second, 2),
 		healthCheck:          &healthCheck{running: false},
 		healthCheckConf:      hcc,
-		renewLeaseChan:       make(chan struct{}),
-		healthCheckRenewChan: make(chan struct{}),
-		stopLeaseBackoff:     make(chan struct{}),
+		renewLeaseChan:       make(chan struct{}, 1),
+		healthCheckRenewChan: make(chan struct{}, 1),
+		stopLeaseBackoff:     make(chan struct{}, 1),
 		inBackoffLoop:        false,
 		httpClientTimeout:    httpClientTimeout,
 	}
@@ -158,10 +158,16 @@ func (dm *DeviceManager) nextServer() string {
 func (dm *DeviceManager) triggerLeaseRenewal() {
 	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
 	if dm.inBackoffLoop {
-		dm.stopLeaseBackoff <- struct{}{} // Stop existing backoff loops
+		select {
+		case dm.stopLeaseBackoff <- struct{}{}:
+		default:
+		}
 	}
 	dm.backoff.Reset() // Reset backoff timer
-	dm.renewLeaseChan <- struct{}{}
+	select {
+	case dm.renewLeaseChan <- struct{}{}:
+	default:
+	}
 }
 
 // renewLease uses the provided oauth2 token to retrieve a new leases from one
