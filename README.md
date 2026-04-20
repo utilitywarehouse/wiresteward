@@ -116,20 +116,18 @@ ownership to root:
 # chown root:admin /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
-Then need to load the service:
+Then you need to load the service to allow it to run as root. This is required to operate on the
+network devices and routing table:
 
 ```console
 # sudo launchctl load /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
-This will allow the service to run as root, which is required to operate on the
-network devices and routing table.
 
-
-Once you have it running, you can restart with:
+If you run into any issues, you can restart with:
 
 ```console
-sudo launchctl kickstart -k system/uk.co.uw.wiresteward
+# sudo launchctl kickstart -k system/uk.co.uw.wiresteward
 ```
 
 
