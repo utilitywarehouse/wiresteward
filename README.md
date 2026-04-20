@@ -123,6 +123,7 @@ network devices and routing table:
 # sudo launchctl load /Library/LaunchDaemons/uk.co.uw.wiresteward.plist
 ```
 
+#### Troubleshooting
 
 If you run into any issues, you can restart with:
 
