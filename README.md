@@ -125,6 +125,14 @@ Then need to load the service:
 This will allow the service to run as root, which is required to operate on the
 network devices and routing table.
 
+
+Once you have it running, you can restart with:
+
+```console
+sudo launchctl kickstart -k system/uk.co.uw.wiresteward
+```
+
+
 Logs are stored in `/var/log/wirestward.log` as defined in the service file. To
 view the logs you can:
 
