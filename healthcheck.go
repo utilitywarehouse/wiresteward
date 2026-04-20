@@ -47,6 +47,10 @@ func (hc *healthCheck) Run() {
 	defer healthSyncTicker.Stop()
 	var unhealthyCount int
 	hc.running.Store(true)
+	defer hc.running.Store(false)
+
+	var triggerRenew bool
+
 	for {
 		select {
 		case <-healthSyncTicker.C:
@@ -61,15 +65,11 @@ func (hc *healthCheck) Run() {
 					select {
 					case <-hc.stop:
 						logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
-						hc.running.Store(false)
 						return
 					default:
 					}
 					logger.Verbosef("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
-					hc.running.Store(false)
-					hc.healthy.Store(false)
-					hc.renew <- struct{}{}
-					return
+					triggerRenew = true
 				}
 			} else {
 				if !hc.healthy.Load() {
@@ -81,9 +81,15 @@ func (hc *healthCheck) Run() {
 					healthSyncTicker.Reset(hc.interval.Duration)
 				}
 			}
+
 		case <-hc.stop:
 			logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
-			hc.running.Store(false)
+			return
+		}
+
+		if triggerRenew {
+			hc.healthy.Store(false)
+			hc.renew <- struct{}{}
 			return
 		}
 	}
