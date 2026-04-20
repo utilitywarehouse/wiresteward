@@ -58,6 +58,14 @@ func (hc *healthCheck) Run() {
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
+					// Check if we've been asked to stop before triggering a renewal
+					select {
+					case <-hc.stop:
+						logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
+						hc.running = false
+						return
+					default:
+					}
 					logger.Verbosef("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
 					hc.running = false
 					hc.healthy = false
