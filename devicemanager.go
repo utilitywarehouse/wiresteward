@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-jose/go-jose/v4/jwt"
@@ -22,17 +23,18 @@ type DeviceManager struct {
 	agentDevice
 	cachedToken          string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
 	tokenMutex           sync.RWMutex
-	configMutex          sync.Mutex
+	configMutex          sync.RWMutex
 	config               *WirestewardPeerConfig // To keep the current config
 	currentServerURL     string                 // URL of the server that last successfully provided a lease
 	serverURLs           []string
-	backoff              *backoff     // backoff timer for retries to get a new lease
+	backoff              *backoff // backoff timer for retries to get a new lease
+	hcMutex              sync.RWMutex
 	healthCheck          *healthCheck // Pointer to the device manager running healthchek
 	healthCheckConf      agentHealthCheckConfig
 	renewLeaseChan       chan struct{}
 	healthCheckRenewChan chan struct{} // signals a health-check-triggered renewal; currentServerURL is cleared before renewing
 	stopLeaseBackoff     chan struct{}
-	inBackoffLoop        bool // bool to signal if there is a backoff loop in progress
+	inBackoffLoop        atomic.Bool // signals if there is a backoff loop in progress
 	httpClientTimeout    Duration
 }
 
@@ -47,12 +49,11 @@ func newDeviceManager(deviceName string, mtu int, wirestewardURLs []string, http
 		agentDevice:          device,
 		serverURLs:           wirestewardURLs,
 		backoff:              newBackoff(1*time.Second, 64*time.Second, 2),
-		healthCheck:          &healthCheck{running: false},
+		healthCheck:          &healthCheck{},
 		healthCheckConf:      hcc,
 		renewLeaseChan:       make(chan struct{}, 1),
 		healthCheckRenewChan: make(chan struct{}, 1),
 		stopLeaseBackoff:     make(chan struct{}, 1),
-		inBackoffLoop:        false,
 		httpClientTimeout:    httpClientTimeout,
 	}
 }
@@ -125,7 +126,7 @@ func (dm *DeviceManager) renewLoop() {
 				continue
 			}
 			go func() {
-				dm.inBackoffLoop = true
+				dm.inBackoffLoop.Store(true)
 				duration := dm.backoff.Duration()
 				logger.Errorf("Cannot update lease for %s, will retry in %s: %s", dm.Name(), duration, err)
 				select {
@@ -134,7 +135,7 @@ func (dm *DeviceManager) renewLoop() {
 				case <-dm.stopLeaseBackoff:
 					break
 				}
-				dm.inBackoffLoop = false
+				dm.inBackoffLoop.Store(false)
 			}()
 		} else {
 			dm.backoff.Reset()
@@ -156,8 +157,10 @@ func (dm *DeviceManager) nextServer() string {
 // the backoff timer, and signals the renewLoop to perform a lease renewal.
 // The caller must ensure cachedToken is up to date before calling this.
 func (dm *DeviceManager) triggerLeaseRenewal() {
+	dm.hcMutex.RLock()
 	dm.healthCheck.Stop() // stop a running healthcheck that could also trigger renewals
-	if dm.inBackoffLoop {
+	dm.hcMutex.RUnlock()
+	if dm.inBackoffLoop.Load() {
 		select {
 		case dm.stopLeaseBackoff <- struct{}{}:
 		default:
@@ -200,8 +203,12 @@ func (dm *DeviceManager) renewLease() error {
 	}
 	dm.currentServerURL = serverURL
 
-	if !wirestewardPeerConfigsEqual(dm.config, config) {
-		oldConfig := dm.config
+	dm.configMutex.RLock()
+	oldConfig := dm.config
+	configsEqual := wirestewardPeerConfigsEqual(oldConfig, config)
+	dm.configMutex.RUnlock()
+
+	if !configsEqual {
 		dm.configMutex.Lock()
 		logger.Verbosef(
 			"Configuring offered ip address %s on device %s",
@@ -235,6 +242,7 @@ func (dm *DeviceManager) renewLease() error {
 	// client and more servers to potentially fail over to. The health check
 	// self-terminates when it fires a renewal, so we always restart it here.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
+		dm.hcMutex.Lock()
 		dm.healthCheck.Stop()
 		hc, err := newHealthCheck(
 			dm.Name(),
@@ -246,10 +254,12 @@ func (dm *DeviceManager) renewLease() error {
 			dm.healthCheckRenewChan,
 		)
 		if err != nil {
+			dm.hcMutex.Unlock()
 			return fmt.Errorf("Cannot create healthcheck: %v", err)
 		}
 		dm.healthCheck = hc
 		go dm.healthCheck.Run()
+		dm.hcMutex.Unlock()
 	}
 	return nil
 }
