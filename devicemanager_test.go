@@ -42,14 +42,14 @@ func TestDeviceManager_setCachedTokenConcurrent(t *testing.T) {
 	assert.Equal(t, "new-token", dm.getCachedToken())
 }
 
-// TestDeviceManager_configRace demonstrates that reading dm.config without
-// holding configMutex races with the write inside renewLease.
-func TestDeviceManager_configRace(t *testing.T) {
+// TestDeviceManager_configConcurrent exercises the fixed config access path.
+// The writer holds the write lock (as renewLease does) and the reader holds
+// the read lock (as statusHTTPWriter now does).
+func TestDeviceManager_configConcurrent(t *testing.T) {
 	dm := &DeviceManager{}
 	var wg sync.WaitGroup
 
 	wg.Add(2)
-	// Writer: mimics renewLease updating the config under the lock.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
@@ -63,67 +63,69 @@ func TestDeviceManager_configRace(t *testing.T) {
 			dm.configMutex.Unlock()
 		}
 	}()
-	// Reader: mimics statusHTTPWriter reading dm.config without any lock.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			_ = dm.config
-			if dm.config != nil {
-				_ = dm.config.LocalAddress
+			dm.configMutex.RLock()
+			cfg := dm.config
+			dm.configMutex.RUnlock()
+			if cfg != nil {
+				_ = cfg.LocalAddress
 			}
 		}
 	}()
 	wg.Wait()
 }
 
-// TestDeviceManager_healthCheckPointerRace demonstrates that swapping the
-// healthCheck pointer races with dereferencing it to read the healthy field.
-func TestDeviceManager_healthCheckPointerRace(t *testing.T) {
+// TestDeviceManager_healthCheckPointerConcurrent exercises the fixed
+// healthCheck pointer access path. The writer holds the write lock (as
+// renewLease does) and the reader holds the read lock (as statusHTTPWriter
+// now does).
+func TestDeviceManager_healthCheckPointerConcurrent(t *testing.T) {
 	dm := &DeviceManager{
-		healthCheck: &healthCheck{healthy: false, running: false},
+		healthCheck: &healthCheck{},
 	}
 	var wg sync.WaitGroup
 
 	wg.Add(2)
-	// Writer: mimics renewLease creating a new healthCheck and swapping the
-	// pointer.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			dm.healthCheck = &healthCheck{healthy: false, running: false}
+			dm.hcMutex.Lock()
+			dm.healthCheck = &healthCheck{}
+			dm.hcMutex.Unlock()
 		}
 	}()
-	// Reader: mimics statusHTTPWriter reading dm.healthCheck.healthy.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			_ = dm.healthCheck.healthy
+			dm.hcMutex.RLock()
+			hc := dm.healthCheck
+			dm.hcMutex.RUnlock()
+			_ = hc.healthy.Load()
 		}
 	}()
 	wg.Wait()
 }
 
-// TestDeviceManager_inBackoffLoopRace demonstrates that the plain bool
-// inBackoffLoop is written by the backoff goroutine and read by
-// triggerLeaseRenewal without synchronization.
-func TestDeviceManager_inBackoffLoopRace(t *testing.T) {
+// TestDeviceManager_inBackoffLoopConcurrent exercises the fixed
+// inBackoffLoop access path using atomic.Bool.
+func TestDeviceManager_inBackoffLoopConcurrent(t *testing.T) {
 	dm := &DeviceManager{}
 	var wg sync.WaitGroup
 
 	wg.Add(2)
-	// Writer: mimics the anonymous goroutine inside renewLoop.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			dm.inBackoffLoop = true
-			dm.inBackoffLoop = false
+			dm.inBackoffLoop.Store(true)
+			dm.inBackoffLoop.Store(false)
 		}
 	}()
-	// Reader: mimics triggerLeaseRenewal checking the flag.
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			_ = dm.inBackoffLoop
+			_ = dm.inBackoffLoop.Load()
 		}
 	}()
 	wg.Wait()
