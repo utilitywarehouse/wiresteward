@@ -109,6 +109,9 @@ $ journalctl -u wiresteward.service
 An example working service for launchd is described in
 [`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist).
 
+
+**If you installed wiresteward using homebrew, remember to change the argument given in the example to `/opt/homebrew/bin/wiresteward`.**
+
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
 
