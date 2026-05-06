@@ -9,6 +9,30 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// tokenValidations counts token validations performed against each
+// configured oauth server. The `issuer` label is bounded by the number of
+// configured servers, and `result` is one of a small fixed set of values
+// (active, inactive, error), keeping cardinality minimal.
+var tokenValidations = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "wiresteward_token_validations_total",
+		Help: "Number of token validations performed, labelled by oauth server issuer and outcome.",
+	},
+	[]string{"issuer", "result"},
+)
+
+// initTokenValidationMetrics registers the tokenValidations counter and
+// pre-initialises every (issuer, result) series to 0 so that unused oauth
+// servers are visible as flat-zero counters rather than missing series.
+func initTokenValidationMetrics(issuers []string) {
+	prometheus.MustRegister(tokenValidations)
+	for _, iss := range issuers {
+		for _, r := range []string{"active", "inactive", "error"} {
+			tokenValidations.WithLabelValues(iss, r).Add(0)
+		}
+	}
+}
+
 // A collector is a prometheus.Collector for a WireGuard device.
 type collector struct {
 	DeviceInfo          *prometheus.Desc
