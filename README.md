@@ -107,7 +107,7 @@ $ journalctl -u wiresteward.service
 ### Running as a launchd service (macOS)
 
 An example working service for launchd is described in
-[`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist).
+[`examples/uk.co.uw.wiresteward.plist`](./examples/uk.co.uw.wiresteward.plist) or if you installed using homebrew [`examples/homebrew-setup/uk.co.uw.wiresteward.plist`](./examples/homebrew-setup/uk.co.uw.wiresteward.plist)
 
 You need to copy the file under `/Library/LaunchDaemons/` and then set the
 ownership to root:
