@@ -324,13 +324,20 @@ func (tv *tokenValidator) validate(token, tokenTypeHint string) (*introspectionR
 	logger.Verbosef("Token matched oauth server for issuer %q", issuer)
 	body, err := tv.requestIntospection(token, tokenTypeHint, s)
 	if err != nil {
+		tokenValidations.WithLabelValues(issuer, "error").Inc()
 		return nil, err
 	}
 
 	response := &introspectionResponse{}
 	if err := json.Unmarshal(body, response); err != nil {
+		tokenValidations.WithLabelValues(issuer, "error").Inc()
 		return nil, err
 	}
+	result := "inactive"
+	if response.Active {
+		result = "active"
+	}
+	tokenValidations.WithLabelValues(issuer, result).Inc()
 	return response, nil
 }
 

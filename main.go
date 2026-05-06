@@ -119,6 +119,11 @@ func server() {
 		logger.Errorf("Cannot initialise token validator: %v", err)
 		os.Exit(1)
 	}
+	issuers := make([]string, 0, len(tv.servers))
+	for iss := range tv.servers {
+		issuers = append(issuers, iss)
+	}
+	initTokenValidationMetrics(issuers)
 
 	// Start metrics server
 	client, err := wgctrl.New()
