@@ -1,6 +1,6 @@
 module github.com/utilitywarehouse/wiresteward
 
-go 1.26
+go 1.26.5
 
 require (
 	github.com/coreos/go-iptables v0.8.0
