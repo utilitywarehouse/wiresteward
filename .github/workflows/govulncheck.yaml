@@ -6,7 +6,7 @@ on:
       - "*"
   pull_request:
   schedule:
-    - cron: "0 10 * * *" # daily at 10:00 UTC
+    - cron: "0 9 * * WED" # every wednesday at 9:00 UTC
   workflow_dispatch:
 
 permissions:
