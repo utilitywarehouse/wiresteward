@@ -15,6 +15,10 @@ import (
 )
 
 var (
+	// userAgent is the HTTP User-Agent header value for outbound API calls.
+	// Set in main() before entering agent or server mode.
+	userAgent string
+
 	flagAgent             = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagAllowPublicRoutes = flag.Bool("allow-public-routes", false, "Allow non-RFC1918/RFC4193 CIDRs in address and allowedIPs (use with caution)")
 	// By default the agent runs at a high obscure port. 7773 is chosen by
@@ -32,6 +36,10 @@ func main() {
 	flag.Parse()
 
 	buildInfo, _ := debug.ReadBuildInfo()
+	version := "unknown"
+	if buildInfo != nil {
+		version = buildInfo.Main.Version
+	}
 
 	if len(os.Args) < 2 {
 		flag.PrintDefaults()
@@ -41,7 +49,7 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		fmt.Printf("version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		fmt.Printf("version=%s go=%s\n", version, buildInfo.GoVersion)
 		return
 	}
 
@@ -69,13 +77,15 @@ func main() {
 	}
 
 	if *flagAgent {
-		logger.Verbosef("running as agent version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		userAgent = "wiresteward-agent/" + version
+		logger.Verbosef("running as agent version=%s go=%s\n", version, buildInfo.GoVersion)
 		agent()
 		return
 	}
 
 	if *flagServer {
-		logger.Verbosef("running as server version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		userAgent = "wiresteward-server/" + version
+		logger.Verbosef("running as server version=%s go=%s\n", version, buildInfo.GoVersion)
 		server()
 		return
 	}
