@@ -336,6 +336,7 @@ func requestWirestewardPeerConfig(serverURL, token, publicKey string, timeout Du
 	)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("User-Agent", userAgent)
 
 	client := &http.Client{Timeout: timeout.Duration}
 	resp, err := client.Do(req)

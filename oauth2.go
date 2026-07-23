@@ -70,6 +70,16 @@ func createCodeVerifier() (*codeVerifier, error) {
 	return &codeVerifier{value: v}, nil
 }
 
+// userAgentTransport sets the User-Agent header on every outgoing request
+// before delegating to http.DefaultTransport.
+type userAgentTransport struct{}
+
+func (t *userAgentTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	r2 := r.Clone(r.Context())
+	r2.Header.Set("User-Agent", userAgent)
+	return http.DefaultTransport.RoundTrip(r2)
+}
+
 // oauthTokenHandler implements functionality for the oauth2 flow.
 type oauthTokenHandler struct {
 	ctx                 context.Context
@@ -82,8 +92,11 @@ type oauthTokenHandler struct {
 }
 
 func newOAuthTokenHandler(authURL, tokenURL, clientID, tokFile string, refreshBeforeExpiry time.Duration) *oauthTokenHandler {
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{
+		Transport: &userAgentTransport{},
+	})
 	oa := &oauthTokenHandler{
-		ctx: context.Background(),
+		ctx: ctx,
 		config: &oauth2.Config{
 			ClientID: clientID,
 			//ClientSecret: clientSecret,
@@ -292,6 +305,7 @@ func (tv *tokenValidator) requestIntospection(token, tokenTypeHint string, s oau
 
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := tv.httpClient.Do(req)
 	if err != nil {
