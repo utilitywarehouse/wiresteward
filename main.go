@@ -16,7 +16,6 @@ import (
 
 var (
 	// userAgent is the HTTP User-Agent header value for outbound API calls.
-	// Set in main() before entering agent or server mode.
 	userAgent string
 
 	flagAgent             = flag.Bool("agent", false, "Run application in \"agent\" mode")
