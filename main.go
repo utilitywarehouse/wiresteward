@@ -15,6 +15,9 @@ import (
 )
 
 var (
+	// userAgent is the HTTP User-Agent header value for outbound API calls.
+	userAgent string
+
 	flagAgent             = flag.Bool("agent", false, "Run application in \"agent\" mode")
 	flagAllowPublicRoutes = flag.Bool("allow-public-routes", false, "Allow non-RFC1918/RFC4193 CIDRs in address and allowedIPs (use with caution)")
 	// By default the agent runs at a high obscure port. 7773 is chosen by
@@ -32,6 +35,10 @@ func main() {
 	flag.Parse()
 
 	buildInfo, _ := debug.ReadBuildInfo()
+	version := "unknown"
+	if buildInfo != nil {
+		version = buildInfo.Main.Version
+	}
 
 	if len(os.Args) < 2 {
 		flag.PrintDefaults()
@@ -41,7 +48,7 @@ func main() {
 	logger = newLogger("wiresteward")
 
 	if *flagVersion {
-		fmt.Printf("version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		fmt.Printf("version=%s go=%s\n", version, buildInfo.GoVersion)
 		return
 	}
 
@@ -69,13 +76,15 @@ func main() {
 	}
 
 	if *flagAgent {
-		logger.Verbosef("running as agent version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		userAgent = "wiresteward-agent/" + version
+		logger.Verbosef("running as agent version=%s go=%s\n", version, buildInfo.GoVersion)
 		agent()
 		return
 	}
 
 	if *flagServer {
-		logger.Verbosef("running as server version=%s go=%s\n", buildInfo.Main.Version, buildInfo.GoVersion)
+		userAgent = "wiresteward-server/" + version
+		logger.Verbosef("running as server version=%s go=%s\n", version, buildInfo.GoVersion)
 		server()
 		return
 	}
@@ -114,7 +123,16 @@ func server() {
 		logger.Errorf("Cannot start lease server: %v", err)
 		os.Exit(1)
 	}
-	tv := newTokenValidator(cfg.OauthClientID, cfg.OauthIntrospectURL)
+	tv, err := newTokenValidator(cfg.OauthServers)
+	if err != nil {
+		logger.Errorf("Cannot initialise token validator: %v", err)
+		os.Exit(1)
+	}
+	issuers := make([]string, 0, len(tv.servers))
+	for iss := range tv.servers {
+		issuers = append(issuers, iss)
+	}
+	initTokenValidationMetrics(issuers)
 
 	// Start metrics server
 	client, err := wgctrl.New()

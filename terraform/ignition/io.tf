@@ -15,14 +15,12 @@ variable "omit_locksmithd_service" {
   default     = false
 }
 
-variable "oauth2_introspect_url" {
-  type        = string
-  description = "Introspection url to validate access tokens"
-}
-
-variable "oauth2_client_id" {
-  type        = string
-  description = "Oauth client id. Used for token validation"
+variable "oauth_servers" {
+  type = list(object({
+    server    = string
+    client_id = string
+  }))
+  description = "List of OAuth servers to accept tokens from. Each entry needs the server base URL (used for OIDC discovery) and a client ID."
 }
 
 variable "wireguard_cidrs" {

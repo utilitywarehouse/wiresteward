@@ -4,7 +4,7 @@ After=network-online.target
 Requires=network-online.target
 [Service]
 Restart=on-failure
-ExecStartPre=/bin/sh -c 'iptables-save | grep -q -- "-A POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu" \
+ExecStartPre=/bin/sh -c 'iptables -w 60 -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null \
   || iptables -w 60 -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
 ExecStart=/usr/local/bin/wiresteward -agent
 [Install]

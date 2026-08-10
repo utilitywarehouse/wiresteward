@@ -142,6 +142,15 @@ func readAgentConfig(path string) (*agentConfig, error) {
 	return conf, nil
 }
 
+// oauthServerConfig describes a single OAuth server the wiresteward server
+// accepts tokens from. The introspection endpoint is discovered at startup via
+// OIDC discovery (`<server>/.well-known/openid-configuration`). Tokens are
+// routed to the matching server based on the JWT `iss` claim.
+type oauthServerConfig struct {
+	Server   string `json:"server"`
+	ClientID string `json:"clientID"`
+}
+
 // serverConfig describes the server-side configuration of wiresteward.
 type serverConfig struct {
 	Address             string
@@ -154,24 +163,22 @@ type serverConfig struct {
 	LeasesFilename      string
 	WireguardIPPrefix   netip.Prefix
 	WireguardListenPort int
-	OauthIntrospectURL  string
-	OauthClientID       string
+	OauthServers        []oauthServerConfig
 	ServerListenAddress string
 }
 
 func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
-		Address             string   `json:"address"`
-		AllowedIPs          []string `json:"allowedIPs"`
-		DeviceMTU           int      `json:"deviceMTU"`
-		DeviceName          string   `json:"deviceName"`
-		Endpoint            string   `json:"endpoint"`
-		KeyFilename         string   `json:"keyFilename"`
-		LeaserSyncInterval  string   `json:"leaserSyncInterval"`
-		LeasesFilename      string   `json:"leasesFilename"`
-		OauthIntrospectURL  string   `json:"oauthIntrospectURL"`
-		OauthClientID       string   `json:"oauthClientID"`
-		ServerListenAddress string   `json:"serverListenAddress"`
+		Address             string              `json:"address"`
+		AllowedIPs          []string            `json:"allowedIPs"`
+		DeviceMTU           int                 `json:"deviceMTU"`
+		DeviceName          string              `json:"deviceName"`
+		Endpoint            string              `json:"endpoint"`
+		KeyFilename         string              `json:"keyFilename"`
+		LeaserSyncInterval  string              `json:"leaserSyncInterval"`
+		LeasesFilename      string              `json:"leasesFilename"`
+		OauthServers        []oauthServerConfig `json:"oauthServers"`
+		ServerListenAddress string              `json:"serverListenAddress"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return err
@@ -190,8 +197,7 @@ func (c *serverConfig) UnmarshalJSON(data []byte) error {
 	c.Endpoint = cfg.Endpoint
 	c.KeyFilename = cfg.KeyFilename
 	c.LeasesFilename = cfg.LeasesFilename
-	c.OauthIntrospectURL = cfg.OauthIntrospectURL
-	c.OauthClientID = cfg.OauthClientID
+	c.OauthServers = cfg.OauthServers
 	c.ServerListenAddress = cfg.ServerListenAddress
 	return nil
 }
@@ -279,11 +285,16 @@ func verifyServerConfig(conf *serverConfig, allowPublicRoutes bool) error {
 			defaultLeasesFilename,
 		)
 	}
-	if conf.OauthIntrospectURL == "" {
-		return fmt.Errorf("config missing `oauthIntrospectURL`")
+	if len(conf.OauthServers) == 0 {
+		return fmt.Errorf("config missing `oauthServers`, at least one entry is required")
 	}
-	if conf.OauthClientID == "" {
-		return fmt.Errorf("config missing `oauthClientID`")
+	for i, s := range conf.OauthServers {
+		if s.Server == "" {
+			return fmt.Errorf("oauthServers[%d] missing `server`", i)
+		}
+		if s.ClientID == "" {
+			return fmt.Errorf("oauthServers[%d] missing `clientID`", i)
+		}
 	}
 	if conf.ServerListenAddress == "" {
 		conf.ServerListenAddress = defaultServerListenAddress

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync/atomic"
 	"time"
 )
 
@@ -10,9 +11,9 @@ type healthCheck struct {
 	interval   Duration
 	intervalAF Duration
 	threshold  int
-	healthy    bool
-	running    bool          // bool to help us identify running healthchecks and stop them if needed
-	stop       chan struct{} // Chan to signal hc to stop
+	healthy    atomic.Bool
+	running    atomic.Bool
+	stop       chan struct{} // Buffered(1) chan to signal hc to stop; buffered so Stop() never blocks if the goroutine already exited
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
@@ -27,16 +28,17 @@ func newHealthCheck(device, address string, interval, intervalAF, timeout Durati
 		interval:   interval,
 		intervalAF: intervalAF,
 		threshold:  threshold,
-		healthy:    false, // assume target is not healthy when starting until we make a successful check
-		running:    false,
-		stop:       make(chan struct{}),
+		stop:       make(chan struct{}, 1),
 		renew:      renew,
 	}, nil
 }
 
 func (hc *healthCheck) Stop() {
-	if hc.running {
-		hc.stop <- struct{}{}
+	if hc.running.Load() {
+		select {
+		case hc.stop <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -44,7 +46,11 @@ func (hc *healthCheck) Run() {
 	healthSyncTicker := time.NewTicker(hc.interval.Duration)
 	defer healthSyncTicker.Stop()
 	var unhealthyCount int
-	hc.running = true
+	hc.running.Store(true)
+	defer hc.running.Store(false)
+
+	var triggerRenew bool
+
 	for {
 		select {
 		case <-healthSyncTicker.C:
@@ -55,25 +61,35 @@ func (hc *healthCheck) Run() {
 
 				// if unhealthy count exceeds the threshold we need to stop the health check and look for a new lease
 				if unhealthyCount >= hc.threshold {
+					// Check if we've been asked to stop before triggering a renewal
+					select {
+					case <-hc.stop:
+						logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
+						return
+					default:
+					}
 					logger.Verbosef("server at: %s marked unhealthy, need to renew lease", hc.checker.TargetIP())
-					hc.running = false
-					hc.healthy = false
-					hc.renew <- struct{}{}
-					return
+					triggerRenew = true
 				}
 			} else {
-				if !hc.healthy {
+				if !hc.healthy.Load() {
 					logger.Verbosef("server at: %s is healthy", hc.checker.TargetIP())
 				}
-				hc.healthy = true
+				hc.healthy.Store(true)
 				if unhealthyCount > 0 {
 					unhealthyCount = 0
 					healthSyncTicker.Reset(hc.interval.Duration)
 				}
 			}
+
 		case <-hc.stop:
 			logger.Verbosef("stopping healthcheck for: %s", hc.checker.TargetIP())
-			hc.running = false
+			return
+		}
+
+		if triggerRenew {
+			hc.healthy.Store(false)
+			hc.renew <- struct{}{}
 			return
 		}
 	}

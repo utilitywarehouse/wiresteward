@@ -138,14 +138,20 @@ func statusHTTPWriter(w http.ResponseWriter, r *http.Request, deviceManagers []*
 	status.RouteTableHeaders = []string{"Device", "Subnet", "Gateway", "Health"}
 	routes := []httpRoute{}
 	for _, dm := range deviceManagers {
-		if dm.config != nil {
-			for _, ip := range dm.config.AllowedIPs {
+		dm.configMutex.RLock()
+		cfg := dm.config
+		dm.configMutex.RUnlock()
+		if cfg != nil {
+			dm.hcMutex.RLock()
+			healthy := dm.healthCheck.healthy.Load()
+			dm.hcMutex.RUnlock()
+			for _, ip := range cfg.AllowedIPs {
 				r := httpRoute{
 					Device:          dm.Name(),
 					Dst:             ip.String(),
-					GW:              dm.config.LocalAddress.String(),
+					GW:              cfg.LocalAddress.String(),
 					IsHealthChecked: dm.isHealthChecked(),
-					Healthy:         dm.healthCheck.healthy,
+					Healthy:         healthy,
 				}
 				routes = append(routes, r)
 			}

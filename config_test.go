@@ -153,8 +153,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "10.0.0.1/24",
 				"allowedIPs": ["192.168.1.0/24"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
@@ -166,8 +167,39 @@ func TestServerConfig(t *testing.T) {
 				LeasesFilename:      defaultLeasesFilename,
 				WireguardIPPrefix:   ipPrefix,
 				WireguardListenPort: 1234,
-				OauthIntrospectURL:  "example.com",
-				OauthClientID:       "client_id",
+				OauthServers: []oauthServerConfig{
+					{Server: "https://idp.example.com", ClientID: "client_id"},
+				},
+				ServerListenAddress: "0.0.0.0:8080",
+			},
+			false,
+			false,
+		},
+		{
+			// Multiple issuers configured
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthServers": [
+					{"server": "https://idp1.example.com", "clientID": "client_id_1"},
+					{"server": "https://idp2.example.com", "clientID": "client_id_2"}
+				]
+			}`),
+			&serverConfig{
+				Address:             "10.0.0.1/24",
+				AllowedIPs:          []string{"192.168.1.0/24", "10.0.0.1/32"},
+				DeviceName:          "wg0",
+				Endpoint:            "1.2.3.4:1234",
+				KeyFilename:         defaultKeyFilename,
+				LeaserSyncInterval:  defaultLeaserSyncInterval,
+				LeasesFilename:      defaultLeasesFilename,
+				WireguardIPPrefix:   ipPrefix,
+				WireguardListenPort: 1234,
+				OauthServers: []oauthServerConfig{
+					{Server: "https://idp1.example.com", ClientID: "client_id_1"},
+					{Server: "https://idp2.example.com", ClientID: "client_id_2"},
+				},
 				ServerListenAddress: "0.0.0.0:8080",
 			},
 			false,
@@ -182,8 +214,9 @@ func TestServerConfig(t *testing.T) {
 				"keyFilename": "bar",
 				"leaserSyncInterval": "3h",
 				"leasesFilename": "foo",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
@@ -196,12 +229,38 @@ func TestServerConfig(t *testing.T) {
 				LeaserSyncInterval:  time.Duration(time.Hour * 3),
 				WireguardIPPrefix:   ipPrefix,
 				WireguardListenPort: 12345,
-				OauthIntrospectURL:  "example.com",
-				OauthClientID:       "client_id",
+				OauthServers: []oauthServerConfig{
+					{Server: "https://idp.example.com", ClientID: "client_id"},
+				},
 				ServerListenAddress: "0.0.0.0:8080",
 			},
 			false,
 			false,
+		},
+		{
+			// Missing oauthServers — should fail
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234"
+			}`),
+			nil,
+			false,
+			true,
+		},
+		{
+			// oauthServers entry missing clientID — should fail
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"oauthServers": [
+					{"server": "https://idp.example.com"}
+				]
+			}`),
+			nil,
+			false,
+			true,
 		},
 		{
 			// Public CIDR without override flag — should fail
@@ -209,8 +268,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "10.0.0.1/24",
 				"allowedIPs": ["1.2.3.4/8"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			nil,
 			false,
@@ -223,8 +283,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "10.0.0.1/24",
 				"allowedIPs": ["10.0.0.0/2"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			nil,
 			false,
@@ -236,8 +297,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "10.0.0.1/24",
 				"allowedIPs": ["1.2.3.4/8"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			&serverConfig{
 				Address:             "10.0.0.1/24",
@@ -249,8 +311,9 @@ func TestServerConfig(t *testing.T) {
 				LeasesFilename:      defaultLeasesFilename,
 				WireguardIPPrefix:   ipPrefix,
 				WireguardListenPort: 1234,
-				OauthIntrospectURL:  "example.com",
-				OauthClientID:       "client_id",
+				OauthServers: []oauthServerConfig{
+					{Server: "https://idp.example.com", ClientID: "client_id"},
+				},
 				ServerListenAddress: "0.0.0.0:8080",
 			},
 			true,
@@ -262,8 +325,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "1.2.3.4/24",
 				"allowedIPs": ["192.168.1.0/24"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			nil,
 			false,
@@ -275,8 +339,9 @@ func TestServerConfig(t *testing.T) {
 				"address": "1.2.3.4/24",
 				"allowedIPs": ["192.168.1.0/24"],
 				"endpoint": "1.2.3.4:1234",
-				"oauthIntrospectURL": "example.com",
-				"oauthClientID": "client_id"
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
 			}`),
 			&serverConfig{
 				Address:             "1.2.3.4/24",
@@ -288,8 +353,9 @@ func TestServerConfig(t *testing.T) {
 				LeasesFilename:      defaultLeasesFilename,
 				WireguardIPPrefix:   netip.MustParsePrefix("1.2.3.4/24"),
 				WireguardListenPort: 1234,
-				OauthIntrospectURL:  "example.com",
-				OauthClientID:       "client_id",
+				OauthServers: []oauthServerConfig{
+					{Server: "https://idp.example.com", ClientID: "client_id"},
+				},
 				ServerListenAddress: "0.0.0.0:8080",
 			},
 			true,

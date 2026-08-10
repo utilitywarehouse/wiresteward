@@ -2,6 +2,5 @@
   "address": "${wireguard_cidr}",
   "allowedIPs": ${jsonencode(wireguard_exposed_subnets)},
   "endpoint": "${wireguard_endpoint}:51820",
-  "oauthIntrospectUrl": "${oauth2_introspect_url}",
-  "oauthClientId": "${oauth2_client_id}"
+  "oauthServers": ${jsonencode([for s in oauth_servers : { server = s.server, clientID = s.client_id }])}
 }
