@@ -4,7 +4,8 @@ After=docker.service
 Requires=docker.service
 [Service]
 Restart=always
-RuntimeMaxSec=1d # Restart the service daily to refresh aws credentials and avoid expiring after 45 days of inactivity.
+# Restart the service daily to refresh aws credentials and avoid expiring after 45 days of inactivity.
+RuntimeMaxSec=86400
 Environment=AWS_KEY=${s3fs_access_key}
 Environment=AWS_SECRET_KEY="${s3fs_access_secret}"
 Environment=S3_BUCKET=${s3fs_bucket}
