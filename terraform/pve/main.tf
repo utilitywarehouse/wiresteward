@@ -70,50 +70,54 @@ resource "matchbox_group" "wiresteward" {
   }
 }
 
-resource "proxmox_vm_qemu" "wiresteward" {
-  count       = length(var.wiresteward_server_peers)
-  name        = "${var.role}-${count.index}"
-  target_node = var.wiresteward_server_peers[count.index].pve_host
-  desc        = "Wiresteward box"
-  pxe         = true
-  boot        = "order=net0"
+resource "proxmox_virtual_environment_vm" "wiresteward" {
+  count         = length(var.wiresteward_server_peers)
+  name          = "${var.role}-${count.index}"
+  node_name     = var.wiresteward_server_peers[count.index].pve_host
+  description   = "Wiresteward box"
+  boot_order    = ["net0"]
+  hotplug       = "network,disk,usb"
+  on_boot       = true
+  started       = true
+  scsi_hardware = "virtio-scsi-pci"
+
   cpu {
-    cores = 2
-  }
-  hotplug  = "network,disk,usb"
-  memory   = 4096
-  vm_state = "running"
-  os_type  = "6.x - 2.6 Kernel"
-  onboot   = true
-  scsihw   = "virtio-scsi-pci"
-  qemu_os  = "other"
-
-  disks {
-    scsi {
-      scsi0 {
-        disk {
-          size    = 20
-          storage = "local-lvm"
-        }
-      }
-    }
+    cores   = 2
+    sockets = 1
+    type    = "host" # inherited from telmate provider default value
   }
 
-  network {
-    id      = 0
-    bridge  = "vmbr0"
-    macaddr = var.wiresteward_server_peers[count.index].private_iface_mac_address
-    model   = "virtio"
-    mtu     = 9000
+  memory {
+    dedicated = 4096
   }
 
-  network {
-    id      = 1
-    bridge  = "vmbr0"
-    macaddr = var.wiresteward_server_peers[count.index].public_iface_mac_address
-    model   = "virtio"
-    mtu     = 9000
-    tag     = var.public_vlan_id
+  disk {
+    interface    = "scsi0"
+    datastore_id = "local-lvm"
+    size         = 20
+    file_format  = "raw"
+    cache        = "none"
+    discard      = "ignore"
+    iothread     = false
+    replicate    = false
+    backup       = true
+  }
+
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = upper(var.wiresteward_server_peers[count.index].private_iface_mac_address)
+    model       = "virtio"
+    mtu         = 9000
+    firewall    = false
+  }
+
+  network_device {
+    bridge      = "vmbr0"
+    mac_address = upper(var.wiresteward_server_peers[count.index].public_iface_mac_address)
+    model       = "virtio"
+    mtu         = 9000
+    vlan_id     = var.public_vlan_id
+    firewall    = false
   }
 }
 

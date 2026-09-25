@@ -1,4 +1,5 @@
 provider "proxmox" {
-  pm_tls_insecure = true
-  pm_api_url      = var.proxmox_api_url
+  # Credentials expected via PROXMOX_VE_USERNAME/PROXMOX_VE_PASSWORD or PROXMOX_VE_API_TOKEN.
+  endpoint = var.proxmox_api_url
+  insecure = true
 }

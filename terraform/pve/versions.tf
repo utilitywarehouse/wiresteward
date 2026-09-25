@@ -7,8 +7,7 @@ terraform {
       source = "poseidon/matchbox"
     }
     proxmox = {
-      source  = "telmate/proxmox"
-      version = "3.0.2-rc05"
+      source = "bpg/proxmox"
     }
   }
 }
