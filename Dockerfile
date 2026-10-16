@@ -6,9 +6,9 @@ ENV CGO_ENABLED=0
 # build isn't at the mercy of whatever patch version the base image ships.
 RUN apk --no-cache add git upx \
       && go get -t ./... \
-      && go test -v \
+      && go test -v ./... \
       && GOTOOLCHAIN=go$(awk '/^go /{print $2; exit}' go.mod) \
-      && go build -ldflags='-s -w' -o /wiresteward . \
+      && go build -ldflags='-s -w' -o /wiresteward ./cmd/wiresteward \
       && upx /wiresteward
 
 FROM alpine:3.21

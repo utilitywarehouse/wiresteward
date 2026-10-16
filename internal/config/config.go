@@ -1,0 +1,327 @@
+package config
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/netip"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/utilitywarehouse/wiresteward/internal/logging"
+	"github.com/utilitywarehouse/wiresteward/internal/wireguard"
+)
+
+var logger = logging.Logger
+
+const (
+	defaultKeyFilename               = "/etc/wiresteward/key"
+	defaultLeaserSyncInterval        = 1 * time.Minute
+	defaultLeasesFilename            = "/var/lib/wiresteward/leases"
+	defaultServerListenAddress       = "0.0.0.0:8080"
+	defaultAgentHealthCheckThreshold = 3
+	defaultRefreshBeforeExpiry       = 15 * time.Minute
+)
+
+var (
+	defaultAgentHTTPClientTimeout               = Duration{3 * time.Second}
+	defaultAgentHealthCheckInterval             = Duration{10 * time.Second}
+	defaultAgentHealthCheckIntervalAfterFailure = Duration{time.Second}
+	defaultAgentHealthCheckTimeout              = Duration{time.Second}
+)
+
+// agentOAuthConfig encapsulates agent-side OAuth configuration for wiresteward
+type agentOAuthConfig struct {
+	ClientID            string   `json:"clientID"`
+	AuthURL             string   `json:"authUrl"`
+	TokenURL            string   `json:"tokenUrl"`
+	RefreshBeforeExpiry Duration `json:"refreshBeforeExpiry"`
+}
+
+var defaultAgentOAuthConfig = agentOAuthConfig{
+	RefreshBeforeExpiry: Duration{defaultRefreshBeforeExpiry},
+}
+
+// agentPeerConfig contains the agent-side configuration for a wiresteward
+// server.
+type agentPeerConfig struct {
+	URL string `json:"url"`
+}
+
+// agentDeviceConfig defines a network device and associated wiresteward
+// servers.
+type agentDeviceConfig struct {
+	Name  string            `json:"name"`
+	MTU   int               `json:"mtu"`
+	Peers []agentPeerConfig `json:"peers"`
+}
+
+// agentHTTPClientConfig contains variable to set http client options for
+// requests to the wiresteward servers.
+type agentHTTPClientConfig struct {
+	Timeout Duration `json:"timeout"`
+}
+
+var defaultAgentHTTPClientConfig = agentHTTPClientConfig{
+	Timeout: defaultAgentHTTPClientTimeout,
+}
+
+// agentHealthcheckConfig contains the global config for all the healthchecks
+// created by the agent against server peers.
+type AgentHealthCheckConfig struct {
+	Interval             Duration `json:"interval"`
+	IntervalAfterFailure Duration `json:"intervalAF"`
+	Threshold            int      `json:"threshold"`
+	Timeout              Duration `json:"timeout"`
+}
+
+var dedfaultAgentHealthCheckConfig = AgentHealthCheckConfig{
+	Interval:             defaultAgentHealthCheckInterval,
+	IntervalAfterFailure: defaultAgentHealthCheckIntervalAfterFailure,
+	Threshold:            defaultAgentHealthCheckThreshold,
+	Timeout:              defaultAgentHealthCheckTimeout,
+}
+
+// AgentConfig describes the agent-side configuration of wiresteward.
+type AgentConfig struct {
+	OAuth       agentOAuthConfig       `json:"oauth"`
+	Devices     []agentDeviceConfig    `json:"devices"`
+	HTTPClient  agentHTTPClientConfig  `json:"httpclient"`
+	HealthCheck AgentHealthCheckConfig `json:"healthcheck"`
+}
+
+func verifyAgentOAuthConfig(conf *AgentConfig) error {
+	if conf.OAuth.ClientID == "" {
+		return fmt.Errorf("oauth config missing `clientID`")
+	}
+	if conf.OAuth.AuthURL == "" {
+		return fmt.Errorf("oauth config missing `authUrl`")
+	}
+	if conf.OAuth.TokenURL == "" {
+		return fmt.Errorf("oauth config missing `tokenUrl`")
+	}
+	return nil
+}
+
+func verifyAgentDevicesConfig(conf *AgentConfig) error {
+	if len(conf.Devices) == 0 {
+		return fmt.Errorf("No devices defined in config")
+	}
+	for _, dev := range conf.Devices {
+		if dev.Name == "" {
+			return fmt.Errorf("Device name not specified in config")
+		}
+		for _, peer := range dev.Peers {
+			if peer.URL == "" {
+				return fmt.Errorf("Missing peer url from config")
+			}
+		}
+	}
+	return nil
+}
+
+// Add a var of the default interface used to read agent config, so that changes
+// here can take effect on both this code and the tests.
+var agentConfRead = &AgentConfig{
+	OAuth:       defaultAgentOAuthConfig,
+	HTTPClient:  defaultAgentHTTPClientConfig,
+	HealthCheck: dedfaultAgentHealthCheckConfig,
+}
+
+func ReadAgentConfig(path string) (*AgentConfig, error) {
+	conf := agentConfRead
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return conf, fmt.Errorf("error reading config file: %v", err)
+	}
+	if err = json.Unmarshal(fileContent, conf); err != nil {
+		return nil, fmt.Errorf("error unmarshalling config: %v", err)
+	}
+	if err = verifyAgentOAuthConfig(conf); err != nil {
+		return nil, err
+	}
+	if err = verifyAgentDevicesConfig(conf); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+// OAuthServerConfig describes a single OAuth server the wiresteward server
+// accepts tokens from. The introspection endpoint is discovered at startup via
+// OIDC discovery (`<server>/.well-known/openid-configuration`). Tokens are
+// routed to the matching server based on the JWT `iss` claim.
+type OAuthServerConfig struct {
+	Server   string `json:"server"`
+	ClientID string `json:"clientID"`
+}
+
+// ServerConfig describes the server-side configuration of wiresteward.
+type ServerConfig struct {
+	Address             string
+	AllowedIPs          []string
+	DeviceMTU           int
+	DeviceName          string
+	Endpoint            string
+	KeyFilename         string
+	LeaserSyncInterval  time.Duration
+	LeasesFilename      string
+	WireguardIPPrefix   netip.Prefix
+	WireguardListenPort int
+	OauthServers        []OAuthServerConfig
+	ServerListenAddress string
+}
+
+func (c *ServerConfig) UnmarshalJSON(data []byte) error {
+	cfg := &struct {
+		Address             string              `json:"address"`
+		AllowedIPs          []string            `json:"allowedIPs"`
+		DeviceMTU           int                 `json:"deviceMTU"`
+		DeviceName          string              `json:"deviceName"`
+		Endpoint            string              `json:"endpoint"`
+		KeyFilename         string              `json:"keyFilename"`
+		LeaserSyncInterval  string              `json:"leaserSyncInterval"`
+		LeasesFilename      string              `json:"leasesFilename"`
+		OauthServers        []OAuthServerConfig `json:"oauthServers"`
+		ServerListenAddress string              `json:"serverListenAddress"`
+	}{}
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return err
+	}
+	if cfg.LeaserSyncInterval != "" {
+		lsi, err := time.ParseDuration(cfg.LeaserSyncInterval)
+		if err != nil {
+			return err
+		}
+		c.LeaserSyncInterval = lsi
+	}
+	c.Address = cfg.Address
+	c.AllowedIPs = cfg.AllowedIPs
+	c.DeviceMTU = cfg.DeviceMTU
+	c.DeviceName = cfg.DeviceName
+	c.Endpoint = cfg.Endpoint
+	c.KeyFilename = cfg.KeyFilename
+	c.LeasesFilename = cfg.LeasesFilename
+	c.OauthServers = cfg.OauthServers
+	c.ServerListenAddress = cfg.ServerListenAddress
+	return nil
+}
+
+func verifyServerConfig(conf *ServerConfig, allowPublicRoutes bool) error {
+	if conf.Address == "" {
+		return fmt.Errorf("config missing `address`")
+	}
+	conf.WireguardIPPrefix = netip.MustParsePrefix(conf.Address)
+	if !allowPublicRoutes {
+		ok, err := isPrivateCIDR(conf.Address)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf(
+				"address %q is not a private CIDR: refusing to "+
+					"configure a public range as the WireGuard "+
+					"interface address; use -allow-public-routes "+
+					"to override",
+				conf.Address,
+			)
+		}
+	}
+	if len(conf.AllowedIPs) == 0 {
+		logger.Verbosef("config missing `allowedIPs`, this server is not exposing any networks")
+	}
+	if !allowPublicRoutes {
+		for _, cidr := range conf.AllowedIPs {
+			ok, err := isPrivateCIDR(cidr)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf(
+					"allowedIPs contains non-private CIDR %q: "+
+						"refusing to route public ranges; use "+
+						"-allow-public-routes to override",
+					cidr,
+				)
+			}
+		}
+	}
+	// Append the server wg /32 ip to the allowed ips in case the agent
+	// wants to ping it for health checking
+	conf.AllowedIPs = append(conf.AllowedIPs, fmt.Sprintf("%s/32", conf.WireguardIPPrefix.Addr().String()))
+
+	if conf.DeviceName == "" {
+		conf.DeviceName = wireguard.DefaultDeviceName
+		logger.Verbosef(
+			"config missing `deviceName`, using default: %s",
+			wireguard.DefaultDeviceName,
+		)
+	}
+	if conf.Endpoint == "" {
+		return fmt.Errorf("config missing `endpoint`")
+	}
+	ep := strings.Split(conf.Endpoint, ":")
+	if len(ep) != 2 {
+		return fmt.Errorf("invalid `endpoint` value, it must be of the format `<host>:<port>`, got: %s", conf.Endpoint)
+	}
+	port, err := strconv.Atoi(ep[1])
+	if err != nil {
+		return fmt.Errorf("could not parse listen port value: %w", err)
+	}
+	conf.WireguardListenPort = port
+	if conf.KeyFilename == "" {
+		conf.KeyFilename = defaultKeyFilename
+		logger.Verbosef(
+			"config missing `keyFilename`, using default: %s",
+			defaultKeyFilename,
+		)
+	}
+	if conf.LeaserSyncInterval == 0 {
+		conf.LeaserSyncInterval = defaultLeaserSyncInterval
+		logger.Verbosef(
+			"config missing `leaserSyncInterval`, using default: %s",
+			defaultLeaserSyncInterval,
+		)
+	}
+	if conf.LeasesFilename == "" {
+		conf.LeasesFilename = defaultLeasesFilename
+		logger.Verbosef(
+			"config missing `leasesFilename`, using default: %s",
+			defaultLeasesFilename,
+		)
+	}
+	if len(conf.OauthServers) == 0 {
+		return fmt.Errorf("config missing `oauthServers`, at least one entry is required")
+	}
+	for i, s := range conf.OauthServers {
+		if s.Server == "" {
+			return fmt.Errorf("oauthServers[%d] missing `server`", i)
+		}
+		if s.ClientID == "" {
+			return fmt.Errorf("oauthServers[%d] missing `clientID`", i)
+		}
+	}
+	if conf.ServerListenAddress == "" {
+		conf.ServerListenAddress = defaultServerListenAddress
+		logger.Verbosef(
+			"config missing `serverListenAddress`, using default: %s",
+			defaultServerListenAddress,
+		)
+	}
+	return nil
+}
+
+func ReadServerConfig(path string, allowPublicRoutes bool) (*ServerConfig, error) {
+	conf := &ServerConfig{}
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %v", err)
+	}
+	if err = json.Unmarshal(fileContent, conf); err != nil {
+		return nil, fmt.Errorf("error unmarshalling config: %v", err)
+	}
+	if err = verifyServerConfig(conf, allowPublicRoutes); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
