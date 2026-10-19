@@ -32,6 +32,7 @@ var (
 	flagLogLevel     = flag.String("log-level", "error", "Log Level (debug|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
 	flagServer       = flag.Bool("server", false, "Run application in \"server\" mode")
+	flagTokenFile    = flag.String("token-file", "/var/lib/wiresteward/token", "File where the agent stores the oauth token")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
 
@@ -121,6 +122,7 @@ func runAgent() {
 		DeviceType:    *flagDeviceType,
 		ListenAddress: *flagAgentAddress,
 		UserAgent:     userAgent,
+		TokenFile:     *flagTokenFile,
 	})
 	go func() {
 		a.ListenAndServe()

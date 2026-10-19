@@ -17,11 +17,24 @@ import (
 
 var nextPingCheckerID = os.Getpid() & 0xffff
 
+// EchoExchanger sends an icmp echo request to ip and waits for the matching
+// reply, until timeout.
+type EchoExchanger interface {
+	ExchangeICMPEcho(ip netip.Addr, timeout time.Duration, echo []byte) error
+}
+
+type defaultExchanger struct{}
+
+func (defaultExchanger) ExchangeICMPEcho(ip netip.Addr, timeout time.Duration, echo []byte) error {
+	return exchangeICMPEcho(ip, timeout, echo)
+}
+
 type pingChecker struct {
-	IP      netip.Addr
-	ID      int
-	Seqnum  int
-	Timeout config.Duration
+	exchanger EchoExchanger
+	IP        netip.Addr
+	ID        int
+	Seqnum    int
+	Timeout   config.Duration
 }
 
 type checker interface {
@@ -29,14 +42,18 @@ type checker interface {
 	TargetIP() string
 }
 
-func newPingChecker(device, address string, timeout config.Duration) (*pingChecker, error) {
+func newPingChecker(device, address string, timeout config.Duration, exchanger EchoExchanger) (*pingChecker, error) {
 	ip := netip.MustParseAddr(address)
 	id := nextPingCheckerID
 	nextPingCheckerID++
+	if exchanger == nil {
+		exchanger = defaultExchanger{}
+	}
 	return &pingChecker{
-		IP:      ip,
-		ID:      id,
-		Timeout: timeout,
+		exchanger: exchanger,
+		IP:        ip,
+		ID:        id,
+		Timeout:   timeout,
 	}, nil
 }
 
@@ -47,7 +64,7 @@ func (pc *pingChecker) Check() error {
 	if err != nil {
 		return fmt.Errorf("Cannot construct icmp echo: %v", err)
 	}
-	return exchangeICMPEcho(pc.IP, pc.Timeout.Duration, echo)
+	return pc.exchanger.ExchangeICMPEcho(pc.IP, pc.Timeout.Duration, echo)
 }
 
 // return a string representation of the checker's target ip

@@ -20,7 +20,8 @@ func TestHealthcheck_NewHealthCheck(t *testing.T) {
 		config.Duration{Duration: time.Second},
 		config.Duration{Duration: time.Second},
 		3,
-		make(chan struct{}))
+		make(chan struct{}),
+		nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +43,8 @@ func TestHealthcheck_RunConsecutiveFails(t *testing.T) {
 		config.Duration{Duration: 10 * time.Millisecond},
 		config.Duration{Duration: time.Second},
 		3,
-		renewNotify)
+		renewNotify,
+		nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +82,8 @@ func TestHealthcheck_RunHealthyCheckResets(t *testing.T) {
 		config.Duration{Duration: 10 * time.Millisecond},
 		config.Duration{Duration: time.Second},
 		3,
-		renewNotify)
+		renewNotify,
+		nil)
 	if err != nil {
 		t.Fatal(err)
 	}
