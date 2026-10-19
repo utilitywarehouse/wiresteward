@@ -99,8 +99,12 @@ class WirestewardVpnService : VpnService(), TunProvider {
 
     private fun startForegroundNotification() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // The settings of a channel cannot be changed once it exists, so the
+        // one that showed a launcher badge was replaced by this one.
+        nm.deleteNotificationChannel(OLD_CHANNEL_ID)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW)
+                .apply { setShowBadge(false) }
         )
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
@@ -118,7 +122,8 @@ class WirestewardVpnService : VpnService(), TunProvider {
     companion object {
         private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
         private const val TAG = "wiresteward"
-        private const val CHANNEL_ID = "vpn"
+        private const val OLD_CHANNEL_ID = "vpn"
+        private const val CHANNEL_ID = "vpn_status"
         private const val NOTIFICATION_ID = 1
         const val ACTION_STOP = "com.utilitywarehouse.wiresteward.STOP"
 
