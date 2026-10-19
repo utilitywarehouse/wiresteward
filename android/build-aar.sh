@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 bin="$(pwd)/build/bin"
-mkdir -p "$bin"
+mkdir -p "$bin" app/libs
 GOBIN="$bin" go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
 export PATH="$bin:$PATH"
 
