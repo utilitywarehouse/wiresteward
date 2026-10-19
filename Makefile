@@ -1,7 +1,7 @@
 .PHONY: generate-mocks
 generate-mocks:
-	mkdir -p mocks
-	mockgen -source=ping.go -destination=mocks/mock_ping.go -package=mocks
+	mkdir -p internal/healthcheck/mocks
+	mockgen -source=internal/healthcheck/ping.go -destination=internal/healthcheck/mocks/mock_ping.go -package=mocks
 
 .PHONY: release
 release:

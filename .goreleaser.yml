@@ -2,6 +2,7 @@
 version: 2
 builds:
   - id: main
+    main: ./cmd/wiresteward
     goos:
       - darwin
       - linux
