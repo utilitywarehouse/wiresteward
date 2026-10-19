@@ -21,6 +21,7 @@ func TestCollector(t *testing.T) {
 		pubPeerC = newWgKey()
 		userA    = "userA@example.com"
 		userB    = "userB@example.com"
+		devA     = "0b9e1c7a-4d52-4f0e-9a64-8d1f3c2b5e70"
 	)
 
 	tests := []struct {
@@ -85,10 +86,11 @@ func TestCollector(t *testing.T) {
 			},
 			leaseManager: &fileLeaseManager{
 				wgRecords: map[string]WGRecord{
-					userA: WGRecord{
+					userA + "|" + devA: WGRecord{
 						PubKey:  pubPeerA.String(),
 						IP:      netip.MustParseAddr("10.0.0.1"),
 						expires: time.Unix(100, 0),
+						client:  "wiresteward-agent/v1 (linux; amd64)",
 					},
 					userB: WGRecord{
 						PubKey: pubPeerB.String(),
@@ -99,24 +101,24 @@ func TestCollector(t *testing.T) {
 			metrics: []string{
 				fmt.Sprintf(`wiresteward_wg_device_info{device="wg0",public_key="%v"} 1`, pubDevA.String()),
 				fmt.Sprintf(`wiresteward_wg_device_info{device="wg1",public_key="%v"} 1`, pubDevB.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_info{device="wg1",public_key="%v",username=""} 1`, pubPeerC.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.1/32",device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.2/32",device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.3/32",device="wg1",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.4/32",device="wg1",public_key="%v",username=""} 1`, pubPeerC.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg0",public_key="%v",username="%s"} 10`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg1",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg1",public_key="%v",username=""} 0`, pubPeerC.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg0",public_key="%v",username="%s"} 1`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg1",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg1",public_key="%v",username=""} 0`, pubPeerC.String()),
-				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg0",public_key="%v",username="%s"} 2`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
-				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",public_key="%v",username=""} 0`, pubPeerC.String()),
-				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.1",public_key="%v",username="%s"} 100`, pubPeerA.String(), userA),
-				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.3",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_info{client="wiresteward-agent/v1 (linux; amd64)",device="wg0",device_id="%s",endpoint="1.1.1.1",public_key="%v",username="%s"} 1`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_info{client="",device="wg1",device_id="",endpoint="",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_info{client="",device="wg1",device_id="",endpoint="",public_key="%v",username=""} 1`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.1/32",device="wg0",device_id="%s",public_key="%v",username="%s"} 1`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.2/32",device="wg0",device_id="%s",public_key="%v",username="%s"} 1`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.3/32",device="wg1",device_id="",public_key="%v",username="%s"} 1`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_allowed_ips_info{allowed_ips="10.0.0.4/32",device="wg1",device_id="",public_key="%v",username=""} 1`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg0",device_id="%s",public_key="%v",username="%s"} 10`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg1",device_id="",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_last_handshake_seconds{device="wg1",device_id="",public_key="%v",username=""} 0`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg0",device_id="%s",public_key="%v",username="%s"} 1`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg1",device_id="",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_receive_bytes_total{device="wg1",device_id="",public_key="%v",username=""} 0`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg0",device_id="%s",public_key="%v",username="%s"} 2`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",device_id="",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
+				fmt.Sprintf(`wiresteward_wg_peer_transmit_bytes_total{device="wg1",device_id="",public_key="%v",username=""} 0`, pubPeerC.String()),
+				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.1",device_id="%s",public_key="%v",username="%s"} 100`, devA, pubPeerA.String(), userA),
+				fmt.Sprintf(`wiresteward_peer_lease_expiry_time{address="10.0.0.3",device_id="",public_key="%v",username="%s"} 0`, pubPeerB.String(), userB),
 			},
 		},
 	}

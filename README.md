@@ -174,6 +174,23 @@ as the network subnet from which peer addresses are leased to agents.
 An example, where the config format can be found in
 [`examples/server.json`](./examples/server.json).
 
+#### Leases per user
+
+A lease request can carry a `DeviceID`, a UUID that identifies the installation
+of the agent that sends it. The server keeps one lease, with its own address,
+per user and device id, so that several devices of a user can be connected at
+the same time. Requests without a device id share one lease per user.
+
+A user can hold at most `maxLeasesPerUser` leases on a server, 3 by default. A
+request from another device over that limit replaces the oldest lease of the
+user, the one that was renewed least recently, and takes over its address. A
+client that does not keep its device id can therefore not take more addresses
+than the limit. The `wiresteward_lease_evictions_total` metric counts the
+replaced leases.
+
+The leases file keeps one line per lease. The user name column is the user name
+for a lease without a device id and `<user name>|<device id>` for the others.
+
 #### Private address validation
 
 The server will refuse to start if `address` or any entry in `allowedIPs` is
