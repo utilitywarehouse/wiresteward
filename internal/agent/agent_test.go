@@ -9,10 +9,14 @@ import (
 )
 
 func TestAgent_Stop(t *testing.T) {
-	a := NewAgent(&config.AgentConfig{}, Options{
+	a, err := NewAgent(&config.AgentConfig{}, Options{
 		ListenAddress: "127.0.0.1:0",
 		TokenFile:     filepath.Join(t.TempDir(), "token"),
+		DeviceIDFile:  filepath.Join(t.TempDir(), "device-id"),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	done := make(chan struct{})
 	go func() {
 		a.ListenAndServe()
@@ -27,9 +31,13 @@ func TestAgent_Stop(t *testing.T) {
 }
 
 func TestAgent_StatusWithoutToken(t *testing.T) {
-	a := NewAgent(&config.AgentConfig{}, Options{
-		TokenFile: filepath.Join(t.TempDir(), "token"),
+	a, err := NewAgent(&config.AgentConfig{}, Options{
+		TokenFile:    filepath.Join(t.TempDir(), "token"),
+		DeviceIDFile: filepath.Join(t.TempDir(), "device-id"),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	st := a.Status()
 	if st.Token.Present {
 		t.Fatal("expected no token")

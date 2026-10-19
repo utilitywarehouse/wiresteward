@@ -40,6 +40,9 @@ type Options struct {
 	UserAgent string
 	// TokenFile is where the oauth token is stored.
 	TokenFile string
+	// DeviceIDFile is where the device id is stored. The agent does not run
+	// when the id cannot be read or created there.
+	DeviceIDFile string
 	// NewDevice optionally creates the backend of a configured device,
 	// replacing the default linux and darwin device setup.
 	NewDevice func(name string, mtu int) devicemanager.Backend
@@ -50,12 +53,21 @@ type Options struct {
 
 // NewAgent creates an Agent from an AgentConfig. It generates a DeviceManager
 // per device specified in the configuration, sets up and starts the associated
-// resources.
-func NewAgent(cfg *config.AgentConfig, opts Options) *Agent {
+// resources. It fails when the device id cannot be read or created: the agent
+// does not run without one.
+func NewAgent(cfg *config.AgentConfig, opts Options) (*Agent, error) {
 	agent := &Agent{
 		listenAddress:             opts.ListenAddress,
 		loginRedirectPageOverride: opts.LoginRedirectPageOverride,
 		quit:                      make(chan struct{}),
+	}
+	deviceID, err := loadOrCreateDeviceID(opts.DeviceIDFile)
+	if err != nil {
+		return nil, err
+	}
+	tokenDir := filepath.Dir(opts.TokenFile)
+	if err := os.MkdirAll(tokenDir, 0750); err != nil {
+		logger.Errorf("Unable to create directory=%s", tokenDir)
 	}
 	for _, dev := range cfg.Devices {
 		urls := []string{}
@@ -64,20 +76,15 @@ func NewAgent(cfg *config.AgentConfig, opts Options) *Agent {
 		}
 		var dm *devicemanager.DeviceManager
 		if opts.NewDevice != nil {
-			dm = devicemanager.NewWithBackend(opts.NewDevice(dev.Name, dev.MTU), urls, cfg.HTTPClient.Timeout, cfg.HealthCheck, opts.UserAgent)
+			dm = devicemanager.NewWithBackend(opts.NewDevice(dev.Name, dev.MTU), urls, cfg.HTTPClient.Timeout, cfg.HealthCheck, deviceID, opts.UserAgent)
 		} else {
-			dm = devicemanager.New(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout, cfg.HealthCheck, opts.DeviceType, opts.UserAgent)
+			dm = devicemanager.New(dev.Name, dev.MTU, urls, cfg.HTTPClient.Timeout, cfg.HealthCheck, opts.DeviceType, deviceID, opts.UserAgent)
 		}
 		if err := dm.Run(); err != nil {
 			logger.Errorf("Error starting device `%s`: %v", dm.Name(), err)
 			continue
 		}
 		agent.deviceManagers = append(agent.deviceManagers, dm)
-	}
-	tokenDir := filepath.Dir(opts.TokenFile)
-	err := os.MkdirAll(tokenDir, 0750)
-	if err != nil {
-		logger.Errorf("Unable to create directory=%s", tokenDir)
 	}
 	agent.oa = oauth.NewTokenHandler(
 		cfg.OAuth.AuthURL,
@@ -93,7 +100,7 @@ func NewAgent(cfg *config.AgentConfig, opts Options) *Agent {
 	mux.HandleFunc("/renew", agent.renewHandler)
 	mux.HandleFunc("/", agent.mainHandler)
 	agent.server = &http.Server{Addr: opts.ListenAddress, Handler: mux}
-	return agent
+	return agent, nil
 }
 
 // ListenAndServe sets up and starts the background token refresh loop.

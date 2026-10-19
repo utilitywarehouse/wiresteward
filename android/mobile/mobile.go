@@ -37,8 +37,9 @@ type runningAgent struct {
 // device key are stored. The agent serves its status and login pages on
 // listenAddr, "localhost:7773" if empty; the app should open
 // http://<listenAddr>/renew in a browser to log in. logLevel is "debug" or
-// "error".
-func Start(configPath, filesDir, listenAddr, logLevel string, provider TunProvider) error {
+// "error". userAgent is sent to the servers, which show it as the client of the
+// device.
+func Start(configPath, filesDir, listenAddr, logLevel, userAgent string, provider TunProvider) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if running != nil {
@@ -68,15 +69,20 @@ func Start(configPath, filesDir, listenAddr, logLevel string, provider TunProvid
 	if err := tunnel.Run(); err != nil {
 		return fmt.Errorf("cannot load tunnel key: %w", err)
 	}
-	a := agent.NewAgent(cfg, agent.Options{
+	a, err := agent.NewAgent(cfg, agent.Options{
 		NewDevice: func(name string, _ int) devicemanager.Backend {
 			return &tunnelDevice{name: name, tunnel: tunnel}
 		},
 		TokenFile:                 filepath.Join(filesDir, "token"),
+		DeviceIDFile:              filepath.Join(filesDir, "device-id"),
 		ListenAddress:             listenAddr,
-		UserAgent:                 "wiresteward-android",
+		UserAgent:                 userAgent,
 		LoginRedirectPageOverride: loginRedirectPageOverride,
 	})
+	if err != nil {
+		tunnel.Stop()
+		return fmt.Errorf("cannot create the agent: %w", err)
+	}
 	running = &runningAgent{agent: a, tunnel: tunnel}
 	go a.ListenAndServe()
 	return nil

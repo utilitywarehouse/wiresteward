@@ -62,7 +62,7 @@ class WirestewardVpnService : VpnService(), TunProvider {
         // opens files and may touch the network.
         agentExecutor.execute {
             try {
-                Mobile.start(config.absolutePath, filesDir.absolutePath, "", "debug", this)
+                Mobile.start(config.absolutePath, filesDir.absolutePath, "", "debug", userAgent(), this)
                 running = true
             } catch (e: Exception) {
                 Log.e(TAG, "cannot start agent", e)
@@ -70,6 +70,14 @@ class WirestewardVpnService : VpnService(), TunProvider {
                 stopSelf()
             }
         }
+    }
+
+    /** What the servers show as the client: the app version, the Android version and the CPU architecture. */
+    @Suppress("DEPRECATION")
+    private fun userAgent(): String {
+        val version = packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"
+        val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
+        return "wiresteward-android/$version (Android ${Build.VERSION.RELEASE}; $abi)"
     }
 
     private fun stopAgent() {

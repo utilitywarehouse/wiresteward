@@ -18,6 +18,8 @@ import (
 	"github.com/utilitywarehouse/wiresteward/internal/healthcheck"
 )
 
+const testDeviceID = "0b9e1c7a-4d52-4f0e-9a64-8d1f3c2b5e70"
+
 type fakeBackend struct {
 	name       string
 	publicKey  string
@@ -85,14 +87,16 @@ func TestDeviceManager_renewLeaseWithBackend(t *testing.T) {
 	defer srv.Close()
 
 	b := &fakeBackend{name: "dev", publicKey: "backend-public-key"}
-	dm := NewWithBackend(b, []string{srv.URL}, config.Duration{Duration: time.Second}, config.AgentHealthCheckConfig{}, "test")
+	dm := NewWithBackend(b, []string{srv.URL}, config.Duration{Duration: time.Second}, config.AgentHealthCheckConfig{}, testDeviceID, "test")
 	assert.NoError(t, dm.Run())
 	dm.SetCachedToken(testToken(t))
 
 	// The key comes from the backend and the lease is applied through it,
 	// without touching the system (netlink or wgctrl).
 	assert.NoError(t, dm.renewLease())
-	assert.Equal(t, "backend-public-key", (<-requests).PubKey)
+	req := <-requests
+	assert.Equal(t, "backend-public-key", req.PubKey)
+	assert.Equal(t, testDeviceID, req.DeviceID)
 	assert.Len(t, b.configured, 1)
 	assert.Nil(t, b.olds[0])
 	assert.Equal(t, "10.90.0.3/32", b.configured[0].LocalAddress.String())
@@ -116,7 +120,7 @@ func TestDeviceManager_healthCheckUsesBackendExchanger(t *testing.T) {
 		Threshold:            3,
 	}
 	// A second server enables health checking.
-	dm := NewWithBackend(b, []string{srv.URL, srv.URL}, config.Duration{Duration: time.Second}, hcc, "test")
+	dm := NewWithBackend(b, []string{srv.URL, srv.URL}, config.Duration{Duration: time.Second}, hcc, testDeviceID, "test")
 	dm.SetCachedToken(testToken(t))
 	assert.NoError(t, dm.renewLease())
 	defer dm.healthCheck.Stop()
