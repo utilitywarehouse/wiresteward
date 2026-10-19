@@ -171,3 +171,21 @@ func TestNewAgent_FailsToStartWithoutADeviceID(t *testing.T) {
 
 	assert.False(t, started, "no device is set up before the id is known")
 }
+
+func TestNewAgent_FailsToStartWithoutATokenDirectory(t *testing.T) {
+	// The token cannot be stored, so the agent could never authenticate.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	assert.NoError(t, os.WriteFile(blocker, nil, 0600))
+	started := false
+	a, err := NewAgent(&config.AgentConfig{}, Options{
+		NewDevice: func(name string, _ int) devicemanager.Backend {
+			started = true
+			return &fakeBackend{name: name}
+		},
+		TokenFile:    filepath.Join(blocker, "token"),
+		DeviceIDFile: filepath.Join(t.TempDir(), "device-id"),
+	})
+	assert.ErrorContains(t, err, "unable to create directory")
+	assert.Nil(t, a)
+	assert.False(t, started)
+}

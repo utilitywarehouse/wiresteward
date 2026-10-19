@@ -5,10 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+const testID = "0b9e1c7a-4d52-4f0e-9a64-8d1f3c2b5e70"
 
 func TestLoadOrCreateDeviceID_CreatesAndKeepsAnID(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "device-id")
@@ -43,28 +46,6 @@ func TestLoadOrCreateDeviceID_IDsDiffer(t *testing.T) {
 	assert.NotEqual(t, a, b)
 }
 
-func TestLoadOrCreateDeviceID_UsesTheIDInTheFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "device-id")
-	assert.NoError(t, os.WriteFile(path, []byte("  0B9E1C7A-4D52-4F0E-9A64-8D1F3C2B5E70\n"), 0600))
-	id, err := loadOrCreateDeviceID(path)
-	assert.NoError(t, err)
-	assert.Equal(t, "0b9e1c7a-4d52-4f0e-9a64-8d1f3c2b5e70", id)
-	b, _ := os.ReadFile(path)
-	assert.Equal(t, "  0B9E1C7A-4D52-4F0E-9A64-8D1F3C2B5E70\n", string(b), "a valid file is not rewritten")
-}
-
-func TestLoadOrCreateDeviceID_ReplacesAnInvalidIDOnce(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "device-id")
-	assert.NoError(t, os.WriteFile(path, []byte("not an id"), 0600))
-
-	id, err := loadOrCreateDeviceID(path)
-	assert.NoError(t, err)
-	assert.Regexp(t, deviceIDRegexp, id)
-	again, err := loadOrCreateDeviceID(path)
-	assert.NoError(t, err)
-	assert.Equal(t, id, again, "the replacement is kept")
-}
-
 func TestLoadOrCreateDeviceID_CreatesTheDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state", "agent", "device-id")
 	id, err := loadOrCreateDeviceID(path)
@@ -72,27 +53,147 @@ func TestLoadOrCreateDeviceID_CreatesTheDirectory(t *testing.T) {
 	assert.Regexp(t, deviceIDRegexp, id)
 }
 
-func TestLoadOrCreateDeviceID_FailsWhenItCannotBeStored(t *testing.T) {
-	// A file where the directory should be: nothing can be written there. The
-	// agent must not make up an id that it cannot keep.
-	dir := t.TempDir()
-	blocker := filepath.Join(dir, "blocker")
-	assert.NoError(t, os.WriteFile(blocker, nil, 0600))
-	id, err := loadOrCreateDeviceID(filepath.Join(blocker, "device-id"))
-	assert.Error(t, err)
-	assert.Equal(t, "", id)
+// An id that is written by hand is used as it is, in its canonical form, and
+// the file is left alone: the id must not rotate because of how it is spelled.
+func TestLoadOrCreateDeviceID_AcceptsOtherSpellingsOfAUUID(t *testing.T) {
+	for name, content := range map[string]string{
+		"canonical":      testID + "\n",
+		"no newline":     testID,
+		"windows":        testID + "\r\n",
+		"spaces":         "  " + testID + " \n\n",
+		"uppercase":      strings.ToUpper(testID) + "\n",
+		"braces":         "{" + testID + "}\n",
+		"urn":            "urn:uuid:" + testID + "\n",
+		"urn uppercase":  "URN:UUID:" + strings.ToUpper(testID),
+		"without dashes": strings.ReplaceAll(testID, "-", "") + "\n",
+		"byte order":     "\ufeff" + testID + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "device-id")
+			assert.NoError(t, os.WriteFile(path, []byte(content), 0600))
+			id, err := loadOrCreateDeviceID(path)
+			assert.NoError(t, err)
+			assert.Equal(t, testID, id)
+			b, _ := os.ReadFile(path)
+			assert.Equal(t, content, string(b), "the file is not rewritten")
+		})
+	}
+}
+
+// Content that is not an id is not replaced, the agent does not guess.
+func TestLoadOrCreateDeviceID_FailsOnOtherContent(t *testing.T) {
+	for name, content := range map[string]string{
+		"text":        "not an id",
+		"short":       testID[:35],
+		"long":        testID + "0",
+		"two ids":     testID + "\n" + testID + "\n",
+		"not hex":     strings.Replace(testID, "0b9e", "zzzz", 1),
+		"half braces": "{" + testID,
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "device-id")
+			assert.NoError(t, os.WriteFile(path, []byte(content), 0600))
+			id, err := loadOrCreateDeviceID(path)
+			assert.ErrorContains(t, err, "invalid device id")
+			assert.Equal(t, "", id)
+			b, _ := os.ReadFile(path)
+			assert.Equal(t, content, string(b), "the file is left alone")
+		})
+	}
+}
+
+// An empty file is what a crash can leave behind.
+func TestLoadOrCreateDeviceID_ReplacesAnEmptyFile(t *testing.T) {
+	for name, content := range map[string]string{"empty": "", "blank": " \n\n", "byte order": "\ufeff"} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "device-id")
+			assert.NoError(t, os.WriteFile(path, []byte(content), 0600))
+			id, err := loadOrCreateDeviceID(path)
+			assert.NoError(t, err)
+			assert.Regexp(t, deviceIDRegexp, id)
+			again, err := loadOrCreateDeviceID(path)
+			assert.NoError(t, err)
+			assert.Equal(t, id, again, "the replacement is kept")
+		})
+	}
+}
+
+// Two starts of the agent that find no file at the same time end up with one id,
+// the one that is stored.
+func TestLoadOrCreateDeviceID_ConcurrentFirstStartsAgree(t *testing.T) {
+	for round := 0; round < 20; round++ {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "device-id")
+		const starts = 16
+		ids := make([]string, starts)
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		for i := 0; i < starts; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				<-start
+				id, err := loadOrCreateDeviceID(path)
+				assert.NoError(t, err)
+				ids[i] = id
+			}(i)
+		}
+		close(start)
+		wg.Wait()
+
+		b, err := os.ReadFile(path)
+		assert.NoError(t, err)
+		stored := strings.TrimSpace(string(b))
+		for _, id := range ids {
+			assert.Equal(t, stored, id)
+		}
+		entries, _ := os.ReadDir(dir)
+		assert.Len(t, entries, 1, "no temporary files are left")
+	}
+}
+
+func TestWriteFileAtomically_ExclusiveLeavesAnExistingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "device-id")
+
+	created, err := writeFileAtomically(path, []byte("first\n"), true)
+	assert.NoError(t, err)
+	assert.True(t, created)
+
+	created, err = writeFileAtomically(path, []byte("second\n"), true)
+	assert.NoError(t, err)
+	assert.False(t, created)
+	b, _ := os.ReadFile(path)
+	assert.Equal(t, "first\n", string(b))
+
+	// Without exclusive it replaces the file.
+	created, err = writeFileAtomically(path, []byte("third\n"), false)
+	assert.NoError(t, err)
+	assert.True(t, created)
+	b, _ = os.ReadFile(path)
+	assert.Equal(t, "third\n", string(b))
 }
 
 func TestLoadOrCreateDeviceID_FailsWhenTheFileCannotBeWritten(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "device-id")
-	defer func(w func(string, []byte) error) { writeFile = w }(writeFile)
-	writeFile = func(string, []byte) error { return errors.New("disk full") }
+	defer func(w func(string, []byte, bool) (bool, error)) { writeFile = w }(writeFile)
+	writeFile = func(string, []byte, bool) (bool, error) { return false, errors.New("disk full") }
 
 	id, err := loadOrCreateDeviceID(path)
 	assert.ErrorContains(t, err, "disk full")
 	assert.Equal(t, "", id)
 	_, statErr := os.Stat(path)
 	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestLoadOrCreateDeviceID_FailsWhenItCannotAgree(t *testing.T) {
+	// The file keeps being created by someone else but is never there to read.
+	path := filepath.Join(t.TempDir(), "device-id")
+	defer func(w func(string, []byte, bool) (bool, error)) { writeFile = w }(writeFile)
+	writeFile = func(string, []byte, bool) (bool, error) { return false, nil }
+
+	id, err := loadOrCreateDeviceID(path)
+	assert.Error(t, err)
+	assert.Equal(t, "", id)
 }
 
 func TestLoadOrCreateDeviceID_FailsInAReadOnlyDirectory(t *testing.T) {
@@ -139,5 +240,4 @@ func TestLoadOrCreateDeviceID_LeavesNoTemporaryFiles(t *testing.T) {
 		names = append(names, e.Name())
 	}
 	assert.Equal(t, []string{"device-id"}, names)
-	assert.False(t, strings.HasPrefix(names[0], "."))
 }

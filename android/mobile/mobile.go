@@ -32,14 +32,56 @@ type runningAgent struct {
 	tunnel *tunnel
 }
 
-// Start reads the agent config at configPath and starts the agent. filesDir is
-// a writable directory (the app's files dir) where the oauth token and the
-// device key are stored. The agent serves its status and login pages on
-// listenAddr, "localhost:7773" if empty; the app should open
-// http://<listenAddr>/renew in a browser to log in. logLevel is "debug" or
-// "error". userAgent is sent to the servers, which show it as the client of the
-// device.
-func Start(configPath, filesDir, listenAddr, logLevel, userAgent string, provider TunProvider) error {
+// StartOptions are the settings of Start. The fields are strings that are easy
+// to mix up, so they are named.
+type StartOptions struct {
+	// ConfigPath is the agent config file.
+	ConfigPath string
+	// FilesDir is a writable directory, the app's files dir, where the oauth
+	// token, the device id and the device key are stored.
+	FilesDir string
+	// ListenAddr is where the agent serves its status and login pages,
+	// "localhost:7773" if empty. The app opens http://<ListenAddr>/renew in
+	// a browser to log in.
+	ListenAddr string
+	// LogLevel is "debug" or "error", "error" if empty.
+	LogLevel string
+	// UserAgent is sent to the servers, which show it as the client of the
+	// device. It is "wiresteward-android" if empty.
+	UserAgent string
+}
+
+// withDefaults returns the options with the defaults of the empty fields, or an
+// error when a required one is missing.
+func (o *StartOptions) withDefaults() (StartOptions, error) {
+	if o == nil {
+		return StartOptions{}, errors.New("start options are required")
+	}
+	opts := *o
+	if opts.ConfigPath == "" {
+		return StartOptions{}, errors.New("config path is required")
+	}
+	if opts.FilesDir == "" {
+		return StartOptions{}, errors.New("files dir is required")
+	}
+	if opts.ListenAddr == "" {
+		opts.ListenAddr = "localhost:7773"
+	}
+	if opts.LogLevel == "" {
+		opts.LogLevel = "error"
+	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = "wiresteward-android"
+	}
+	return opts, nil
+}
+
+// Start reads the agent config and starts the agent.
+func Start(options *StartOptions, provider TunProvider) error {
+	opts, err := options.withDefaults()
+	if err != nil {
+		return err
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if running != nil {
@@ -48,12 +90,9 @@ func Start(configPath, filesDir, listenAddr, logLevel, userAgent string, provide
 	if provider == nil {
 		return errors.New("tun provider is required")
 	}
-	logging.SetLogLevel(logLevel)
-	if listenAddr == "" {
-		listenAddr = "localhost:7773"
-	}
+	logging.SetLogLevel(opts.LogLevel)
 
-	cfg, err := config.ReadAgentConfig(configPath)
+	cfg, err := config.ReadAgentConfig(opts.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("cannot read agent config: %w", err)
 	}
@@ -64,7 +103,7 @@ func Start(configPath, filesDir, listenAddr, logLevel, userAgent string, provide
 			mtu = dev.MTU
 		}
 	}
-	filesDir = filepath.Clean(filesDir)
+	filesDir := filepath.Clean(opts.FilesDir)
 	tunnel := newTunnel(mtu, filepath.Join(filesDir, "wiresteward.key"), provider)
 	if err := tunnel.Run(); err != nil {
 		return fmt.Errorf("cannot load tunnel key: %w", err)
@@ -75,8 +114,8 @@ func Start(configPath, filesDir, listenAddr, logLevel, userAgent string, provide
 		},
 		TokenFile:                 filepath.Join(filesDir, "token"),
 		DeviceIDFile:              filepath.Join(filesDir, "device-id"),
-		ListenAddress:             listenAddr,
-		UserAgent:                 userAgent,
+		ListenAddress:             opts.ListenAddr,
+		UserAgent:                 opts.UserAgent,
 		LoginRedirectPageOverride: loginRedirectPageOverride,
 	})
 	if err != nil {

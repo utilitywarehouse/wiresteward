@@ -65,9 +65,10 @@ func NewAgent(cfg *config.AgentConfig, opts Options) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The agent cannot get a token when it cannot store it.
 	tokenDir := filepath.Dir(opts.TokenFile)
 	if err := os.MkdirAll(tokenDir, 0750); err != nil {
-		logger.Errorf("Unable to create directory=%s", tokenDir)
+		return nil, fmt.Errorf("unable to create directory %s: %w", tokenDir, err)
 	}
 	for _, dev := range cfg.Devices {
 		urls := []string{}
