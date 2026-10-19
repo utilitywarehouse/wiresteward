@@ -29,3 +29,4 @@ jobs:
         with:
           run: |
             go test -v ./...
+            (cd android && go vet ./... && go test -v ./...)

@@ -39,3 +39,78 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+  android:
+    # Attaches the signed APK to the release that goreleaser created.
+    needs: goreleaser
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: android/go.mod
+          cache-dependency-path: android/go.sum
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Test
+        working-directory: android
+        run: go test ./...
+      - name: Install the NDK
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: Build the Go agent
+        working-directory: android
+        run: ./build-aar.sh
+      - name: Derive the app version from the tag
+        # versionCode must grow with every release: MMmmpppr, where r is the
+        # rc number for vX.Y.Z-RCn tags and 9 for a final release.
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          core="${version%%-*}"
+          IFS=. read -r major minor patch <<< "$core"
+          rc=9
+          if [[ "$version" =~ -RC([0-9]+)$ ]]; then rc="${BASH_REMATCH[1]}"; fi
+          echo "VERSION_NAME=$version" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$(( major * 10000000 + minor * 10000 + patch * 10 + rc ))" >> "$GITHUB_ENV"
+      - name: Build the signed APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: |
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.p12"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          ./gradlew --no-daemon :app:assembleRelease \
+            -PversionName="$VERSION_NAME" -PversionCode="$VERSION_CODE"
+          rm -f "$ANDROID_KEYSTORE_PATH"
+          cp app/build/outputs/apk/release/app-release.apk \
+            "$RUNNER_TEMP/wiresteward-android-${VERSION_NAME}.apk"
+      - name: Verify the APK signature
+        run: |
+          apksigner="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$apksigner" verify --print-certs \
+            "$RUNNER_TEMP/wiresteward-android-${VERSION_NAME}.apk"
+      - name: Attach the APK to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/wiresteward-android-${VERSION_NAME}.apk" --clobber

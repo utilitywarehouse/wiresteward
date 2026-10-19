@@ -1,0 +1,7 @@
+app/libs/*.aar
+app/libs/*.jar
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
