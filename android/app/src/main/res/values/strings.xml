@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Wiresteward</string>
+    <string name="notification_channel">VPN status</string>
+    <string name="notification_text">Wiresteward VPN is running</string>
+</resources>
