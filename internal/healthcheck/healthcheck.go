@@ -24,8 +24,10 @@ type HealthCheck struct {
 	renew      chan struct{} // Chan to notify for a reboot
 }
 
-func New(device, address string, interval, intervalAF, timeout config.Duration, threshold int, renew chan struct{}) (*HealthCheck, error) {
-	pc, err := newPingChecker(device, address, timeout)
+// New creates a HealthCheck that pings address. A nil exchanger uses the
+// default raw icmp socket.
+func New(device, address string, interval, intervalAF, timeout config.Duration, threshold int, renew chan struct{}, exchanger EchoExchanger) (*HealthCheck, error) {
+	pc, err := newPingChecker(device, address, timeout, exchanger)
 	if err != nil {
 		return &HealthCheck{}, err
 	}

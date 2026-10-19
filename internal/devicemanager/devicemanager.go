@@ -27,11 +27,23 @@ import (
 
 var logger = logging.Logger
 
+// Backend replaces the default device setup (netlink and wgctrl on linux). It
+// owns the device key and applies the lease, including the peer, to the
+// device. It can also implement healthcheck.EchoExchanger.
+type Backend interface {
+	device.Device
+	// PublicKey returns the base64 public key that is sent to the servers.
+	PublicKey() (string, error)
+	// Configure applies the new lease, old is nil for the first one.
+	Configure(old, new *WirestewardPeerConfig) error
+}
+
 // DeviceManager embeds an AgentDevice and implements functionality related to
 // configuring the device and system based on information retrieved from
 // wiresteward servers.
 type DeviceManager struct {
 	device.Device
+	backend              Backend // optional, replaces the default device setup
 	userAgent            string
 	cachedToken          string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
 	tokenMutex           sync.RWMutex
@@ -71,6 +83,14 @@ func New(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout
 	}
 }
 
+// NewWithBackend is like New but the device is set up through the backend.
+func NewWithBackend(backend Backend, wirestewardURLs []string, httpClientTimeout config.Duration, hcc config.AgentHealthCheckConfig, userAgent string) *DeviceManager {
+	dm := New(backend.Name(), 0, wirestewardURLs, httpClientTimeout, hcc, "", userAgent)
+	dm.Device = backend
+	dm.backend = backend
+	return dm
+}
+
 func (dm *DeviceManager) SetCachedToken(token string) {
 	dm.tokenMutex.Lock()
 	dm.cachedToken = token
@@ -107,6 +127,19 @@ func (dm *DeviceManager) Run() error {
 	if err := dm.Device.Run(); err != nil {
 		return fmt.Errorf("Error starting device `%s`: %w", dm.Name(), err)
 	}
+	if dm.backend == nil {
+		if err := dm.initLinkAndWGKeys(); err != nil {
+			return err
+		}
+	}
+
+	if len(dm.serverURLs) > 0 {
+		go dm.renewLoop()
+	}
+	return nil
+}
+
+func (dm *DeviceManager) initLinkAndWGKeys() error {
 	if err := dm.ensureLinkUp(); err != nil {
 		return err
 	}
@@ -130,11 +163,15 @@ func (dm *DeviceManager) Run() error {
 			return err
 		}
 	}
-
-	if len(dm.serverURLs) > 0 {
-		go dm.renewLoop()
-	}
 	return nil
+}
+
+func (dm *DeviceManager) publicKey() (string, error) {
+	if dm.backend != nil {
+		return dm.backend.PublicKey()
+	}
+	publicKey, _, err := wireguard.GetKeys(dm.Name())
+	return publicKey, err
 }
 
 func (dm *DeviceManager) renewLoop() {
@@ -213,7 +250,7 @@ func (dm *DeviceManager) renewLease() error {
 	if _, err := oauth.ValidateJWTToken(token); err != nil {
 		return err
 	}
-	publicKey, _, err := wireguard.GetKeys(dm.Name())
+	publicKey, err := dm.publicKey()
 	if err != nil {
 		return fmt.Errorf("Could not get keys from device %s: %w", dm.Name(), err)
 	}
@@ -245,7 +282,13 @@ func (dm *DeviceManager) renewLease() error {
 		// TODO: Depending on the implementation of updateDeviceConfig, if the
 		// update fails partially, we might end up with the wrong "old" config
 		// and fail to cleanup properly when we update the next time.
-		if err := dm.updateDeviceConfig(oldConfig, config); err != nil {
+		var err error
+		if dm.backend != nil {
+			err = dm.backend.Configure(oldConfig, config)
+		} else {
+			err = dm.updateDeviceConfig(oldConfig, config)
+		}
+		if err != nil {
 			logger.Errorf(
 				"Could not update peer configuration for `%s`: %v",
 				serverURL,
@@ -255,8 +298,10 @@ func (dm *DeviceManager) renewLease() error {
 			dm.config = config
 		}
 		dm.configMutex.Unlock()
-		if err := wireguard.SetPeers(dm.Name(), []wgtypes.PeerConfig{*config.PeerConfig}); err != nil {
-			return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
+		if dm.backend == nil {
+			if err := wireguard.SetPeers(dm.Name(), []wgtypes.PeerConfig{*config.PeerConfig}); err != nil {
+				return fmt.Errorf("Error setting new peers for device %s: %w", dm.Name(), err)
+			}
 		}
 	} else {
 		logger.Verbosef(
@@ -269,6 +314,8 @@ func (dm *DeviceManager) renewLease() error {
 	// client and more servers to potentially fail over to. The health check
 	// self-terminates when it fires a renewal, so we always restart it here.
 	if wgServerAddr != "" && len(dm.serverURLs) > 1 {
+		// A backend can optionally replace the default icmp echo exchange.
+		exchanger, _ := dm.backend.(healthcheck.EchoExchanger)
 		dm.hcMutex.Lock()
 		dm.healthCheck.Stop()
 		hc, err := healthcheck.New(
@@ -279,6 +326,7 @@ func (dm *DeviceManager) renewLease() error {
 			dm.healthCheckConf.Timeout,
 			dm.healthCheckConf.Threshold,
 			dm.healthCheckRenewChan,
+			exchanger,
 		)
 		if err != nil {
 			dm.hcMutex.Unlock()
