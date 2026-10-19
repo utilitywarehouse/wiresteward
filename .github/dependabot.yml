@@ -11,3 +11,13 @@ updates:
       all:
         patterns:
           - "*"
+
+  # Maintain dependencies of the android module
+  - package-ecosystem: "gomod"
+    directory: "/android"
+    schedule:
+      interval: "monthly"
+    groups:
+      all:
+        patterns:
+          - "*"

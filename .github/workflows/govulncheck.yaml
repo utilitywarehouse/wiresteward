@@ -29,3 +29,4 @@ jobs:
           go-version-file: go.mod
       - run: |
           go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+          (cd android && go run golang.org/x/vuln/cmd/govulncheck@latest ./...)

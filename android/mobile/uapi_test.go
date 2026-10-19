@@ -24,12 +24,16 @@ func TestUAPIConfig(t *testing.T) {
 	pc2, err := wireguard.NewPeerConfig(peerKey2.PublicKey().String(), "", "127.0.0.2:51820", []string{"172.16.0.0/12"})
 	assert.NoError(t, err)
 
-	got := uapiConfig(priv, []*wgtypes.PeerConfig{pc, pc2})
+	gone, err := wgtypes.GeneratePrivateKey()
+	assert.NoError(t, err)
+	got := uapiConfig(priv, []*wgtypes.PeerConfig{pc, pc2}, []wgtypes.Key{gone.PublicKey()})
 	pub := peerKey.PublicKey()
 	pub2 := peerKey2.PublicKey()
+	goneKey := gone.PublicKey()
 	want := strings.Join([]string{
 		"private_key=" + hex.EncodeToString(priv[:]),
-		"replace_peers=true",
+		"public_key=" + hex.EncodeToString(goneKey[:]),
+		"remove=true",
 		"public_key=" + hex.EncodeToString(pub[:]),
 		"endpoint=127.0.0.1:51820",
 		"persistent_keepalive_interval=25",

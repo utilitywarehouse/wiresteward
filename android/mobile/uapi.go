@@ -9,13 +9,16 @@ import (
 )
 
 // uapiConfig renders a private key and peers in the wireguard-go UAPI "set"
-// format, replacing any existing peers. wgctrl cannot be used on Android
-// because the UAPI unix socket directory is not writable, so the config is
-// applied directly on the in-process device with Device.IpcSet.
-func uapiConfig(privateKey wgtypes.Key, peers []*wgtypes.PeerConfig) string {
+// format. The peers in removed are deleted, the others are added or updated
+// in place so that the sessions of unchanged peers are kept. wgctrl cannot be
+// used on Android because the UAPI unix socket directory is not writable, so
+// the config is applied directly on the in-process device with Device.IpcSet.
+func uapiConfig(privateKey wgtypes.Key, peers []*wgtypes.PeerConfig, removed []wgtypes.Key) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "private_key=%s\n", hex.EncodeToString(privateKey[:]))
-	b.WriteString("replace_peers=true\n")
+	for _, key := range removed {
+		fmt.Fprintf(&b, "public_key=%s\nremove=true\n", hex.EncodeToString(key[:]))
+	}
 	for _, peer := range peers {
 		fmt.Fprintf(&b, "public_key=%s\n", hex.EncodeToString(peer.PublicKey[:]))
 		if peer.PresharedKey != nil {

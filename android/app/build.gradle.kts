@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.utilitywarehouse.wiresteward"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         // Set by the release job from the git tag.
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1

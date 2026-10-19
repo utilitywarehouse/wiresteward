@@ -12,12 +12,17 @@ import android.util.Log
 import mobile.Mobile
 import mobile.TunProvider
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * Hosts the Go agent. The agent asks for the VPN interface through
  * [TunProvider.establish] every time it receives a new lease.
  */
 class WirestewardVpnService : VpnService(), TunProvider {
+
+    // Starting and stopping the agent run in request order on one thread, so
+    // that a stop is never overtaken by the start that preceded it.
+    private val agentExecutor = Executors.newSingleThreadExecutor()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
@@ -32,6 +37,7 @@ class WirestewardVpnService : VpnService(), TunProvider {
 
     override fun onDestroy() {
         stopAgent()
+        agentExecutor.shutdown()
         super.onDestroy()
     }
 
@@ -54,7 +60,7 @@ class WirestewardVpnService : VpnService(), TunProvider {
         // Mobile.start() returns once the agent is set up; the agent keeps
         // running in its own goroutines. Keep it off the main thread, it
         // opens files and may touch the network.
-        Thread {
+        agentExecutor.execute {
             try {
                 Mobile.start(config.absolutePath, filesDir.absolutePath, "", "debug", this)
                 running = true
@@ -63,13 +69,15 @@ class WirestewardVpnService : VpnService(), TunProvider {
                 starting.set(false)
                 stopSelf()
             }
-        }.start()
+        }
     }
 
     private fun stopAgent() {
-        Mobile.stop()
-        running = false
         starting.set(false)
+        agentExecutor.execute {
+            Mobile.stop()
+            running = false
+        }
     }
 
     /**

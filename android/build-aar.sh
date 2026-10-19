@@ -14,6 +14,6 @@ export PATH="$bin:$PATH"
 gomobile bind \
   -ldflags="-extldflags=-Wl,-z,max-page-size=16384" \
   -target=android/arm64,android/arm \
-  -androidapi 24 \
+  -androidapi 26 \
   -o app/libs/mobile.aar \
   ./mobile

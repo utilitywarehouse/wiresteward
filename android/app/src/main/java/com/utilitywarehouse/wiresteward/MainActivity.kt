@@ -20,11 +20,15 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import mobile.Mobile
 import org.json.JSONObject
 import java.text.DateFormat
 import java.time.OffsetDateTime
 import java.util.Date
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Control and status screen: import the agent config, start/stop the VPN
@@ -58,10 +62,14 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     // The agent starts on a background thread, so poll its state while visible.
+    // The status can wait for the network (token refresh), so it is read off
+    // the main thread, one request at a time.
     private val handler = Handler(Looper.getMainLooper())
+    private val statusExecutor = Executors.newSingleThreadExecutor()
+    private val polling = AtomicBoolean(false)
     private val poll = object : Runnable {
         override fun run() {
-            refresh()
+            refreshAsync()
             handler.postDelayed(this, 1000)
         }
     }
@@ -90,8 +98,8 @@ class MainActivity : ComponentActivity() {
         val root = ScrollView(this).apply {
             addView(content)
             // Targeting SDK 35 draws edge to edge: keep clear of the system bars.
-            setOnApplyWindowInsetsListener { v: View, insets ->
-                val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+            ViewCompat.setOnApplyWindowInsetsListener(this) { v: View, insets ->
+                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
                 v.setPadding(0, bars.top, 0, bars.bottom)
                 insets
             }
@@ -113,6 +121,11 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
+    override fun onDestroy() {
+        statusExecutor.shutdown()
+        super.onDestroy()
+    }
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun button(label: String, onClick: () -> Unit) =
@@ -125,8 +138,22 @@ class MainActivity : ComponentActivity() {
             setOnClickListener { onClick() }
         }
 
-    private fun refresh() {
-        val json = Mobile.status()
+    private fun refreshAsync() {
+        if (!polling.compareAndSet(false, true)) return
+        statusExecutor.execute {
+            val json = try {
+                Mobile.status()
+            } catch (e: Exception) {
+                null
+            }
+            handler.post {
+                polling.set(false)
+                if (json != null && !isDestroyed) refresh(json)
+            }
+        }
+    }
+
+    private fun refresh(json: String) {
         if (json == lastStatus) return
         lastStatus = json
         val status = JSONObject(json)

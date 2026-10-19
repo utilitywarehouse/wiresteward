@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
@@ -46,13 +47,26 @@ type tunnel struct {
 	provider TunProvider
 	logger   *device.Logger
 
+	// createTUN wraps the file descriptor of the VPN interface and newBind
+	// creates the socket layer of the device, they are replaced in tests.
+	createTUN func(fd int) (tun.Device, error)
+	newBind   func() conn.Bind
+
 	mu         sync.Mutex
 	privateKey wgtypes.Key
 	leases     map[string]*devicemanager.WirestewardPeerConfig // by device name
 	dev        *device.Device
 	nat        *natTun
-	routesKey  string // routes the current interface was established with
+	peerKeys   map[wgtypes.Key]struct{} // peers of dev
+	routesKey  string                   // routes the current interface was established with
 	stopped    bool
+}
+
+// createUnmonitoredTUN skips the netlink link monitoring that Android does not
+// allow for apps. The mtu is set by VpnService.Builder instead.
+func createUnmonitoredTUN(fd int) (tun.Device, error) {
+	dev, _, err := tun.CreateUnmonitoredTUNFromFD(fd)
+	return dev, err
 }
 
 func newTunnel(mtu int, keyFile string, provider TunProvider) *tunnel {
@@ -60,11 +74,13 @@ func newTunnel(mtu int, keyFile string, provider TunProvider) *tunnel {
 		mtu = device.DefaultMTU
 	}
 	return &tunnel{
-		mtu:      mtu,
-		keyFile:  keyFile,
-		provider: provider,
-		logger:   logging.NewLogger("wireguard-go"),
-		leases:   map[string]*devicemanager.WirestewardPeerConfig{},
+		mtu:       mtu,
+		keyFile:   keyFile,
+		provider:  provider,
+		logger:    logging.NewLogger("wireguard-go"),
+		createTUN: createUnmonitoredTUN,
+		newBind:   conn.NewDefaultBind,
+		leases:    map[string]*devicemanager.WirestewardPeerConfig{},
 	}
 }
 
@@ -127,6 +143,7 @@ func (t *tunnel) applyLocked() error {
 	sort.Strings(names)
 
 	var peers []*wgtypes.PeerConfig
+	peerKeys := map[wgtypes.Key]struct{}{}
 	leaseAddr := map[string][4]byte{}
 	owner := map[string]string{} // allowed ip -> device
 	for _, name := range names {
@@ -143,6 +160,7 @@ func (t *tunnel) applyLocked() error {
 			owner[ip.String()] = name
 		}
 		peers = append(peers, cfg.PeerConfig)
+		peerKeys[cfg.PublicKey] = struct{}{}
 	}
 	routes := make([]string, 0, len(owner))
 	natRoutes := make([]natRoute, 0, len(owner))
@@ -154,24 +172,36 @@ func (t *tunnel) applyLocked() error {
 	routesKey := strings.Join(routes, "\n")
 
 	if t.dev != nil && routesKey == t.routesKey {
+		var removed []wgtypes.Key
+		for key := range t.peerKeys {
+			if _, ok := peerKeys[key]; !ok {
+				removed = append(removed, key)
+			}
+		}
 		t.nat.update(natRoutes)
-		return t.dev.IpcSet(uapiConfig(t.privateKey, peers))
+		if err := t.dev.IpcSet(uapiConfig(t.privateKey, peers, removed)); err != nil {
+			return err
+		}
+		t.peerKeys = peerKeys
+		return nil
 	}
 
 	fd, err := t.provider.Establish(tunLocalAddress, 32, routesKey, t.mtu)
 	if err != nil {
 		return fmt.Errorf("cannot establish vpn interface: %w", err)
 	}
-	// The unmonitored variant skips the netlink link monitoring that Android
-	// does not allow for apps. The mtu is set by VpnService.Builder instead.
-	tunDev, _, err := tun.CreateUnmonitoredTUNFromFD(fd)
+	// Establishing a new interface replaces the previous one, so from here on
+	// the current device is dead whether or not the new one comes up.
+	t.closeDeviceLocked()
+	tunDev, err := t.createTUN(fd)
 	if err != nil {
+		syscall.Close(fd)
 		return fmt.Errorf("cannot create tun from fd: %w", err)
 	}
 	nat := newNatTun(tunDev)
 	nat.update(natRoutes)
-	dev := device.NewDevice(nat, conn.NewDefaultBind(), t.logger)
-	if err := dev.IpcSet(uapiConfig(t.privateKey, peers)); err != nil {
+	dev := device.NewDevice(nat, t.newBind(), t.logger)
+	if err := dev.IpcSet(uapiConfig(t.privateKey, peers, nil)); err != nil {
 		dev.Close()
 		return fmt.Errorf("cannot configure device: %w", err)
 	}
@@ -179,11 +209,17 @@ func (t *tunnel) applyLocked() error {
 		dev.Close()
 		return fmt.Errorf("cannot bring device up: %w", err)
 	}
+	t.dev, t.nat, t.peerKeys, t.routesKey = dev, nat, peerKeys, routesKey
+	return nil
+}
+
+// closeDeviceLocked closes the wireguard-go device and the underlying tun
+// interface, the next apply establishes a new one.
+func (t *tunnel) closeDeviceLocked() {
 	if t.dev != nil {
 		t.dev.Close()
 	}
-	t.dev, t.nat, t.routesKey = dev, nat, routesKey
-	return nil
+	t.dev, t.nat, t.peerKeys, t.routesKey = nil, nil, nil, ""
 }
 
 // Stop closes the wireguard-go device and the underlying tun interface.
@@ -191,9 +227,6 @@ func (t *tunnel) Stop() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.stopped = true
-	if t.dev != nil {
-		t.dev.Close()
-		t.dev, t.nat, t.routesKey = nil, nil, ""
-	}
+	t.closeDeviceLocked()
 	t.leases = map[string]*devicemanager.WirestewardPeerConfig{}
 }
