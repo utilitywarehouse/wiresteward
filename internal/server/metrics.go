@@ -21,11 +21,22 @@ var tokenValidations = prometheus.NewCounterVec(
 	[]string{"issuer", "result"},
 )
 
+// leaseEvictions counts leases that were replaced because their user went over
+// the limit of leases per server. A steady increase points at a client that
+// does not keep its device id.
+var leaseEvictions = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wiresteward_lease_evictions_total",
+		Help: "Number of leases replaced because a user went over the limit of leases per server.",
+	},
+)
+
 // initTokenValidationMetrics registers the tokenValidations counter and
 // pre-initialises every (issuer, result) series to 0 so that unused oauth
 // servers are visible as flat-zero counters rather than missing series.
 func initTokenValidationMetrics(issuers []string) {
 	prometheus.MustRegister(tokenValidations)
+	prometheus.MustRegister(leaseEvictions)
 	for _, iss := range issuers {
 		for _, r := range []string{"active", "inactive", "error"} {
 			tokenValidations.WithLabelValues(iss, r).Add(0)
@@ -62,38 +73,38 @@ func newMetricsCollector(devices func() ([]*wgtypes.Device, error), lm *fileLeas
 		),
 		PeerInfo: prometheus.NewDesc(
 			"wiresteward_wg_peer_info",
-			"Metadata about a peer. The public_key label on peer metrics refers to the peer's public key; not the device's public key.",
-			append(labels, []string{"username"}...),
+			"Metadata about a peer. The public_key label on peer metrics refers to the peer's public key; not the device's public key. device_id is the id the agent sends, empty for agents that do not send one, client is the User-Agent of its last lease request and endpoint the address that the peer last connected from.",
+			append(labels, []string{"username", "device_id", "client", "endpoint"}...),
 			nil,
 		),
 		PeerAllowedIPsInfo: prometheus.NewDesc(
 			"wiresteward_wg_peer_allowed_ips_info",
 			"Metadata about each of a peer's allowed IP subnets for a given device.",
-			append(labels, []string{"allowed_ips", "username"}...),
+			append(labels, []string{"allowed_ips", "username", "device_id"}...),
 			nil,
 		),
 		PeerReceiveBytes: prometheus.NewDesc(
 			"wiresteward_wg_peer_receive_bytes_total",
 			"Number of bytes received from a given peer.",
-			append(labels, "username"),
+			append(labels, "username", "device_id"),
 			nil,
 		),
 		PeerTransmitBytes: prometheus.NewDesc(
 			"wiresteward_wg_peer_transmit_bytes_total",
 			"Number of bytes transmitted to a given peer.",
-			append(labels, "username"),
+			append(labels, "username", "device_id"),
 			nil,
 		),
 		PeerLastHandshake: prometheus.NewDesc(
 			"wiresteward_wg_peer_last_handshake_seconds",
 			"UNIX timestamp for the last handshake with a given peer.",
-			append(labels, "username"),
+			append(labels, "username", "device_id"),
 			nil,
 		),
 		PeerLeaseExpiryTime: prometheus.NewDesc(
 			"wiresteward_peer_lease_expiry_time",
 			"UNIX timestamp for the a peer's lease expiry time.",
-			[]string{"address", "public_key", "username"},
+			[]string{"address", "public_key", "username", "device_id"},
 			nil,
 		),
 		devices:      devices,
@@ -127,6 +138,12 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	records := c.leaseManager.snapshot()
+	byPubKey := make(map[string]string, len(records))
+	for key, r := range records {
+		byPubKey[r.PubKey] = key
+	}
+
 	for _, d := range devices {
 		ch <- prometheus.MustNewConstMetric(
 			c.DeviceInfo,
@@ -137,13 +154,21 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 
 		for _, p := range d.Peers {
 			pub := p.PublicKey.String()
-			username := c.getUserFromPubKey(pub)
+			var username, deviceID, client string
+			if key, ok := byPubKey[pub]; ok {
+				username, deviceID = splitLeaseKey(key)
+				client = records[key].client
+			}
+			endpoint := ""
+			if p.Endpoint != nil {
+				endpoint = p.Endpoint.IP.String()
+			}
 
 			ch <- prometheus.MustNewConstMetric(
 				c.PeerInfo,
 				prometheus.GaugeValue,
 				1,
-				d.Name, pub, username,
+				d.Name, pub, username, deviceID, client, endpoint,
 			)
 
 			for _, ip := range p.AllowedIPs {
@@ -151,7 +176,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 					c.PeerAllowedIPsInfo,
 					prometheus.GaugeValue,
 					1,
-					d.Name, pub, ip.String(), username,
+					d.Name, pub, ip.String(), username, deviceID,
 				)
 			}
 
@@ -159,14 +184,14 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 				c.PeerReceiveBytes,
 				prometheus.CounterValue,
 				float64(p.ReceiveBytes),
-				d.Name, pub, username,
+				d.Name, pub, username, deviceID,
 			)
 
 			ch <- prometheus.MustNewConstMetric(
 				c.PeerTransmitBytes,
 				prometheus.CounterValue,
 				float64(p.TransmitBytes),
-				d.Name, pub, username,
+				d.Name, pub, username, deviceID,
 			)
 
 			// Expose last handshake of 0 unless a last handshake time is set.
@@ -179,11 +204,12 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 				c.PeerLastHandshake,
 				prometheus.GaugeValue,
 				last,
-				d.Name, pub, username,
+				d.Name, pub, username, deviceID,
 			)
 		}
 	}
-	for username, record := range c.leaseManager.wgRecords {
+	for key, record := range records {
+		username, deviceID := splitLeaseKey(key)
 		// Expose expiry time of 0 if not set.
 		var expiry float64
 		if !record.expires.IsZero() {
@@ -195,18 +221,9 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue,
 			expiry,
 			record.IP.String(),
-			record.PubKey, username,
+			record.PubKey, username, deviceID,
 		)
 	}
-}
-
-func (c *collector) getUserFromPubKey(pub string) string {
-	for username, wgRecord := range c.leaseManager.wgRecords {
-		if pub == wgRecord.PubKey {
-			return username
-		}
-	}
-	return ""
 }
 
 func startMetricsServer(metricsAddr string) {

@@ -170,7 +170,14 @@ type ServerConfig struct {
 	WireguardListenPort int
 	OauthServers        []OAuthServerConfig
 	ServerListenAddress string
+	// MaxLeasesPerUser is the number of leases, one per device, that a user
+	// can hold on this server. A request from another device replaces the
+	// oldest lease of the user.
+	MaxLeasesPerUser int
 }
+
+// DefaultMaxLeasesPerUser allows a mobile device, a laptop and a spare.
+const DefaultMaxLeasesPerUser = 3
 
 func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	cfg := &struct {
@@ -184,6 +191,7 @@ func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 		LeasesFilename      string              `json:"leasesFilename"`
 		OauthServers        []OAuthServerConfig `json:"oauthServers"`
 		ServerListenAddress string              `json:"serverListenAddress"`
+		MaxLeasesPerUser    int                 `json:"maxLeasesPerUser"`
 	}{}
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return err
@@ -204,6 +212,7 @@ func (c *ServerConfig) UnmarshalJSON(data []byte) error {
 	c.LeasesFilename = cfg.LeasesFilename
 	c.OauthServers = cfg.OauthServers
 	c.ServerListenAddress = cfg.ServerListenAddress
+	c.MaxLeasesPerUser = cfg.MaxLeasesPerUser
 	return nil
 }
 
@@ -212,6 +221,12 @@ func verifyServerConfig(conf *ServerConfig, allowPublicRoutes bool) error {
 		return fmt.Errorf("config missing `address`")
 	}
 	conf.WireguardIPPrefix = netip.MustParsePrefix(conf.Address)
+	if conf.MaxLeasesPerUser < 0 {
+		return fmt.Errorf("`maxLeasesPerUser` cannot be negative")
+	}
+	if conf.MaxLeasesPerUser == 0 {
+		conf.MaxLeasesPerUser = DefaultMaxLeasesPerUser
+	}
 	if !allowPublicRoutes {
 		ok, err := isPrivateCIDR(conf.Address)
 		if err != nil {

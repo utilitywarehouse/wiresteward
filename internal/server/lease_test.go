@@ -22,7 +22,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 
 	// New peer: lm.ip (subnet address) must be skipped; needToUpdateWGPeers
 	// must be true so the interface is configured for the first time.
-	record, needsUpdate, err := lm.createOrUpdatePeer(testUsername, testPubKey1, testExpiry)
+	record, needsUpdate, err := lm.createOrUpdatePeer(testUsername, "", testPubKey1, "", testExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	// Same public key: only the expiry changes, no interface reconfiguration
 	// needed (needToUpdateWGPeers must be false).
 	newExpiry := time.Unix(9999, 0)
-	record1b, needsUpdate, err := lm.createOrUpdatePeer(testUsername, testPubKey1, newExpiry)
+	record1b, needsUpdate, err := lm.createOrUpdatePeer(testUsername, "", testPubKey1, "", newExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 
 	// Different public key: record is updated in place (same IP) and
 	// needToUpdateWGPeers must be true so the interface reflects the new key.
-	record2, needsUpdate, err := lm.createOrUpdatePeer(testUsername, testPubKey2, testExpiry)
+	record2, needsUpdate, err := lm.createOrUpdatePeer(testUsername, "", testPubKey2, "", testExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestFileLeaseManager_createOrUpdatePeer(t *testing.T) {
 	}
 
 	// Empty username must error.
-	_, _, err = lm.createOrUpdatePeer("", testPubKey2, testExpiry)
+	_, _, err = lm.createOrUpdatePeer("", "", testPubKey2, "", testExpiry)
 	assert.Equal(t, err, fmt.Errorf("Cannot add peer for empty username"))
 }
 

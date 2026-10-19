@@ -22,6 +22,9 @@ type HTTPLeaseHandler struct {
 	leaseManager   *fileLeaseManager
 	serverConfig   *config.ServerConfig
 	tokenValidator *tokenValidator
+	// serverPublicKey returns the public key of the server device,
+	// wireguard.GetKeys when nil.
+	serverPublicKey func() (string, error)
 }
 
 func extractBearerTokenFromHeader(req *http.Request, header string) (string, error) {
@@ -74,12 +77,24 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 			http.Error(w, "Cannot decode request body", http.StatusInternalServerError)
 			return
 		}
-		wg, err := lh.leaseManager.addNewPeer(tokenInfo.UserName, p.PubKey, time.Unix(tokenInfo.Exp, 0))
+		deviceID, err := parseDeviceID(p.DeviceID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		wg, err := lh.leaseManager.addNewPeer(tokenInfo.UserName, deviceID, p.PubKey, sanitizeClient(r.UserAgent()), time.Unix(tokenInfo.Exp, 0))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		pubKey, _, err := wireguard.GetKeys("")
+		getKey := lh.serverPublicKey
+		if getKey == nil {
+			getKey = func() (string, error) {
+				pub, _, err := wireguard.GetKeys("")
+				return pub, err
+			}
+		}
+		pubKey, err := getKey()
 		if err != nil {
 			http.Error(w, "cannot get public key", http.StatusInternalServerError)
 			return

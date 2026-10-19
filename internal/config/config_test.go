@@ -173,9 +173,54 @@ func TestServerConfig(t *testing.T) {
 					{Server: "https://idp.example.com", ClientID: "client_id"},
 				},
 				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    DefaultMaxLeasesPerUser,
 			},
 			false,
 			false,
+		},
+		{
+			// Explicit limit of leases per user
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"allowedIPs": ["192.168.1.0/24"],
+				"endpoint": "1.2.3.4:1234",
+				"maxLeasesPerUser": 5,
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
+			}`),
+			&ServerConfig{
+				Address:             "10.0.0.1/24",
+				AllowedIPs:          []string{"192.168.1.0/24", "10.0.0.1/32"},
+				DeviceName:          "wg0",
+				Endpoint:            "1.2.3.4:1234",
+				KeyFilename:         defaultKeyFilename,
+				LeaserSyncInterval:  defaultLeaserSyncInterval,
+				LeasesFilename:      defaultLeasesFilename,
+				WireguardIPPrefix:   ipPrefix,
+				WireguardListenPort: 1234,
+				OauthServers: []OAuthServerConfig{
+					{Server: "https://idp.example.com", ClientID: "client_id"},
+				},
+				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    5,
+			},
+			false,
+			false,
+		},
+		{
+			// Negative limit of leases per user
+			[]byte(`{
+				"address": "10.0.0.1/24",
+				"endpoint": "1.2.3.4:1234",
+				"maxLeasesPerUser": -1,
+				"oauthServers": [
+					{"server": "https://idp.example.com", "clientID": "client_id"}
+				]
+			}`),
+			nil,
+			false,
+			true,
 		},
 		{
 			// Multiple issuers configured
@@ -203,6 +248,7 @@ func TestServerConfig(t *testing.T) {
 					{Server: "https://idp2.example.com", ClientID: "client_id_2"},
 				},
 				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    DefaultMaxLeasesPerUser,
 			},
 			false,
 			false,
@@ -235,6 +281,7 @@ func TestServerConfig(t *testing.T) {
 					{Server: "https://idp.example.com", ClientID: "client_id"},
 				},
 				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    DefaultMaxLeasesPerUser,
 			},
 			false,
 			false,
@@ -317,6 +364,7 @@ func TestServerConfig(t *testing.T) {
 					{Server: "https://idp.example.com", ClientID: "client_id"},
 				},
 				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    DefaultMaxLeasesPerUser,
 			},
 			true,
 			false,
@@ -359,6 +407,7 @@ func TestServerConfig(t *testing.T) {
 					{Server: "https://idp.example.com", ClientID: "client_id"},
 				},
 				ServerListenAddress: "0.0.0.0:8080",
+				MaxLeasesPerUser:    DefaultMaxLeasesPerUser,
 			},
 			true,
 			false,
