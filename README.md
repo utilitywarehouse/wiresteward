@@ -83,6 +83,30 @@ package](https://git.zx2c4.com/wireguard-go/tree/device/tun.go#n14).
 Optionally, MTU can be set explicitly per wg device created by the agent via
 the configuration file (using the "MTU" key under device config)
 
+#### Device id
+
+The agent identifies itself to the servers with a device id, a UUID that it
+creates on first start and keeps in a file. The servers keep a lease per user
+and device id, see [Leases per user](#leases-per-user), so a restart of the
+agent keeps its lease and several devices of a user can be connected at the
+same time.
+
+The file is set with `-device-id-file` and is
+`/var/lib/wiresteward/device-id` by default, next to the oauth token whose
+location is set with `-token-file`. The agent does not start when it cannot read
+or create the file, or create the directory of the token, so the directories
+have to be writable by the user that runs it. It does not start either when the
+file has other content than a UUID, with or without dashes, braces or a
+`urn:uuid:` prefix, and it does not replace it. An empty file is replaced.
+Delete the file to give the agent a new identity, which takes a new lease.
+
+Every installation needs its own id. Machines that share the file share a lease
+and keep replacing each other's, so do not copy the file to another machine, and
+remove it before taking an image of a machine or cloning a virtual machine.
+
+The agent also sends its version, operating system and architecture as its
+`User-Agent`, which the servers show as the client of a peer.
+
 ### Running as Systemd service (Linux)
 
 The agent is designed to run as a Systemd service. An example working service

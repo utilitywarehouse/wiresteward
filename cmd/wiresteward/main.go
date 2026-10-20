@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -28,6 +29,7 @@ var (
 	// looking wiresteward initials hex on ascii table (w = 0x77 and s = 0x73)
 	flagAgentAddress = flag.String("agent-listen-address", "localhost:7773", "Address where the agent http server runs.\nThe URL http://<agent-listen-address>/oauth2/callback must be a valid callback url for the oauth2 application.")
 	flagConfig       = flag.String("config", "/etc/wiresteward/config.json", "Config file")
+	flagDeviceIDFile = flag.String("device-id-file", "/var/lib/wiresteward/device-id", "File where the agent keeps the device id that identifies it to the servers.\nThe agent does not start if it cannot read or create it.")
 	flagDeviceType   = flag.String("device-type", "", "Type of the network device to use for the agent, 'tun' or 'wireguard'.\nThe tun device relies on the wireguard-go userspace implementation that is compatible with all platforms.\nA wireguard device relies on wireguard-enabled linux kernels (5.6 or newer or wireguard-dkms module + Linux headers).")
 	flagLogLevel     = flag.String("log-level", "error", "Log Level (debug|error)")
 	flagMetricsAddr  = flag.String("metrics-address", ":8081", "Metrics server address, meaningful when combined with -server flag")
@@ -35,6 +37,12 @@ var (
 	flagTokenFile    = flag.String("token-file", "/var/lib/wiresteward/token", "File where the agent stores the oauth token")
 	flagVersion      = flag.Bool("version", false, "Prints out application version")
 )
+
+// agentUserAgent is the User-Agent of the agent: its version, the operating
+// system and the architecture. Servers expose it as the client of a peer.
+func agentUserAgent(version string) string {
+	return fmt.Sprintf("wiresteward-agent/%s (%s; %s)", version, runtime.GOOS, runtime.GOARCH)
+}
 
 func main() {
 	flag.Parse()
@@ -81,7 +89,7 @@ func main() {
 	}
 
 	if *flagAgent {
-		userAgent = "wiresteward-agent/" + version
+		userAgent = agentUserAgent(version)
 		logger.Verbosef("running as agent version=%s go=%s\n", version, buildInfo.GoVersion)
 		runAgent()
 		return
@@ -118,12 +126,17 @@ func runAgent() {
 	signal.Notify(term, syscall.SIGTERM)
 	signal.Notify(term, os.Interrupt)
 
-	a := agent.NewAgent(agentConf, agent.Options{
+	a, err := agent.NewAgent(agentConf, agent.Options{
 		DeviceType:    *flagDeviceType,
 		ListenAddress: *flagAgentAddress,
 		UserAgent:     userAgent,
 		TokenFile:     *flagTokenFile,
+		DeviceIDFile:  *flagDeviceIDFile,
 	})
+	if err != nil {
+		logger.Errorf("Cannot start the agent: %v", err)
+		os.Exit(1)
+	}
 	go func() {
 		a.ListenAndServe()
 		close(term)

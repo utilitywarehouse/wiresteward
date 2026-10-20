@@ -44,6 +44,7 @@ type Backend interface {
 type DeviceManager struct {
 	device.Device
 	backend              Backend // optional, replaces the default device setup
+	deviceID             string  // identifies this installation to the servers, can be empty
 	userAgent            string
 	cachedToken          string // cache the token on every renew lease request in case we need to use it on a renewal triggered by healthchecks
 	tokenMutex           sync.RWMutex
@@ -62,7 +63,7 @@ type DeviceManager struct {
 	httpClientTimeout    config.Duration
 }
 
-func New(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout config.Duration, hcc config.AgentHealthCheckConfig, deviceType, userAgent string) *DeviceManager {
+func New(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout config.Duration, hcc config.AgentHealthCheckConfig, deviceType, deviceID, userAgent string) *DeviceManager {
 	var dev device.Device
 	if deviceType == "wireguard" {
 		dev = device.NewWireguardDevice(deviceName, mtu)
@@ -71,6 +72,7 @@ func New(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout
 	}
 	return &DeviceManager{
 		Device:               dev,
+		deviceID:             deviceID,
 		userAgent:            userAgent,
 		serverURLs:           wirestewardURLs,
 		backoff:              backoff.New(1*time.Second, 64*time.Second, 2),
@@ -84,8 +86,8 @@ func New(deviceName string, mtu int, wirestewardURLs []string, httpClientTimeout
 }
 
 // NewWithBackend is like New but the device is set up through the backend.
-func NewWithBackend(backend Backend, wirestewardURLs []string, httpClientTimeout config.Duration, hcc config.AgentHealthCheckConfig, userAgent string) *DeviceManager {
-	dm := New(backend.Name(), 0, wirestewardURLs, httpClientTimeout, hcc, "", userAgent)
+func NewWithBackend(backend Backend, wirestewardURLs []string, httpClientTimeout config.Duration, hcc config.AgentHealthCheckConfig, deviceID, userAgent string) *DeviceManager {
+	dm := New(backend.Name(), 0, wirestewardURLs, httpClientTimeout, hcc, "", deviceID, userAgent)
 	dm.Device = backend
 	dm.backend = backend
 	return dm
@@ -259,7 +261,7 @@ func (dm *DeviceManager) renewLease() error {
 	if serverURL == "" {
 		return fmt.Errorf("No healthy servers found for device: %s", dm.Name())
 	}
-	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey, dm.userAgent, dm.httpClientTimeout)
+	config, wgServerAddr, err := requestWirestewardPeerConfig(serverURL, token, publicKey, dm.deviceID, dm.userAgent, dm.httpClientTimeout)
 	if err != nil {
 		// Clear current server so the next retry picks a random one.
 		dm.currentServerURL = ""
@@ -396,9 +398,9 @@ func newWirestewardPeerConfigFromLeaseResponse(lr *api.LeaseResponse) (*Wirestew
 	}, lr.ServerWireguardIP, nil
 }
 
-func requestWirestewardPeerConfig(serverURL, token, publicKey, userAgent string, timeout config.Duration) (*WirestewardPeerConfig, string, error) {
+func requestWirestewardPeerConfig(serverURL, token, publicKey, deviceID, userAgent string, timeout config.Duration) (*WirestewardPeerConfig, string, error) {
 	// Marshal key into json
-	r, err := json.Marshal(&api.LeaseRequest{PubKey: publicKey})
+	r, err := json.Marshal(&api.LeaseRequest{PubKey: publicKey, DeviceID: deviceID})
 	if err != nil {
 		return nil, "", fmt.Errorf("requestWirestewardPeerConfig(%s): marshal request: %w", serverURL, err)
 	}
