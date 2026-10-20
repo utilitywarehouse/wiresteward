@@ -97,6 +97,9 @@ func newDeviceID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
+// linkFile is os.Link, replaced in tests.
+var linkFile = os.Link
+
 // writeFileAtomically stores the content in the file, so that a crash never
 // leaves a partial file: it is written and synced under another name, which is
 // then put in place, and the directory is synced. The file is only readable by
@@ -123,7 +126,7 @@ func writeFileAtomically(path string, content []byte, exclusive bool) (bool, err
 	}
 
 	if exclusive {
-		err := os.Link(tmp.Name(), path)
+		err := linkFile(tmp.Name(), path)
 		switch {
 		case err == nil:
 			syncDir(dir)
@@ -131,11 +134,15 @@ func writeFileAtomically(path string, content []byte, exclusive bool) (bool, err
 		case errors.Is(err, os.ErrExist):
 			return false, nil
 		case !errors.Is(err, syscall.EPERM) && !errors.Is(err, syscall.ENOTSUP) &&
-			!errors.Is(err, syscall.EXDEV) && !errors.Is(err, syscall.ENOSYS):
+			!errors.Is(err, syscall.EXDEV) && !errors.Is(err, syscall.ENOSYS) &&
+			!errors.Is(err, syscall.EACCES):
 			return false, err
 		}
-		// The file system has no hard links: fall back to a rename, which
-		// does not tell a file that was created in the meantime.
+		// Hard links are not available, the file system has none or the
+		// platform denies them (EACCES, the SELinux policy of Android
+		// apps): fall back to a rename, which does not tell a file that was
+		// created in the meantime. The temporary file was created in the
+		// same directory, so a rename is not denied by its permissions.
 	}
 	if err := os.Rename(tmp.Name(), path); err != nil {
 		return false, err
