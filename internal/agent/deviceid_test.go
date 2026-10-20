@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -240,4 +241,34 @@ func TestLoadOrCreateDeviceID_LeavesNoTemporaryFiles(t *testing.T) {
 		names = append(names, e.Name())
 	}
 	assert.Equal(t, []string{"device-id"}, names)
+}
+
+// Some platforms deny hard links (the SELinux policy of Android apps answers
+// EACCES), the id is stored with a rename there.
+func TestLoadOrCreateDeviceID_WorksWithoutHardLinks(t *testing.T) {
+	for _, errno := range []syscall.Errno{syscall.EACCES, syscall.EPERM, syscall.ENOTSUP, syscall.EXDEV, syscall.ENOSYS} {
+		t.Run(errno.Error(), func(t *testing.T) {
+			defer func(l func(string, string) error) { linkFile = l }(linkFile)
+			linkFile = func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: errno} }
+
+			dir := t.TempDir()
+			path := filepath.Join(dir, "device-id")
+			id, err := loadOrCreateDeviceID(path)
+			assert.NoError(t, err)
+			assert.Regexp(t, deviceIDRegexp, id)
+			again, err := loadOrCreateDeviceID(path)
+			assert.NoError(t, err)
+			assert.Equal(t, id, again)
+			entries, _ := os.ReadDir(dir)
+			assert.Len(t, entries, 1, "no temporary files are left")
+		})
+	}
+}
+
+func TestWriteFileAtomically_LinkErrorsOtherThanDeniedAreReturned(t *testing.T) {
+	defer func(l func(string, string) error) { linkFile = l }(linkFile)
+	linkFile = func(old, new string) error { return &os.LinkError{Op: "link", Old: old, New: new, Err: syscall.EIO} }
+	created, err := writeFileAtomically(filepath.Join(t.TempDir(), "device-id"), []byte("x\n"), true)
+	assert.Error(t, err)
+	assert.False(t, created)
 }
