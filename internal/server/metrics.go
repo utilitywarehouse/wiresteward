@@ -1,8 +1,8 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -226,7 +226,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func startMetricsServer(metricsAddr string) {
+func startMetricsServer(metricsAddr string, errCh chan<- error) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	server := http.Server{
@@ -235,7 +235,6 @@ func startMetricsServer(metricsAddr string) {
 	}
 	logger.Verbosef("Starting metrics server at %s\n", metricsAddr)
 	if err := server.ListenAndServe(); err != nil {
-		logger.Errorf("%v", err)
-		os.Exit(1)
+		errCh <- fmt.Errorf("cannot start metrics server at %s: %w", metricsAddr, err)
 	}
 }

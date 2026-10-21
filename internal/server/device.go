@@ -54,8 +54,27 @@ func newServerDevice(cfg *config.ServerConfig) *ServerDevice {
 	}
 }
 
-// Start will create and setup the wireguard device.
+// Start will create and setup the wireguard device. If any step fails it
+// attempts to remove the device and rule again, so a failed start does not
+// leave behind state that would make the next start fail.
 func (sd *ServerDevice) Start() error {
+	err := sd.start()
+	if err != nil {
+		if stopErr := sd.Stop(); stopErr != nil {
+			err = errors.Join(
+				err,
+				fmt.Errorf(
+					"cannot clean up after failed setup of '%s': %w",
+					sd.link.Attrs().Name,
+					stopErr,
+				),
+			)
+		}
+	}
+	return err
+}
+
+func (sd *ServerDevice) start() error {
 	ipt, err := iptables.New()
 	if err != nil {
 		return err
@@ -72,7 +91,30 @@ func (sd *ServerDevice) Start() error {
 		sd.deviceAddress,
 	)
 	if err := h.LinkAdd(sd.link); err != nil {
-		return err
+		if !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		// A previous run that died before it could clean up left its device
+		// behind, and refusing to start would keep the server down until an
+		// operator removes it.
+		logger.Verbosef(
+			"Device %s already exists, removing it",
+			sd.link.Attrs().Name,
+		)
+		// Delete through a separate struct: netlink caches the index of the
+		// link it deletes on the struct passed in, and every later call on
+		// sd.link would then address the removed device instead of the one
+		// added below.
+		existing, err := h.LinkByName(sd.link.Attrs().Name)
+		if err != nil {
+			return err
+		}
+		if err := h.LinkDel(existing); err != nil && !isLinkGone(err) {
+			return err
+		}
+		if err := h.LinkAdd(sd.link); err != nil {
+			return err
+		}
 	}
 	if err := sd.ensureLinkIsUp(h); err != nil {
 		return err
@@ -104,26 +146,47 @@ func (sd *ServerDevice) Start() error {
 	return nil
 }
 
-// Stop will cleanup and delete the wireguard device.
+// Stop will cleanup and delete the wireguard device. A device or rule that is
+// already gone counts as cleaned up, and it makes every attempt at cleanup
+// before reporting, so it is safe to call on a partially setup server.
 func (sd *ServerDevice) Stop() error {
 	h := netlink.Handle{}
 	defer h.Delete()
-	if err := h.LinkSetDown(sd.link); err != nil {
-		return err
-	}
-	if err := h.LinkDel(sd.link); err != nil {
-		return err
+	var errs []error
+	link, err := h.LinkByName(sd.link.Attrs().Name)
+	switch {
+	case err == nil:
+		if err := h.LinkSetDown(link); err != nil && !isLinkGone(err) {
+			errs = append(errs, err)
+		}
+		if err := h.LinkDel(link); err != nil && !isLinkGone(err) {
+			errs = append(errs, err)
+		}
+	case isLinkGone(err):
+	default:
+		errs = append(errs, err)
 	}
 	ipt, err := iptables.New()
 	if err != nil {
-		return err
+		return errors.Join(append(errs, err)...)
 	}
 	logger.Verbosef("Removing iptables rule %v", sd.iptablesRule)
-	if err := ipt.Delete("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
-		return err
+	if err := ipt.DeleteIfExists("nat", "POSTROUTING", sd.iptablesRule...); err != nil {
+		errs = append(errs, err)
 	}
-	logger.Verbosef("Cleaned up device %s", sd.link.Attrs().Name)
-	return nil
+	if len(errs) == 0 {
+		logger.Verbosef("Cleaned up device %s", sd.link.Attrs().Name)
+	}
+	return errors.Join(errs...)
+}
+
+// isLinkGone reports whether err means the link is not there, which cleanup
+// treats as already done.
+func isLinkGone(err error) bool {
+	var notFound netlink.LinkNotFoundError
+	return errors.As(err, &notFound) ||
+		errors.Is(err, os.ErrNotExist) ||
+		errors.Is(err, unix.ENODEV)
 }
 
 func (sd *ServerDevice) privateKey() (wgtypes.Key, error) {

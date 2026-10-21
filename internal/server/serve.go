@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -119,12 +118,15 @@ func (lh *HTTPLeaseHandler) newPeerLease(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (lh *HTTPLeaseHandler) start() {
+func (lh *HTTPLeaseHandler) start(errCh chan<- error) {
 	http.HandleFunc("/newPeerLease", lh.newPeerLease)
 
 	logger.Verbosef("Starting server for lease requests")
 	if err := http.ListenAndServe(lh.serverConfig.ServerListenAddress, nil); err != nil {
-		logger.Errorf("%v", err)
-		os.Exit(1)
+		errCh <- fmt.Errorf(
+			"cannot start lease server at %s: %w",
+			lh.serverConfig.ServerListenAddress,
+			err,
+		)
 	}
 }

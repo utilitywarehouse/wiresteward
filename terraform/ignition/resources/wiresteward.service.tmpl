@@ -3,8 +3,14 @@ Description=wiresteward server
 After=docker.service network-online.target nss-lookup.target
 Requires=docker.service
 Wants=network-online.target nss-lookup.target
+# The server calls the oauth server on startup, so it fails when the network is
+# not up yet. Those failures only clear when the network appears, so retry
+# forever, slowly enough that a permanently broken config does not flood the
+# journal.
+StartLimitIntervalSec=0
 [Service]
 Restart=on-failure
+RestartSec=15s
 ExecStart=/bin/sh -c 'docker run --name=%p_$(uuidgen) --rm \
  --net=host \
  --cap-add=NET_ADMIN \
