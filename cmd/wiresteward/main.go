@@ -112,7 +112,10 @@ func runServer() {
 		os.Exit(1)
 	}
 
-	server.Run(cfg, *flagMetricsAddr, userAgent)
+	if err := server.Run(cfg, *flagMetricsAddr, userAgent); err != nil {
+		logger.Errorf("server: %v", err)
+		os.Exit(1)
+	}
 }
 
 func runAgent() {
