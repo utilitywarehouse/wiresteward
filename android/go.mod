@@ -7,7 +7,7 @@ replace github.com/utilitywarehouse/wiresteward => ../
 require (
 	github.com/stretchr/testify v1.12.1
 	github.com/utilitywarehouse/wiresteward v0.0.0-00010101000000-000000000000
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.zx2c4.com/wireguard v0.0.0-20261006164505-2631ce99a06f
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 )
